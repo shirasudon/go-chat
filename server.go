@@ -71,6 +71,10 @@ func (s *Server) doneRoom(r *Room) {
 // it blocks until process occurs any error and
 // return the error.
 func (s *Server) ListenAndServe() error {
+	if err := s.conf.validate(); err != nil {
+		return err
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	s.ctx = ctx
 	defer cancel()
@@ -89,6 +93,7 @@ func (s *Server) ListenAndServe() error {
 
 func (s *Server) routingRoom(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
+	log.Println("routingRoom: " + r.URL.String())
 
 	room_id := strings.TrimPrefix(r.URL.Path, s.conf.WebSocketPath)
 	if len(room_id) > 0 && !strings.Contains(room_id, "/") {

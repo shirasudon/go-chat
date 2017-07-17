@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -21,12 +22,22 @@ type Config struct {
 
 const (
 	DefaultHTTP          = "localhost:8080"
-	DefaultWebSocketPath = "/chat/ws"
+	DefaultWebSocketPath = "/chat/ws/"
 )
 
 var DefaultConfig = Config{
 	HTTP:          DefaultHTTP,
 	WebSocketPath: DefaultWebSocketPath,
+}
+
+func (c Config) validate() error {
+	if len(c.WebSocketPath) == 0 {
+		return fmt.Errorf("WebSocketPath must have any content")
+	}
+	if !strings.HasSuffix(c.WebSocketPath, "/") {
+		return fmt.Errorf("WebSocketPath must end by / but %s", c.WebSocketPath)
+	}
+	return nil
 }
 
 // it loads the configuration from file.
