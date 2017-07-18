@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/mzki/chat"
 	"log"
+
+	"github.com/mzki/chat"
 )
 
 func main() {

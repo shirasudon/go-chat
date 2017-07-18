@@ -32,7 +32,7 @@ func NewServer(conf *Config) *Server {
 
 	s := &Server{
 		server: &http.Server{},
-		ctx:    nil, // set later at ListenAndServe()
+		ctx:    context.Background(),
 		mutex:  new(sync.RWMutex),
 		rooms:  make(map[string]*Room, 4),
 		conf:   *conf,
@@ -42,6 +42,8 @@ func NewServer(conf *Config) *Server {
 }
 
 func (s *Server) acceptRoom(ws *websocket.Conn) {
+	defer ws.Close()
+
 	log.Println("Server.acceptRoom: " + ws.Request().URL.String())
 	room_id := path.Base(ws.Request().URL.Path)
 
@@ -76,7 +78,7 @@ func (s *Server) ListenAndServe() error {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	s.ctx = ctx
+	s.ctx = ctx // overwrite context to propagate cancel siganl to others.
 	defer cancel()
 
 	serverURL := s.conf.HTTP
@@ -92,7 +94,6 @@ func (s *Server) ListenAndServe() error {
 }
 
 func (s *Server) routingRoom(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
 	log.Println("routingRoom: " + r.URL.String())
 
 	room_id := strings.TrimPrefix(r.URL.Path, s.conf.WebSocketPath)

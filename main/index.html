@@ -13,7 +13,6 @@
 
     function testWebSocket() { 
         websocket = new WebSocket(wsUri); 
-        console.log("make websocket");
         websocket.onopen = function(evt) { 
             onOpen(evt) 
         }; 
@@ -63,12 +62,25 @@
     }  
 
     window.addEventListener("load", init, false);
+
+    function onClick() {
+        var inputtext = document.getElementById("inputtext");
+        doSend(inputtext.value);
+        inputtext.value = "";
+    }
     </script>
 </head>
 <body>
 
     <h2>WebSocket Test</h2>  
     <div id="output"></div>
+
+    <div id="sender">
+        <form>
+            <input type="text" id="inputtext"/>
+            <input type="button" onclick="onClick();" value="send!" />
+        </form>
+    </div>
 
 </body>
 </html>
