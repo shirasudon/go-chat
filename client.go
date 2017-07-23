@@ -2,35 +2,35 @@ package chat
 
 import (
 	"context"
+	"errors"
 	"io"
 
 	"golang.org/x/net/websocket"
 )
 
+// Client is end-point for reading/writing messages from/to websocket.
+// One Client corresponds to one browser-side client.
 type Client struct {
-	conn *websocket.Conn
+	userID int64
+	conn   *websocket.Conn
 
-	messages chan Message
+	messages chan interface{}
 
-	onMessage func(*Client, Message)
-	onClosed  func(*Client)
-	onError   func(*Client, error)
-
-	id   int64
-	name string
+	onChatMessage func(*Client, ChatMessage)
+	onClosed      func(*Client)
+	onError       func(*Client, error)
 }
 
-func NewClient(conn *websocket.Conn) *Client {
+func NewClient(conn *websocket.Conn, userID int64) *Client {
 	return &Client{
+		userID:   userID,
 		conn:     conn,
-		messages: make(chan Message, 1),
+		messages: make(chan interface{}, 1),
 	}
 }
 
-func (c *Client) setID(id int64) {
-	c.id = id
-}
-
+// Listen starts handing reading/writing websocket.
+// it blocks until websocket is closed or context is done.
 func (c *Client) Listen(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -41,14 +41,14 @@ func (c *Client) Listen(ctx context.Context) {
 func (c *Client) sendPump(ctx context.Context) {
 	for {
 		select {
+		case <-ctx.Done():
+			return
 		case m := <-c.messages:
 			err := websocket.JSON.Send(c.conn, &m)
-			if err != nil {
+			if err == io.EOF {
 				// closing connection is done by readPump, so no-op.
 				return
 			}
-		case <-ctx.Done():
-			return
 		}
 	}
 }
@@ -59,14 +59,10 @@ func (c *Client) receivePump(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			var msg Message
-			err := websocket.JSON.Receive(c.conn, &msg)
+			err := c.handleClientMessage()
 			switch err {
 			case nil:
-				// Receive success
-				if c.onMessage != nil {
-					c.onMessage(c, msg)
-				}
+				// Receive success, no-op
 			case io.EOF:
 				// connection is closed
 				if c.onClosed != nil {
@@ -82,6 +78,33 @@ func (c *Client) receivePump(ctx context.Context) {
 	}
 }
 
-func (c *Client) Send(m Message) {
-	c.messages <- m
+func (c *Client) handleClientMessage() error {
+	var message Message
+	if err := websocket.JSON.Receive(c.conn, &message); err != nil {
+		return err
+	}
+
+	action, ok := message[KeyAction].(string)
+	if !ok {
+		return errors.New("got json without action field")
+	}
+	c.handleArbitrayValue(message, Action(action))
+	return nil
+}
+
+func (c *Client) handleArbitrayValue(v Message, action Action) {
+	switch action {
+	case ActionChatMessage:
+		message := ParseChatMessage(v, action)
+		if c.onChatMessage != nil {
+			c.onChatMessage(c, message)
+		}
+	default:
+		// TODO implement
+	}
+}
+
+// Send aribitrary value to browser-side client.
+func (c *Client) Send(v interface{}) {
+	c.messages <- v
 }

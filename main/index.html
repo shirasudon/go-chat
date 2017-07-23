@@ -48,6 +48,7 @@
     function doSend(message) { 
         writeToScreen("SENT: " + message);
         var jsonData={
+            action:"CHAT_MESSAGE",
             content:message,
         };
 

@@ -9,12 +9,15 @@ import (
 	"sync"
 
 	"golang.org/x/net/websocket"
+
+	"github.com/labstack/echo"
+	"github.com/labstack/echo/middleware"
 )
 
 // it represents server which can accepts chat room and its clients.
 type Server struct {
-	server          *http.Server
 	websocketServer *websocket.Server
+	loginHandler    *LoginHandler
 
 	ctx context.Context
 
@@ -31,11 +34,11 @@ func NewServer(conf *Config) *Server {
 	}
 
 	s := &Server{
-		server: &http.Server{},
-		ctx:    context.Background(),
-		mutex:  new(sync.RWMutex),
-		rooms:  make(map[string]*Room, 4),
-		conf:   *conf,
+		loginHandler: NewLoginHandler(),
+		ctx:          context.Background(),
+		mutex:        new(sync.RWMutex),
+		rooms:        make(map[string]*Room, 4),
+		conf:         *conf,
 	}
 	s.websocketServer = &websocket.Server{Handler: websocket.Handler(s.acceptRoom)}
 	return s
@@ -57,7 +60,7 @@ func (s *Server) acceptRoom(ws *websocket.Conn) {
 	}
 	s.mutex.Unlock()
 
-	c := NewClient(ws)
+	c := NewClient(ws, 0) // TODO session's user.id
 	room.Join(c)
 	c.Listen(s.ctx) // blocking to avoid connection closed
 }
@@ -81,16 +84,22 @@ func (s *Server) ListenAndServe() error {
 	s.ctx = ctx // overwrite context to propagate cancel siganl to others.
 	defer cancel()
 
+	e := echo.New()
+	e.Use(middleware.Logger())
+	e.Use(middleware.Recover())
+
 	serverURL := s.conf.HTTP
 
-	handler := http.NewServeMux()
-	handler.Handle("/", http.FileServer(http.Dir("./")))
-	handler.HandleFunc(s.conf.WebSocketPath, s.routingRoom)
-	log.Println("WebSocket server listen at " + serverURL + s.conf.WebSocketPath)
+	e.Static("/", "")
+	e.GET(s.conf.WebSocketPath+"*", func(c echo.Context) error {
+		s.routingRoom(c.Response(), c.Request())
+		return nil
+	})
 
-	s.server.Addr = serverURL
-	s.server.Handler = handler
-	return s.server.ListenAndServe()
+	log.Println("WebSocket server listen at " + serverURL + s.conf.WebSocketPath)
+	err := e.Start(serverURL)
+	e.Logger.Error(err)
+	return err
 }
 
 func (s *Server) routingRoom(w http.ResponseWriter, r *http.Request) {

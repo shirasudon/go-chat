@@ -10,12 +10,10 @@ import (
 type Room struct {
 	name string
 
-	lastClientID int64
-
 	// event channels
 	joins    chan *Client
 	leaves   chan *Client
-	messages chan Message
+	messages chan ChatMessage
 	errors   chan error
 
 	onClosed func(*Room)
@@ -29,7 +27,7 @@ func NewRoom(name string) *Room {
 		name:     name,
 		joins:    make(chan *Client, 1),
 		leaves:   make(chan *Client, 1),
-		messages: make(chan Message, 1),
+		messages: make(chan ChatMessage, 1),
 		errors:   make(chan error, 1),
 
 		repo:    NewMessageRepositoryStub(),
@@ -78,7 +76,7 @@ func (room *Room) join(c *Client) {
 	// TODO how over wrapped client is handled?
 	room.clients[c] = true
 
-	c.onMessage = func(c *Client, m Message) {
+	c.onChatMessage = func(c *Client, m ChatMessage) {
 		room.messages <- m
 	}
 	c.onError = func(c *Client, err error) {
@@ -87,8 +85,6 @@ func (room *Room) join(c *Client) {
 	c.onClosed = func(c *Client) {
 		room.leaves <- c
 	}
-	c.setID(room.lastClientID)
-	room.lastClientID++
 
 	// send past messages to new client
 	msgs, err := room.repo.Get()
@@ -103,14 +99,14 @@ func (room *Room) join(c *Client) {
 
 func (room *Room) leave(c *Client) {
 	if _, exist := room.clients[c]; exist {
-		c.onMessage = nil
+		c.onChatMessage = nil
 		c.onError = nil
 		c.onClosed = nil
 		delete(room.clients, c)
 	}
 }
 
-func (room *Room) broadcast(m Message) {
+func (room *Room) broadcast(m ChatMessage) {
 	if err := room.repo.Put(m); err != nil {
 		room.errors <- err
 	}
@@ -119,7 +115,7 @@ func (room *Room) broadcast(m Message) {
 	}
 }
 
-func (room *Room) Send(m Message) {
+func (room *Room) Send(m ChatMessage) {
 	room.messages <- m
 }
 

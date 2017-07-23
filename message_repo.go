@@ -1,25 +1,25 @@
 package chat
 
 type MessageRepository interface {
-	Put(Message) error
-	Get() ([]Message, error)
+	Put(ChatMessage) error
+	Get() ([]ChatMessage, error)
 }
 
 type MessageRepositoryStub struct {
-	messages []Message
+	messages []ChatMessage
 }
 
 func NewMessageRepositoryStub() *MessageRepositoryStub {
 	return &MessageRepositoryStub{
-		messages: make([]Message, 0, 100),
+		messages: make([]ChatMessage, 0, 100),
 	}
 }
 
-func (repo *MessageRepositoryStub) Put(m Message) error {
+func (repo *MessageRepositoryStub) Put(m ChatMessage) error {
 	repo.messages = append(repo.messages, m)
 	return nil
 }
 
-func (repo *MessageRepositoryStub) Get() ([]Message, error) {
+func (repo *MessageRepositoryStub) Get() ([]ChatMessage, error) {
 	return repo.messages, nil
 }
