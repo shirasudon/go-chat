@@ -5,25 +5,31 @@ import (
 	"errors"
 	"io"
 
+	"github.com/mzki/chat/entity"
+
 	"golang.org/x/net/websocket"
 )
 
 // Client is end-point for reading/writing messages from/to websocket.
 // One Client corresponds to one browser-side client.
 type Client struct {
-	userID int64
-	conn   *websocket.Conn
+	userID   uint
+	userName string
+
+	conn *websocket.Conn
 
 	messages chan interface{}
 
+	onAnyMessage  func(*Client, interface{})
 	onChatMessage func(*Client, ChatMessage)
 	onClosed      func(*Client)
 	onError       func(*Client, error)
 }
 
-func NewClient(conn *websocket.Conn, userID int64) *Client {
+func NewClient(conn *websocket.Conn, user entity.User) *Client {
 	return &Client{
-		userID:   userID,
+		userID:   user.ID,
+		userName: user.Name,
 		conn:     conn,
 		messages: make(chan interface{}, 1),
 	}
@@ -88,20 +94,43 @@ func (c *Client) handleClientMessage() error {
 	if !ok {
 		return errors.New("got json without action field")
 	}
-	c.handleArbitrayValue(message, Action(action))
-	return nil
+	return c.handleArbitraryValue(message, Action(action))
 }
 
-func (c *Client) handleArbitrayValue(v Message, action Action) {
+func (c *Client) handleArbitraryValue(m Message, action Action) error {
 	switch action {
 	case ActionChatMessage:
-		message := ParseChatMessage(v, action)
+		message := ParseChatMessage(m, action)
 		if c.onChatMessage != nil {
 			c.onChatMessage(c, message)
 		}
+
+	case ActionReadMessage:
+		message := ParseReadMessage(m, action)
+		if c.onAnyMessage != nil {
+			c.onAnyMessage(c, message)
+		}
+
+	case ActionTypeStart:
+		typing := ParseTypeStart(m, action)
+		typing.SenderID = c.userID
+		typing.SenderName = c.userName
+		if c.onAnyMessage != nil {
+			c.onAnyMessage(c, typing)
+		}
+
+	case ActionTypeEnd:
+		typing := ParseTypeEnd(m, action)
+		typing.SenderID = c.userID
+		typing.SenderName = c.userName
+		if c.onAnyMessage != nil {
+			c.onAnyMessage(c, typing)
+		}
+
 	default:
-		// TODO implement
+		return errors.New("handleArbitrayValue: unknown action: " + string(action))
 	}
+	return nil
 }
 
 // Send aribitrary value to browser-side client.

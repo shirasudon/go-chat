@@ -10,7 +10,7 @@ import (
 )
 
 type UserForm struct {
-	UserID   string `json:"user_id" form:"user_id" query:"user_id"`
+	Name     string `json:"name" form:"name" query:"name"`
 	Password string `json:"password" form:"password" query:"password"`
 }
 
@@ -24,14 +24,14 @@ type LoginHandler struct {
 	userRepo entity.UserRepository
 
 	mu            *sync.RWMutex
-	loggedinUsers map[int64]entity.User
+	loggedinUsers map[uint]entity.User
 }
 
 func NewLoginHandler() *LoginHandler {
 	return &LoginHandler{
 		userRepo:      stub.UserRepository{},
 		mu:            new(sync.RWMutex),
-		loggedinUsers: make(map[int64]entity.User),
+		loggedinUsers: make(map[uint]entity.User),
 	}
 }
 
@@ -41,7 +41,7 @@ func (lh *LoginHandler) Login(c echo.Context) error {
 		return err
 	}
 
-	user, err := lh.userRepo.Get(u.UserID, u.Password)
+	user, err := lh.userRepo.Get(u.Name, u.Password)
 	if err != nil {
 		// TODO show error message as html.
 		return err
@@ -62,7 +62,7 @@ func (lh *LoginHandler) Login(c echo.Context) error {
 
 func (lh *LoginHandler) Logout(c echo.Context) error {
 	sess := session.Default(c)
-	id, ok := sess.Get(KeyUserTableID).(int64)
+	id, ok := sess.Get(KeyUserTableID).(uint)
 	if !ok {
 		return nil
 	}
@@ -86,7 +86,7 @@ func (lh *LoginHandler) LogoutPage(c echo.Context) error {
 }
 
 func (lh *LoginHandler) IsLoggedInRequest(c echo.Context) bool {
-	id, ok := session.Default(c).Get(KeyUserTableID).(int64)
+	id, ok := session.Default(c).Get(KeyUserTableID).(uint)
 	if !ok {
 		return false
 	}
@@ -98,7 +98,7 @@ func (lh *LoginHandler) IsLoggedInRequest(c echo.Context) bool {
 	return true
 }
 
-func (lh *LoginHandler) IsLoggedInUser(id int64) bool {
+func (lh *LoginHandler) IsLoggedInUser(id uint) bool {
 	lh.mu.RLock()
 	defer lh.mu.RUnlock()
 	_, loggedin := lh.loggedinUsers[id]

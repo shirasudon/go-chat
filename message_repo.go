@@ -1,7 +1,7 @@
 package chat
 
 type MessageRepository interface {
-	Put(ChatMessage) error
+	Put(ChatMessage) (registeredID uint, err error)
 	Get() ([]ChatMessage, error)
 }
 
@@ -15,9 +15,9 @@ func NewMessageRepositoryStub() *MessageRepositoryStub {
 	}
 }
 
-func (repo *MessageRepositoryStub) Put(m ChatMessage) error {
+func (repo *MessageRepositoryStub) Put(m ChatMessage) (registeredID uint, err error) {
 	repo.messages = append(repo.messages, m)
-	return nil
+	return uint(len(repo.messages)) - 1, nil
 }
 
 func (repo *MessageRepositoryStub) Get() ([]ChatMessage, error) {

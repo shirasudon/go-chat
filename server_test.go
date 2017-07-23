@@ -1,14 +1,17 @@
 package chat
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/net/websocket"
 )
 
+// create client-side conncetion for the websocket
 func createConn(requestPath, origin string) (*websocket.Conn, error) {
 	wsURL := strings.Replace(requestPath, "http://", "ws://", 1)
 	return websocket.Dial(wsURL, "", origin)
@@ -26,4 +29,44 @@ func TestServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close()
+
+	errCh := make(chan error)
+	go func() {
+		defer close(errCh)
+		// write to server
+		writeCM := ChatMessage{}
+		writeCM.Action = ActionChatMessage
+		if err := websocket.JSON.Send(conn, &writeCM); err != nil {
+			errCh <- err
+			return
+		}
+		// read from server
+		var readCM ChatMessage
+		if err := websocket.JSON.Receive(conn, &readCM); err != nil {
+			errCh <- err
+			return
+		}
+
+		// check same data
+		if readCM != writeCM {
+			errCh <- errors.New("different chat message")
+		}
+	}()
+
+	// set timeout for this test
+	timer := time.NewTimer(200 * time.Millisecond)
+	defer timer.Stop()
+
+	for {
+		select {
+		case err, ok := <-errCh:
+			if !ok {
+				return
+			}
+			t.Error(err)
+		case <-timer.C:
+			t.Error("testing timeout, please check error log")
+			return
+		}
+	}
 }

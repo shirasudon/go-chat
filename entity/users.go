@@ -1,15 +1,15 @@
 package entity
 
 type User struct {
-	ID       int64
-	UserID   string
+	ID       uint
+	Name     string
 	Password string
 }
 
 type UserRepository interface {
-	Get(userID string, password string) (User, error)
-	Set(userID string, password string) error
-	Exist(userID string, password string) bool
+	Get(name string, password string) (User, error)
+	Set(name string, password string) error
+	Exist(name string, password string) bool
 
 	Find(id int64) (User, error)
 }

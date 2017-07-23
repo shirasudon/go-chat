@@ -10,19 +10,19 @@ type UserRepository struct{}
 
 var ErrNotFound = errors.New("not found")
 
-func (repo UserRepository) Get(userID string, password string) (entity.User, error) {
-	if repo.Exist(userID, password) {
-		return entity.User{ID: 0, UserID: userID, Password: password}, nil
+func (repo UserRepository) Get(name string, password string) (entity.User, error) {
+	if repo.Exist(name, password) {
+		return entity.User{ID: 0, Name: name, Password: password}, nil
 	}
 	return entity.User{}, ErrNotFound
 }
 
-func (repo UserRepository) Set(userID string, password string) error {
+func (repo UserRepository) Set(name string, password string) error {
 	return nil
 }
 
-func (repo UserRepository) Exist(userID string, password string) bool {
-	return userID == "user" && password == "password"
+func (repo UserRepository) Exist(name string, password string) bool {
+	return name == "user" && password == "password"
 }
 
 func (repo UserRepository) Find(id int64) (entity.User, error) {

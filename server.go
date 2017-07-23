@@ -12,6 +12,7 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
+	"github.com/mzki/chat/entity"
 )
 
 // it represents server which can accepts chat room and its clients.
@@ -60,7 +61,7 @@ func (s *Server) acceptRoom(ws *websocket.Conn) {
 	}
 	s.mutex.Unlock()
 
-	c := NewClient(ws, 0) // TODO session's user.id
+	c := NewClient(ws, entity.User{}) // TODO session's user
 	room.Join(c)
 	c.Listen(s.ctx) // blocking to avoid connection closed
 }

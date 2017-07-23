@@ -1,7 +1,7 @@
 package entity
 
 type ChatMessage struct {
-	ID       int64  `json:"id,omitempty"`
+	ID       uint   `json:"id,omitempty"`
 	Content  string `json:"content,omitempty"`
 	SenderID int64  `json:"senderID,omitempty"`
 	RoomID   int64  `json:"roomID,omitempty"`
