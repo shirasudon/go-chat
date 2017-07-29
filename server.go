@@ -22,6 +22,8 @@ type Server struct {
 
 	ctx context.Context
 
+	repos entity.Repositories
+
 	mutex *sync.RWMutex
 	rooms map[string]*Room
 	conf  Config
@@ -29,7 +31,7 @@ type Server struct {
 
 // it returns new constructed server with config.
 // nil config is ok and use DefaultConfig insteadly.
-func NewServer(conf *Config) *Server {
+func NewServer(repos entity.Repositories, conf *Config) *Server {
 	if conf == nil {
 		conf = &DefaultConfig
 	}
@@ -37,6 +39,7 @@ func NewServer(conf *Config) *Server {
 	s := &Server{
 		loginHandler: NewLoginHandler(),
 		ctx:          context.Background(),
+		repos:        repos,
 		mutex:        new(sync.RWMutex),
 		rooms:        make(map[string]*Room, 4),
 		conf:         *conf,
@@ -85,11 +88,10 @@ func (s *Server) ListenAndServe() error {
 	s.ctx = ctx // overwrite context to propagate cancel siganl to others.
 	defer cancel()
 
+	// initilize router
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
-
-	serverURL := s.conf.HTTP
 
 	e.Static("/", "")
 	e.GET(s.conf.WebSocketPath+"*", func(c echo.Context) error {
@@ -97,6 +99,8 @@ func (s *Server) ListenAndServe() error {
 		return nil
 	})
 
+	// start server
+	serverURL := s.conf.HTTP
 	log.Println("WebSocket server listen at " + serverURL + s.conf.WebSocketPath)
 	err := e.Start(serverURL)
 	e.Logger.Error(err)
@@ -120,9 +124,9 @@ func (s *Server) routingRoom(w http.ResponseWriter, r *http.Request) {
 // A nil config is OK and use DefaultConfig insteadly.
 // It blocks until the process occurs any error and
 // return the error.
-func ListenAndServe(conf *Config) error {
+func ListenAndServe(repos entity.Repositories, conf *Config) error {
 	if conf == nil {
 		conf = &DefaultConfig
 	}
-	return NewServer(conf).ListenAndServe()
+	return NewServer(repos, conf).ListenAndServe()
 }

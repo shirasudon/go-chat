@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mzki/chat/entity"
+	_ "github.com/mzki/chat/entity/stub"
 	"golang.org/x/net/websocket"
 )
 
@@ -17,8 +19,14 @@ func createConn(requestPath, origin string) (*websocket.Conn, error) {
 	return websocket.Dial(wsURL, "", origin)
 }
 
+var repository entity.Repositories
+
+func init() {
+	repository, _ = entity.OpenRepositories("stub")
+}
+
 func TestServer(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(NewServer(nil).routingRoom))
+	ts := httptest.NewServer(http.HandlerFunc(NewServer(repository, nil).routingRoom))
 	defer ts.Close()
 
 	requestPath := ts.URL + "/chat/ws/room1"

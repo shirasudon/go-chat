@@ -1,33 +1,33 @@
 package entity
 
-type ChatMessage struct {
+type Message struct {
 	ID       uint   `json:"id,omitempty"`
 	Content  string `json:"content,omitempty"`
 	SenderID int64  `json:"senderID,omitempty"`
 	RoomID   int64  `json:"roomID,omitempty"`
 }
 
-type ChatMessageRepository interface {
-	GetFromRoom(roomID int64, n int) ([]ChatMessage, error)
-	AddToRoom(roomID int64, m ChatMessage) error
+type MessageRepository interface {
+	GetFromRoom(roomID int64, n int) ([]Message, error)
+	AddToRoom(roomID int64, m Message) error
 }
 
 type MessageRepositoryStub struct {
-	messages []ChatMessage
+	messages []Message
 }
 
 func NewMessageRepositoryStub() *MessageRepositoryStub {
 	return &MessageRepositoryStub{
-		messages: make([]ChatMessage, 0, 100),
+		messages: make([]Message, 0, 100),
 	}
 }
 
-func (repo *MessageRepositoryStub) AddToRoom(roomID, m ChatMessage) error {
+func (repo *MessageRepositoryStub) AddToRoom(roomID, m Message) error {
 	repo.messages = append(repo.messages, m)
 	return nil
 }
 
-func (repo *MessageRepositoryStub) GetFromRoom(roomID int64, n int) ([]ChatMessage, error) {
+func (repo *MessageRepositoryStub) GetFromRoom(roomID int64, n int) ([]Message, error) {
 	if n > len(repo.messages) {
 		n = len(repo.messages)
 	}

@@ -85,19 +85,18 @@ func (c *Client) receivePump(ctx context.Context) {
 }
 
 func (c *Client) handleClientMessage() error {
-	var message Message
+	var message AnyMessage
 	if err := websocket.JSON.Receive(c.conn, &message); err != nil {
 		return err
 	}
 
-	action, ok := message[KeyAction].(string)
-	if !ok {
-		return errors.New("got json without action field")
+	if action := message.Action(); action != ActionEmpty {
+		return c.handleArbitraryValue(message, Action(action))
 	}
-	return c.handleArbitraryValue(message, Action(action))
+	return errors.New("got json without action field")
 }
 
-func (c *Client) handleArbitraryValue(m Message, action Action) error {
+func (c *Client) handleArbitraryValue(m AnyMessage, action Action) error {
 	switch action {
 	case ActionChatMessage:
 		message := ParseChatMessage(m, action)

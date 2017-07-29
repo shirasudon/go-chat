@@ -6,7 +6,6 @@ import (
 	"github.com/ipfans/echo-session"
 	"github.com/labstack/echo"
 	"github.com/mzki/chat/entity"
-	"github.com/mzki/chat/entity/stub"
 )
 
 type UserForm struct {
@@ -29,7 +28,7 @@ type LoginHandler struct {
 
 func NewLoginHandler() *LoginHandler {
 	return &LoginHandler{
-		userRepo:      stub.UserRepository{},
+		userRepo:      entity.Users(),
 		mu:            new(sync.RWMutex),
 		loggedinUsers: make(map[uint]entity.User),
 	}

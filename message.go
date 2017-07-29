@@ -4,16 +4,29 @@ import (
 	"time"
 )
 
-// message is a payload through the websocket.
-type Message map[string]interface{}
+// AnyMessage is a arbitrary message through the websocket.
+type AnyMessage map[string]interface{}
+
+// key for the action field in AnyMessage.
+const KeyAction = "action"
+
+// get action from any message which indicates
+// what action is contained any message.
+// return empty action if no action exist.
+func (a AnyMessage) Action() Action {
+	if action, ok := a[KeyAction].(string); ok {
+		return Action(action)
+	}
+	return ActionEmpty
+}
 
 // Action indicates a action type for the JSON data schema.
 type Action string
 
-// key for the action field in JSON.
-const KeyAction = "action"
-
 const (
+	// no meaning action
+	ActionEmpty Action = ""
+
 	// server to front-end client
 	ActionUserConnect    Action = "USER_CONNECT"
 	ActionUserDisconnect Action = "USER_DISCONNECT"
@@ -41,7 +54,7 @@ type ChatMessage struct {
 	RoomID   uint   `json:"room_id,omitempty"`
 }
 
-func ParseChatMessage(m Message, action Action) ChatMessage {
+func ParseChatMessage(m AnyMessage, action Action) ChatMessage {
 	if action != ActionChatMessage {
 		panic("ParseChatMessage: invalid action")
 	}
@@ -61,7 +74,7 @@ type ReadMessage struct {
 	MessageIDs []uint `json:"message_ids,omitempty"`
 }
 
-func ParseReadMessage(m Message, action Action) ReadMessage {
+func ParseReadMessage(m AnyMessage, action Action) ReadMessage {
 	if action != ActionReadMessage {
 		panic("ParseReadMessage: invalid action")
 	}
@@ -80,7 +93,7 @@ type TypeStart struct {
 	StartAt    time.Time `json:"start_at,omitempty"`
 }
 
-func ParseTypeStart(m Message, action Action) TypeStart {
+func ParseTypeStart(m AnyMessage, action Action) TypeStart {
 	if action != ActionTypeStart {
 		panic("ParseTypeStart: invalid action")
 	}
@@ -100,7 +113,7 @@ type TypeEnd struct {
 	EndAt      time.Time `json:"end_at,omitempty"`
 }
 
-func ParseTypeEnd(m Message, action Action) TypeEnd {
+func ParseTypeEnd(m AnyMessage, action Action) TypeEnd {
 	if action != ActionTypeEnd {
 		panic("ParseTypeEnd: invalid action")
 	}
