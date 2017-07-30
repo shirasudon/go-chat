@@ -5,7 +5,7 @@ import (
 )
 
 func init() {
-	entity.RepositoryProducer = func(driverSourceName string) (entity.Repositories, error) {
+	entity.RepositoryProducer = func(string) (entity.Repositories, error) {
 		return repositories{}, nil
 	}
 }

@@ -11,5 +11,5 @@ type UserRepository interface {
 	Set(name string, password string) error
 	Exist(name string, password string) bool
 
-	Find(id int64) (User, error)
+	Find(id uint) (User, error)
 }

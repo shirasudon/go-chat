@@ -18,7 +18,7 @@ type Repositories interface {
 // it is used to generate specific Repositories in OpenRepositories.
 // the driverSourceName is typically dabase file name such as database.db,
 // or database.sqlite in sqlite.
-var RepositoryProducer func(driverSourceName string) (Repositories, error)
+var RepositoryProducer func(dataSourceName string) (Repositories, error)
 
 // Repo holds any Repositories.
 // it is initialized by importing other packages.
@@ -36,7 +36,7 @@ var RepositoryProducer func(driverSourceName string) (Repositories, error)
 //  userRepos := repos.Users()
 //
 //  repositories is cached and return it when OpenRepositories is called twice or above.
-func OpenRepositories(driverSourceName string) (Repositories, error) {
+func OpenRepositories(dataSourceName string) (Repositories, error) {
 	if repositories != nil {
 		return repositories, nil
 	}
@@ -47,7 +47,7 @@ func OpenRepositories(driverSourceName string) (Repositories, error) {
 you should import producer package such as github/mzki/chat/entity/stub`)
 	}
 	var err error
-	repositories, err = RepositoryProducer(driverSourceName)
+	repositories, err = RepositoryProducer(dataSourceName)
 	return repositories, err
 }
 

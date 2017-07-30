@@ -25,6 +25,6 @@ func (repo UserRepository) Exist(name string, password string) bool {
 	return name == "user" && password == "password"
 }
 
-func (repo UserRepository) Find(id int64) (entity.User, error) {
+func (repo UserRepository) Find(id uint) (entity.User, error) {
 	return entity.User{}, ErrNotFound
 }
