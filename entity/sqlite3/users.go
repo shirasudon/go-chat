@@ -49,9 +49,13 @@ func (repo *UserRepository) Get(name string, password string) (entity.User, erro
 	return u, err
 }
 
-func (repo *UserRepository) Set(name string, password string) error {
-	_, err := repo.insertByNameAndPassword.Exec(name, password)
-	return err
+func (repo *UserRepository) Set(name string, password string) (uint64, error) {
+	res, err := repo.insertByNameAndPassword.Exec(name, password)
+	if err != nil {
+		return 0, err
+	}
+	id, err := res.LastInsertId()
+	return uint64(id), err
 }
 
 func (repo *UserRepository) Exist(name string, password string) bool {
@@ -59,7 +63,7 @@ func (repo *UserRepository) Exist(name string, password string) bool {
 	return err == nil
 }
 
-func (repo *UserRepository) Find(id uint) (entity.User, error) {
+func (repo *UserRepository) Find(id uint64) (entity.User, error) {
 	u := entity.User{}
 	err := repo.findByID.Get(&u, id)
 	return u, err

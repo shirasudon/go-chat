@@ -48,10 +48,10 @@ type embdFields struct {
 // client and sends to other clients in the same room.
 type ChatMessage struct {
 	embdFields
-	ID       uint   `json:"id,omitempty"` // used only server->client
+	ID       uint64 `json:"id,omitempty"` // used only server->client
 	Content  string `json:"content,omitempty"`
-	SenderID uint   `json:"sender_id,omitempty"`
-	RoomID   uint   `json:"room_id,omitempty"`
+	SenderID uint64 `json:"sender_id,omitempty"`
+	RoomID   uint64 `json:"room_id,omitempty"`
 }
 
 func ParseChatMessage(m AnyMessage, action Action) ChatMessage {
@@ -61,8 +61,8 @@ func ParseChatMessage(m AnyMessage, action Action) ChatMessage {
 	cm := ChatMessage{}
 	cm.Action = action
 	cm.Content, _ = m["content"].(string)
-	cm.SenderID, _ = m["sender_id"].(uint)
-	cm.RoomID, _ = m["room_id"].(uint)
+	cm.SenderID, _ = m["sender_id"].(uint64)
+	cm.RoomID, _ = m["room_id"].(uint64)
 	return cm
 }
 
@@ -70,8 +70,8 @@ func ParseChatMessage(m AnyMessage, action Action) ChatMessage {
 // any user.
 type ReadMessage struct {
 	embdFields
-	SenderID   uint   `json:"sender_id,omitempty"`
-	MessageIDs []uint `json:"message_ids,omitempty"`
+	SenderID   uint64   `json:"sender_id,omitempty"`
+	MessageIDs []uint64 `json:"message_ids,omitempty"`
 }
 
 func ParseReadMessage(m AnyMessage, action Action) ReadMessage {
@@ -80,15 +80,15 @@ func ParseReadMessage(m AnyMessage, action Action) ReadMessage {
 	}
 	rm := ReadMessage{}
 	rm.Action = action
-	rm.SenderID, _ = m["sender_id"].(uint)
-	rm.MessageIDs, _ = m["message_ids"].([]uint)
+	rm.SenderID, _ = m["sender_id"].(uint64)
+	rm.MessageIDs, _ = m["message_ids"].([]uint64)
 	return rm
 }
 
 // TypeStart indicates user starts key typing.
 type TypeStart struct {
 	embdFields
-	SenderID   uint      `json:"sender_id,omitempty"`
+	SenderID   uint64    `json:"sender_id,omitempty"`
 	SenderName string    `json:"sender_name,omitempty"`
 	StartAt    time.Time `json:"start_at,omitempty"`
 }
@@ -108,7 +108,7 @@ func ParseTypeStart(m AnyMessage, action Action) TypeStart {
 // TypeEnd indicates user ends key typing.
 type TypeEnd struct {
 	embdFields
-	SenderID   uint      `json:"sender_id,omitempty"`
+	SenderID   uint64    `json:"sender_id,omitempty"`
 	SenderName string    `json:"sender_name,omitempty"`
 	EndAt      time.Time `json:"end_at,omitempty"`
 }

@@ -23,14 +23,14 @@ type LoginHandler struct {
 	userRepo entity.UserRepository
 
 	mu            *sync.RWMutex
-	loggedinUsers map[uint]entity.User
+	loggedinUsers map[uint64]entity.User
 }
 
 func NewLoginHandler() *LoginHandler {
 	return &LoginHandler{
 		userRepo:      entity.Users(),
 		mu:            new(sync.RWMutex),
-		loggedinUsers: make(map[uint]entity.User),
+		loggedinUsers: make(map[uint64]entity.User),
 	}
 }
 
@@ -61,7 +61,7 @@ func (lh *LoginHandler) Login(c echo.Context) error {
 
 func (lh *LoginHandler) Logout(c echo.Context) error {
 	sess := session.Default(c)
-	id, ok := sess.Get(KeyUserTableID).(uint)
+	id, ok := sess.Get(KeyUserTableID).(uint64)
 	if !ok {
 		return nil
 	}
@@ -85,7 +85,7 @@ func (lh *LoginHandler) LogoutPage(c echo.Context) error {
 }
 
 func (lh *LoginHandler) IsLoggedInRequest(c echo.Context) bool {
-	id, ok := session.Default(c).Get(KeyUserTableID).(uint)
+	id, ok := session.Default(c).Get(KeyUserTableID).(uint64)
 	if !ok {
 		return false
 	}
@@ -97,7 +97,7 @@ func (lh *LoginHandler) IsLoggedInRequest(c echo.Context) bool {
 	return true
 }
 
-func (lh *LoginHandler) IsLoggedInUser(id uint) bool {
+func (lh *LoginHandler) IsLoggedInUser(id uint64) bool {
 	lh.mu.RLock()
 	defer lh.mu.RUnlock()
 	_, loggedin := lh.loggedinUsers[id]

@@ -13,7 +13,7 @@ import (
 // Client is end-point for reading/writing messages from/to websocket.
 // One Client corresponds to one browser-side client.
 type Client struct {
-	userID   uint
+	userID   uint64
 	userName string
 
 	conn *websocket.Conn

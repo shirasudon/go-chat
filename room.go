@@ -3,6 +3,8 @@ package chat
 import (
 	"context"
 	"log"
+
+	"github.com/mzki/chat/entity"
 )
 
 // Room is a chat room which contains multiple
@@ -19,7 +21,7 @@ type Room struct {
 
 	onClosed func(*Room)
 
-	repo    MessageRepository
+	repo    entity.MessageRepository
 	clients map[*Client]bool
 }
 
@@ -32,7 +34,7 @@ func NewRoom(name string) *Room {
 		broadcasts: make(chan interface{}, 1),
 		errors:     make(chan error, 1),
 
-		repo:    NewMessageRepositoryStub(),
+		repo:    entity.Messages(),
 		clients: make(map[*Client]bool, 4),
 	}
 }
@@ -95,7 +97,7 @@ func (room *Room) join(c *Client) {
 	}
 
 	// send past messages to new client
-	msgs, err := room.repo.Get()
+	msgs, err := room.repo.LatestRoomMessages(nil, 0, 10)
 	if err != nil {
 		room.errors <- err
 		return
@@ -117,8 +119,13 @@ func (room *Room) leave(c *Client) {
 
 func (room *Room) broadcastChatMessage(m ChatMessage) {
 	var err error
-	if m.ID, err = room.repo.Put(m); err != nil {
+	if m.ID, err = room.repo.Save(entity.Message{
+		Content: m.Content,
+		UserID:  m.SenderID,
+		RoomID:  m.RoomID,
+	}); err != nil {
 		room.errors <- err
+		return
 	}
 	for c, _ := range room.clients {
 		c.Send(m)
