@@ -13,6 +13,7 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/mzki/chat/entity"
+	"github.com/mzki/chat/model"
 )
 
 // it represents server which can accepts chat room and its clients.
@@ -25,7 +26,7 @@ type Server struct {
 	repos entity.Repositories
 
 	mutex *sync.RWMutex
-	rooms map[string]*Room
+	rooms map[string]*model.Room
 	conf  Config
 }
 
@@ -41,7 +42,7 @@ func NewServer(repos entity.Repositories, conf *Config) *Server {
 		ctx:          context.Background(),
 		repos:        repos,
 		mutex:        new(sync.RWMutex),
-		rooms:        make(map[string]*Room, 4),
+		rooms:        make(map[string]*model.Room, 4),
 		conf:         *conf,
 	}
 	s.websocketServer = &websocket.Server{Handler: websocket.Handler(s.acceptRoom)}
@@ -57,23 +58,23 @@ func (s *Server) acceptRoom(ws *websocket.Conn) {
 	s.mutex.Lock()
 	room, exist := s.rooms[room_id]
 	if !exist {
-		room = NewRoom(room_id)
-		room.onClosed = s.doneRoom
+		room = model.NewRoom(room_id)
+		room.OnClosed = s.doneRoom
 		go room.Listen(s.ctx)
 		s.rooms[room_id] = room
 	}
 	s.mutex.Unlock()
 
-	c := NewClient(ws, entity.User{}) // TODO session's user
+	c := model.NewClient(ws, entity.User{}) // TODO session's user
 	room.Join(c)
 	c.Listen(s.ctx) // blocking to avoid connection closed
 }
 
-func (s *Server) doneRoom(r *Room) {
+func (s *Server) doneRoom(r *model.Room) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	r.onClosed = nil
-	delete(s.rooms, r.name)
+	r.OnClosed = nil
+	delete(s.rooms, r.Name())
 }
 
 // it starts server process.

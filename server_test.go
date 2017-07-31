@@ -10,6 +10,7 @@ import (
 
 	"github.com/mzki/chat/entity"
 	_ "github.com/mzki/chat/entity/stub"
+	"github.com/mzki/chat/model"
 	"golang.org/x/net/websocket"
 )
 
@@ -42,14 +43,14 @@ func TestServer(t *testing.T) {
 	go func() {
 		defer close(errCh)
 		// write to server
-		writeCM := ChatMessage{}
-		writeCM.Action = ActionChatMessage
+		writeCM := model.ChatMessage{}
+		writeCM.Action = model.ActionChatMessage
 		if err := websocket.JSON.Send(conn, &writeCM); err != nil {
 			errCh <- err
 			return
 		}
 		// read from server
-		var readCM ChatMessage
+		var readCM model.ChatMessage
 		if err := websocket.JSON.Receive(conn, &readCM); err != nil {
 			errCh <- err
 			return

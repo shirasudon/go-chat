@@ -1,4 +1,4 @@
-package chat
+package model
 
 import (
 	"context"
@@ -19,7 +19,7 @@ type Room struct {
 	broadcasts chan interface{}
 	errors     chan error
 
-	onClosed func(*Room)
+	OnClosed func(*Room)
 
 	repo    entity.MessageRepository
 	clients map[*Client]bool
@@ -39,12 +39,14 @@ func NewRoom(name string) *Room {
 	}
 }
 
+func (room *Room) Name() string { return room.name }
+
 func (room *Room) Listen(ctx context.Context) {
 	log.Printf("Room(%s).Listen", room.name)
 	ctx, cancel := context.WithCancel(ctx)
 	defer func() { // finalize actions.
-		if room.onClosed != nil {
-			room.onClosed(room)
+		if room.OnClosed != nil {
+			room.OnClosed(room)
 		}
 		cancel()
 	}()
