@@ -12,8 +12,8 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
-	"github.com/mzki/chat/entity"
-	"github.com/mzki/chat/model"
+	"github.com/mzki/go-chat/entity"
+	"github.com/mzki/go-chat/model"
 )
 
 // it represents server which can accepts chat room and its clients.

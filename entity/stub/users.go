@@ -3,7 +3,7 @@ package stub
 import (
 	"errors"
 
-	"github.com/mzki/chat/entity"
+	"github.com/mzki/go-chat/entity"
 )
 
 type UserRepository struct{}

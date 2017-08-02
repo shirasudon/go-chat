@@ -1,7 +1,7 @@
 package stub
 
 import (
-	"github.com/mzki/chat/entity"
+	"github.com/mzki/go-chat/entity"
 )
 
 func init() {

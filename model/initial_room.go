@@ -2,6 +2,10 @@ package model
 
 import (
 	"context"
+	"fmt"
+	"log"
+
+	"github.com/mzki/go-chat/entity"
 	"golang.org/x/net/websocket"
 )
 
@@ -30,7 +34,7 @@ type InitialRoom struct {
 	clientStates map[*Client]clientState
 }
 
-func NewInitialRoom() {
+func NewInitialRoom() *InitialRoom {
 	return &InitialRoom{
 		roomRequests: make(chan UserJoinRoom, 1),
 		joins:        make(chan *Client, 1),
@@ -73,8 +77,8 @@ func (iroom *InitialRoom) dispatchRoom(ctx context.Context, req UserJoinRoom) {
 	if !ok {
 		// TODO check existance for room using userID and roomID
 		c.Send(NewErrorMessage(fmt.Errorf("request room id(%d) is not found", req.RoomID)))
-		room = NewRoom()
-		go room.Listen(ctx)
+		// room = NewRoom()
+		// go room.Listen(ctx)
 	}
 	room.Join(c)
 }
@@ -91,7 +95,7 @@ func (iroom *InitialRoom) Join(ctx context.Context, conn *websocket.Conn, u enti
 		iroom.leaves <- closedC
 	}
 	c.onAnyMessage = func(gotC *Client, msg interface{}) {
-		iroom.messages <- msg
+		iroom.messages <- msg.(ActionMessage)
 	}
 	iroom.joins <- c
 	c.Listen(ctx)

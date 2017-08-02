@@ -56,10 +56,10 @@ const (
 
 // common fields for the websocket payload structs.
 type embdFields struct {
-	Action `json:"action,omitempty"`
+	ActionName Action `json:"action,omitempty"`
 }
 
-func (ef embdFields) Action() Action { return ef.Action }
+func (ef embdFields) Action() Action { return ef.ActionName }
 
 // Error message.
 // it implements ActionMessage interface.
@@ -69,7 +69,7 @@ type ErrorMessage struct {
 }
 
 func NewErrorMessage(err error) ErrorMessage {
-	return ErrorMessage{Action: ActionError, Error: err}
+	return ErrorMessage{embdFields: embdFields{ActionName: ActionError}, Error: err}
 }
 
 // ChatMessage is chat message which is recieved from a browser-side
@@ -88,7 +88,7 @@ func ParseChatMessage(m AnyMessage, action Action) ChatMessage {
 		panic("ParseChatMessage: invalid action")
 	}
 	cm := ChatMessage{}
-	cm.Action = action
+	cm.ActionName = action
 	cm.Content, _ = m["content"].(string)
 	cm.SenderID, _ = m["sender_id"].(uint64)
 	cm.RoomID, _ = m["room_id"].(uint64)
@@ -109,7 +109,7 @@ func ParseReadMessage(m AnyMessage, action Action) ReadMessage {
 		panic("ParseReadMessage: invalid action")
 	}
 	rm := ReadMessage{}
-	rm.Action = action
+	rm.ActionName = action
 	rm.SenderID, _ = m["sender_id"].(uint64)
 	rm.MessageIDs, _ = m["message_ids"].([]uint64)
 	return rm
@@ -129,7 +129,7 @@ func ParseTypeStart(m AnyMessage, action Action) TypeStart {
 		panic("ParseTypeStart: invalid action")
 	}
 	ts := TypeStart{}
-	ts.Action = action
+	ts.ActionName = action
 	// ts.SenderID, _ = m["sender_id"].(uint)
 	// ts.SenderName, _ = m["sender_name"].(string)
 	// ts.StartAt, _ = m["start_at"].(time.Time)
@@ -150,7 +150,7 @@ func ParseTypeEnd(m AnyMessage, action Action) TypeEnd {
 		panic("ParseTypeEnd: invalid action")
 	}
 	te := TypeEnd{}
-	te.Action = action
+	te.ActionName = action
 	// te.SenderID, _ = m["sender_id"].(uint)
 	// te.SenderName, _ = m["sender_name"].(string)
 	// te.EndAt, _ = m["end_at"].(time.Time)
@@ -171,7 +171,7 @@ func ParseUserJoinRoom(m AnyMessage, action Action) UserJoinRoom {
 		panic("ParseUserJoinRoom: invalid action")
 	}
 	v := UserJoinRoom{}
-	v.Action = action
+	v.ActionName = action
 	v.SenderID, _ = m["sender_id"].(uint64)
 	v.RoomID, _ = m["room_id"].(uint64)
 	return v

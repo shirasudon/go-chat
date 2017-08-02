@@ -3,7 +3,7 @@
 package main
 
 import (
-	"github.com/mzki/chat/entity/sqlite3"
+	"github.com/mzki/go-chat/entity/sqlite3"
 	"log"
 	"os"
 )

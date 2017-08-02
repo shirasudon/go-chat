@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/mzki/chat/entity"
+	"github.com/mzki/go-chat/entity"
 
 	"golang.org/x/net/websocket"
 )

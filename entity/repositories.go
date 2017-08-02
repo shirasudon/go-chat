@@ -24,15 +24,15 @@ var RepositoryProducer func(dataSourceName string) (Repositories, error)
 // it is initialized by importing other packages.
 // example:
 //  import (
-//    github.com/mzki/chat/entity
-//    _ github.com/mzki/chat/entity/stub
+//    github.com/mzki/go-chat/entity
+//    _ github.com/mzki/go-chat/entity/stub
 //  )
 //
 //  // open resistered Repositories.
 //  repos, err := entity.OpenRepositories("database.db")
 //
 //  // we can get stub repository from entity.Repos.
-//  // since it is initialized by importing github.com/mzki/chat/entity/stub
+//  // since it is initialized by importing github.com/mzki/go-chat/entity/stub
 //  userRepos := repos.Users()
 //
 //  repositories is cached and return it when OpenRepositories is called twice or above.

@@ -5,7 +5,7 @@ import (
 
 	"github.com/ipfans/echo-session"
 	"github.com/labstack/echo"
-	"github.com/mzki/chat/entity"
+	"github.com/mzki/go-chat/entity"
 )
 
 type UserForm struct {

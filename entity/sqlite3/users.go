@@ -2,7 +2,7 @@ package sqlite3
 
 import (
 	"github.com/jmoiron/sqlx"
-	"github.com/mzki/chat/entity"
+	"github.com/mzki/go-chat/entity"
 )
 
 // UserRepository manages access to user table in sqlite database.

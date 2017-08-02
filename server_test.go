@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mzki/chat/entity"
-	_ "github.com/mzki/chat/entity/stub"
-	"github.com/mzki/chat/model"
+	"github.com/mzki/go-chat/entity"
+	_ "github.com/mzki/go-chat/entity/stub"
+	"github.com/mzki/go-chat/model"
 	"golang.org/x/net/websocket"
 )
 
@@ -44,7 +44,7 @@ func TestServer(t *testing.T) {
 		defer close(errCh)
 		// write to server
 		writeCM := model.ChatMessage{}
-		writeCM.Action = model.ActionChatMessage
+		writeCM.ActionName = model.ActionChatMessage
 		if err := websocket.JSON.Send(conn, &writeCM); err != nil {
 			errCh <- err
 			return

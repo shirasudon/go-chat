@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/mzki/chat/entity"
+	"github.com/mzki/go-chat/entity"
 )
 
 // Room is a chat room which contains multiple
