@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/mzki/go-chat/entity"
+	"github.com/shirasudon/go-chat/entity"
 )
 
 type MessageRepository struct {

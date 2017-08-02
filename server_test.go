@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mzki/go-chat/entity"
-	_ "github.com/mzki/go-chat/entity/stub"
-	"github.com/mzki/go-chat/model"
+	"github.com/shirasudon/go-chat/entity"
+	_ "github.com/shirasudon/go-chat/entity/stub"
+	"github.com/shirasudon/go-chat/model"
 	"golang.org/x/net/websocket"
 )
 

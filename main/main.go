@@ -3,9 +3,9 @@ package main
 import (
 	"log"
 
-	"github.com/mzki/go-chat"
-	"github.com/mzki/go-chat/entity"
-	_ "github.com/mzki/go-chat/entity/stub"
+	"github.com/shirasudon/go-chat"
+	"github.com/shirasudon/go-chat/entity"
+	_ "github.com/shirasudon/go-chat/entity/stub"
 )
 
 func main() {

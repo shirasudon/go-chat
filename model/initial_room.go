@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/mzki/go-chat/entity"
+	"github.com/shirasudon/go-chat/entity"
 	"golang.org/x/net/websocket"
 )
 

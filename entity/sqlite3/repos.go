@@ -3,7 +3,7 @@ package sqlite3
 import (
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/mzki/go-chat/entity"
+	"github.com/shirasudon/go-chat/entity"
 )
 
 func init() {

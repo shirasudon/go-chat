@@ -3,7 +3,7 @@ package sqlite3
 import (
 	"context"
 
-	"github.com/mzki/go-chat/entity"
+	"github.com/shirasudon/go-chat/entity"
 )
 
 type MessageRepository struct{}
