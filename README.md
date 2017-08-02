@@ -1,2 +1,2 @@
 # chat
-Websocket used chat server written by Go.
+Backend chat server based on the Websocket written by Go.
