@@ -23,10 +23,9 @@ type clientState struct {
 //
 // All of the rooms are children of this room. So They are managed by InitialRoom.
 type InitialRoom struct {
-	roomRequests chan UserJoinRoom // requesting to dispatch a room
-	joins        chan *Client
-	leaves       chan *Client
-	messages     chan ActionMessage
+	joins    chan *Client
+	leaves   chan *Client
+	messages chan ActionMessage
 
 	// TODO RoomRepository to accept that correct user enters a room.
 	rooms        map[uint64]*Room
@@ -36,12 +35,11 @@ type InitialRoom struct {
 
 func NewInitialRoom() *InitialRoom {
 	return &InitialRoom{
-		roomRequests: make(chan UserJoinRoom, 1),
-		joins:        make(chan *Client, 1),
-		leaves:       make(chan *Client, 1),
-		messages:     make(chan ActionMessage, 1),
-		rooms:        make(map[uint64]*Room),
-		clients:      make(map[uint64]*Client),
+		joins:    make(chan *Client, 1),
+		leaves:   make(chan *Client, 1),
+		messages: make(chan ActionMessage, 1),
+		rooms:    make(map[uint64]*Room),
+		clients:  make(map[uint64]*Client),
 	}
 }
 
@@ -51,36 +49,16 @@ func (iroom *InitialRoom) Listen(ctx context.Context) {
 
 	for {
 		select {
-		case req := <-iroom.roomRequests:
-			iroom.dispatchRoom(ctx, req)
 		case c := <-iroom.joins:
 			iroom.joinClient(c)
 		case c := <-iroom.leaves:
 			iroom.leaveClient(c)
 		case m := <-iroom.messages:
-			iroom.handleMessage(m)
+			iroom.handleMessage(ctx, m)
 		case <-ctx.Done():
 			return
 		}
 	}
-}
-
-func (iroom *InitialRoom) dispatchRoom(ctx context.Context, req UserJoinRoom) {
-	c, ok := iroom.clients[req.SenderID]
-	if !ok {
-		// TODO error handling
-		log.Println("no client exist")
-		return
-	}
-
-	room, ok := iroom.rooms[req.RoomID]
-	if !ok {
-		// TODO check existance for room using userID and roomID
-		c.Send(NewErrorMessage(fmt.Errorf("request room id(%d) is not found", req.RoomID)))
-		// room = NewRoom()
-		// go room.Listen(ctx)
-	}
-	room.Join(c)
 }
 
 func (iroom *InitialRoom) joinClient(c *Client) {
@@ -105,9 +83,35 @@ func (iroom *InitialRoom) leaveClient(c *Client) {
 	delete(iroom.clients, c.userID)
 }
 
-func (iroom *InitialRoom) handleMessage(m ActionMessage) {
+func (iroom *InitialRoom) handleMessage(ctx context.Context, m ActionMessage) {
 	switch m.Action() {
 	case ActionCreateRoom:
 	case ActionDeleteRoom:
+	case ActionEnterRoom:
+		iroom.enterRoom(ctx, m.(EnterRoom))
+	case ActionExitRoom:
+		iroom.exitRoom(m.(ExitRoom))
 	}
+}
+
+func (iroom *InitialRoom) enterRoom(ctx context.Context, req EnterRoom) {
+	c, ok := iroom.clients[req.SenderID]
+	if !ok {
+		// TODO error handling
+		log.Println("no client exist")
+		return
+	}
+
+	room, ok := iroom.rooms[req.RoomID]
+	if !ok {
+		// TODO check existance for room using userID and roomID
+		c.Send(NewErrorMessage(fmt.Errorf("request room id(%d) is not found", req.RoomID)))
+		// room = NewRoom()
+		// go room.Listen(ctx)
+	}
+	room.Join(c)
+}
+
+func (iroom *InitialRoom) exitRoom(req ExitRoom) {
+	// TODO
 }

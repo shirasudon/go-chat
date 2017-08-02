@@ -43,40 +43,77 @@ const (
 	ActionCreateRoom Action = "CREATE_ROOM"
 	ActionDeleteRoom Action = "DELETE_ROOM"
 
+	// front-end client to server
+	ActionEnterRoom Action = "ENTER_ROOM"
+	ActionExitRoom  Action = "EXIT_ROOM"
+
 	// server from/to front-end client
 	ActionReadMessage Action = "READ_MESSAGE"
 	ActionChatMessage Action = "CHAT_MESSAGE"
 
 	ActionTypeStart Action = "TYPE_START"
 	ActionTypeEnd   Action = "TYPE_END"
-
-	ActionUserJoinRoom  Action = "USER_JOIN_ROOM"
-	ActionUserLeaveRoom Action = "USER_LEAVE_ROOM"
 )
 
 // common fields for the websocket payload structs.
-type embdFields struct {
+type EmbdFields struct {
 	ActionName Action `json:"action,omitempty"`
 }
 
-func (ef embdFields) Action() Action { return ef.ActionName }
+func (ef EmbdFields) Action() Action { return ef.ActionName }
 
 // Error message.
 // it implements ActionMessage interface.
 type ErrorMessage struct {
-	embdFields
+	EmbdFields
 	Error error `json:"error"`
 }
 
 func NewErrorMessage(err error) ErrorMessage {
-	return ErrorMessage{embdFields: embdFields{ActionName: ActionError}, Error: err}
+	return ErrorMessage{EmbdFields: EmbdFields{ActionName: ActionError}, Error: err}
+}
+
+// EnterRoom indicates that user requests to enter
+// specified room.
+// it implements ActionMessage interface.
+type EnterRoom struct {
+	EmbdFields
+	RoomID   uint64 `json:"room_id,omitempty"`
+	SenderID uint64 `json:"sender_id,omitempty"`
+}
+
+func ParseEnterRoom(m AnyMessage, action Action) EnterRoom {
+	if action != ActionEnterRoom {
+		panic("ParseUserJoinRoom: invalid action")
+	}
+	v := EnterRoom{}
+	v.ActionName = action
+	v.SenderID, _ = m["sender_id"].(uint64)
+	v.RoomID, _ = m["room_id"].(uint64)
+	return v
+}
+
+// ExitRoom indicates that user requests to exit
+// specified room.
+// it implements ActionMessage interface.
+type ExitRoom EnterRoom
+
+func ParseExitRoom(m AnyMessage, action Action) ExitRoom {
+	if action != ActionExitRoom {
+		panic("ParseUserJoinRoom: invalid action")
+	}
+	v := ExitRoom{}
+	v.ActionName = action
+	v.SenderID, _ = m["sender_id"].(uint64)
+	v.RoomID, _ = m["room_id"].(uint64)
+	return v
 }
 
 // ChatMessage is chat message which is recieved from a browser-side
 // client and sends to other clients in the same room.
 // it implements ActionMessage interface.
 type ChatMessage struct {
-	embdFields
+	EmbdFields
 	ID       uint64 `json:"id,omitempty"` // used only server->client
 	Content  string `json:"content,omitempty"`
 	SenderID uint64 `json:"sender_id,omitempty"`
@@ -99,7 +136,7 @@ func ParseChatMessage(m AnyMessage, action Action) ChatMessage {
 // any user.
 // it implements ActionMessage interface.
 type ReadMessage struct {
-	embdFields
+	EmbdFields
 	SenderID   uint64   `json:"sender_id,omitempty"`
 	MessageIDs []uint64 `json:"message_ids,omitempty"`
 }
@@ -118,7 +155,7 @@ func ParseReadMessage(m AnyMessage, action Action) ReadMessage {
 // TypeStart indicates user starts key typing.
 // it implements ActionMessage interface.
 type TypeStart struct {
-	embdFields
+	EmbdFields
 	SenderID   uint64    `json:"sender_id,omitempty"`
 	SenderName string    `json:"sender_name,omitempty"`
 	StartAt    time.Time `json:"start_at,omitempty"`
@@ -139,7 +176,7 @@ func ParseTypeStart(m AnyMessage, action Action) TypeStart {
 // TypeEnd indicates user ends key typing.
 // it implements ActionMessage interface.
 type TypeEnd struct {
-	embdFields
+	EmbdFields
 	SenderID   uint64    `json:"sender_id,omitempty"`
 	SenderName string    `json:"sender_name,omitempty"`
 	EndAt      time.Time `json:"end_at,omitempty"`
@@ -157,27 +194,7 @@ func ParseTypeEnd(m AnyMessage, action Action) TypeEnd {
 	return te
 }
 
-// UserJoinRoom indicates that user requests to join
-// specified room.
-// it implements ActionMessage interface.
-type UserJoinRoom struct {
-	embdFields
-	SenderID uint64 `json:"sender_id,omitempty"`
-	RoomID   uint64 `json:"room_id,omitempty"`
-}
-
-func ParseUserJoinRoom(m AnyMessage, action Action) UserJoinRoom {
-	if action != ActionUserJoinRoom {
-		panic("ParseUserJoinRoom: invalid action")
-	}
-	v := UserJoinRoom{}
-	v.ActionName = action
-	v.SenderID, _ = m["sender_id"].(uint64)
-	v.RoomID, _ = m["room_id"].(uint64)
-	return v
-}
-
 type UserConnect struct {
-	embdFields
+	EmbdFields
 	UserID int `json:"user_id,omitempty"`
 }
