@@ -8,8 +8,9 @@ import (
 )
 
 // Room is a chat room which contains multiple
-// users and manages the communication between those users.
+// users and manages the communication between those.
 type Room struct {
+	id   uint64
 	name string
 
 	// event channels
