@@ -30,8 +30,8 @@ func newActiveClient(c *Client) *activeClient {
 }
 
 func (ac *activeClient) Send(m ActionMessage) {
-	for f, _ := range ac.friends {
-		f.Send(m)
+	for c, _ := range ac.conns {
+		c.Send(m)
 	}
 }
 
@@ -44,7 +44,7 @@ type activeRoom struct {
 
 func newActiveRoom(r *Room) *activeRoom {
 	return &activeRoom{
-		room:    room,
+		room:    r,
 		nMenber: 0,
 	}
 }
@@ -71,19 +71,17 @@ type InitialRoom struct {
 	messages    chan ActionMessage
 
 	// TODO RoomRepository to accept that correct user enters a room.
-	rooms       map[uint64]*activeRoom
-	clients     map[uint64]*activeClient
-	activeConns map[*Client]activeConnection
+	rooms   map[uint64]*activeRoom
+	clients map[uint64]*activeClient
 }
 
 func NewInitialRoom( /*RoomRepository*/ ) *InitialRoom {
 	return &InitialRoom{
-		connects:     make(chan *Client, 1),
-		distconnects: make(chan *Client, 1),
-		messages:     make(chan ActionMessage, 1),
-		rooms:        make(map[uint64]*Room),
-		clients:      make(map[uint64]*Client),
-		activeConns:  make(map[*Client]activeConnection),
+		connects:    make(chan *Client, 1),
+		disconnects: make(chan *Client, 1),
+		messages:    make(chan ActionMessage, 1),
+		rooms:       make(map[uint64]*activeRoom),
+		clients:     make(map[uint64]*activeClient),
 	}
 }
 
@@ -140,9 +138,9 @@ func (iroom *InitialRoom) Connect(ctx context.Context, conn *websocket.Conn, u e
 		m := msg.(ActionMessage)
 		switch m.Action() {
 		case ActionEnterRoom:
-			m = enterRoomRequest{m, gotC}
+			m = enterRoomRequest{m.(EnterRoom), gotC}
 		case ActionExitRoom:
-			m = exitRoomRequest{m, gotC}
+			m = exitRoomRequest{m.(ExitRoom), gotC}
 		}
 		iroom.messages <- m
 	}
@@ -172,9 +170,9 @@ func (iroom *InitialRoom) handleMessage(ctx context.Context, m ActionMessage) {
 	case ActionCreateRoom:
 	case ActionDeleteRoom:
 	case ActionEnterRoom:
-		iroom.enterRoom(ctx, m.(EnterRoom))
+		iroom.enterRoom(ctx, m.(enterRoomRequest))
 	case ActionExitRoom:
-		iroom.exitRoom(m.(ExitRoom))
+		iroom.exitRoom(m.(exitRoomRequest))
 	}
 }
 
@@ -218,20 +216,20 @@ func (iroom *InitialRoom) exitRoom(req exitRoomRequest) {
 }
 
 func (iroom *InitialRoom) validateClientHasRoom(conn *Client, userID, roomID uint64) error {
-	if !iroom.connectionExist(req.SenderID, req.Client) {
-		return fmt.Errorf("request user id(%d) is not found", req.SenderID)
+	if !iroom.connectionExist(userID, conn) {
+		return fmt.Errorf("request user id(%d) is not found", userID)
 	}
 	// the client is validated at above.
-	if _, ok := iroom.clients[req.SenderID].rooms[req.RoomID]; !ok {
-		return fmt.Errorf("user(%d) does not have request room id(%d) ", req.SenderID, req.RoomID)
+	if _, ok := iroom.clients[userID].rooms[roomID]; !ok {
+		return fmt.Errorf("user(%d) does not have request room id(%d) ", userID, roomID)
 	}
 	return nil
 }
 
 // check whether active client with the websocket connection exists?
 func (iroom *InitialRoom) connectionExist(userID uint64, conn *Client) bool {
-	if activeC, ok := iroom.clients[req.SenderID]; ok {
-		if _, ok := activeC.conns[req.Client]; ok {
+	if activeC, ok := iroom.clients[userID]; ok {
+		if _, ok := activeC.conns[conn]; ok {
 			return true
 		}
 	}

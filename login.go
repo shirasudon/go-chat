@@ -1,6 +1,8 @@
 package chat
 
 import (
+	"errors"
+	"net/http"
 	"sync"
 
 	"github.com/ipfans/echo-session"
@@ -9,26 +11,57 @@ import (
 )
 
 type UserForm struct {
-	Name     string `json:"name" form:"name" query:"name"`
-	Password string `json:"password" form:"password" query:"password"`
+	Email      string `json:"email" form:"name" query:"name"`
+	Password   string `json:"password" form:"password" query:"password"`
+	RememberMe bool   `json:"rememberMe" form:"rememberMe" query:"rememberMe"`
 }
 
-// key for session value which is user loggedin information.
-const KeyUserTableID = "user.id"
+type LoginState struct {
+	LoggedIn   bool   `json:"logged_in"`
+	RememberMe bool   `json:"rememberMe"`
+	UserID     uint64 `json:"user_id"`
+	Error      error  `json:"error,omitempty"`
+}
+
+const (
+	KeySessionID = "SESSION-ID"
+
+	// key for session value which is user loggedin information.
+	KeyUserTableID = "USER-ID"
+
+	KeyLoginState = "LOGIN-STATE"
+
+	// seconds in 365 days, where 86400 is a seconds in 1 day
+	SecondsInYear = 86400 * 365
+)
+
+var DefaultOptions = session.Options{
+	HttpOnly: true,
+}
 
 // LoginHandler handles login requests.
 // it holds logged-in users, so that each request can reference
 // any logged-in user.
 type LoginHandler struct {
 	userRepo entity.UserRepository
+	store    session.Store
 
 	mu            *sync.RWMutex
 	loggedinUsers map[uint64]entity.User
 }
 
-func NewLoginHandler() *LoginHandler {
+func NewLoginHandler(uRepo entity.UserRepository, secretKeyPairs ...[]byte) *LoginHandler {
+	if len(secretKeyPairs) == 0 {
+		secretKeyPairs = [][]byte{
+			[]byte("sercret-key"),
+		}
+	}
+	store := session.NewCookieStore(secretKeyPairs...)
+	store.Options(DefaultOptions)
+
 	return &LoginHandler{
-		userRepo:      entity.Users(),
+		userRepo:      uRepo,
+		store:         store,
 		mu:            new(sync.RWMutex),
 		loggedinUsers: make(map[uint64]entity.User),
 	}
@@ -40,9 +73,9 @@ func (lh *LoginHandler) Login(c echo.Context) error {
 		return err
 	}
 
-	user, err := lh.userRepo.Get(u.Name, u.Password)
+	user, err := lh.userRepo.Get(u.Email, u.Password)
 	if err != nil {
-		// TODO show error message as html.
+		c.JSON(http.StatusOK, LoginState{Error: err})
 		return err
 	}
 
@@ -51,47 +84,53 @@ func (lh *LoginHandler) Login(c echo.Context) error {
 	lh.loggedinUsers[user.ID] = user
 	lh.mu.Unlock()
 
+	loginState := LoginState{LoggedIn: true, UserID: user.ID, RememberMe: u.RememberMe}
+
 	sess := session.Default(c)
-	sess.Set(KeyUserTableID, user.ID)
+	sess.Set(KeyLoginState, loginState)
+	// sess.Set(KeyUserTableID, loginState.UserID)
+	if loginState.RememberMe {
+		newOpt := DefaultOptions
+		newOpt.MaxAge = SecondsInYear
+		sess.Options(newOpt)
+	}
 	sess.Save()
 
-	// TODO c.Redirect(code, page)
-	return nil
+	return c.JSON(http.StatusOK, loginState)
 }
 
 func (lh *LoginHandler) Logout(c echo.Context) error {
 	sess := session.Default(c)
-	id, ok := sess.Get(KeyUserTableID).(uint64)
+	loginState, ok := sess.Get(KeyLoginState).(LoginState)
 	if !ok {
-		return nil
+		return c.JSON(http.StatusOK, LoginState{Error: errors.New("you are not logged in")})
 	}
-	sess.Delete(KeyUserTableID)
+	sess.Delete(KeyLoginState)
 	sess.Save()
 
 	lh.mu.Lock()
-	delete(lh.loggedinUsers, id)
+	delete(lh.loggedinUsers, loginState.UserID)
 	lh.mu.Unlock()
-	return nil
+	return c.JSON(http.StatusOK, LoginState{LoggedIn: false})
 }
 
-func (lh *LoginHandler) LoginPage(c echo.Context) error {
-	// TODO return html using template
-	return nil
-}
-
-func (lh *LoginHandler) LogoutPage(c echo.Context) error {
-	// TODO return html using template
-	return nil
+func (lh *LoginHandler) GetLoginState(c echo.Context) error {
+	sess := session.Default(c)
+	loginState, ok := sess.Get(KeyLoginState).(LoginState)
+	if !ok {
+		return c.JSON(http.StatusOK, LoginState{LoggedIn: false, Error: errors.New("you are not logged in")})
+	}
+	return c.JSON(http.StatusOK, loginState)
 }
 
 func (lh *LoginHandler) IsLoggedInRequest(c echo.Context) bool {
-	id, ok := session.Default(c).Get(KeyUserTableID).(uint64)
-	if !ok {
+	loginState, ok := session.Default(c).Get(KeyLoginState).(LoginState)
+	if !ok || !loginState.LoggedIn {
 		return false
 	}
 	// here, user exactlly logged in,
 	// addionally we assert existance in loggedinUsers map.
-	if !lh.IsLoggedInUser(id) {
+	if !lh.IsLoggedInUser(loginState.UserID) {
 		panic("session loggedin but loggedin user map is not.")
 	}
 	return true
@@ -104,7 +143,20 @@ func (lh *LoginHandler) IsLoggedInUser(id uint64) bool {
 	return loggedin
 }
 
-func (lh *LoginHandler) LoggedinFilter(c echo.Context) error {
-	// TODO login filter using middleware
-	return nil
+// Middleware returns echo.MiddlewareFunc.
+// it should be registered for echo.Server to use this LoginHandler.
+func (lh *LoginHandler) Middleware() echo.MiddlewareFunc {
+	return session.Sessions(KeySessionID, lh.store)
+}
+
+// Filter is a middleware which filters unauthorized request.
+func (lh *LoginHandler) Filter() echo.MiddlewareFunc {
+	return func(handlerFunc echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			if lh.IsLoggedInRequest(c) {
+				return handlerFunc(c)
+			}
+			return c.Redirect(http.StatusTemporaryRedirect, c.Request().URL.String())
+		}
+	}
 }

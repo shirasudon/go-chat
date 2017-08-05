@@ -38,7 +38,7 @@ func NewServer(repos entity.Repositories, conf *Config) *Server {
 	}
 
 	s := &Server{
-		loginHandler: NewLoginHandler(),
+		loginHandler: NewLoginHandler(repos.Users()),
 		ctx:          context.Background(),
 		repos:        repos,
 		mutex:        new(sync.RWMutex),
@@ -94,11 +94,21 @@ func (s *Server) ListenAndServe() error {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
-	e.Static("/", "")
-	e.GET(s.conf.WebSocketPath+"*", func(c echo.Context) error {
+	// set login handler
+	e.Use(s.loginHandler.Middleware())
+	e.POST("/login", s.loginHandler.Login)
+	e.GET("/login", s.loginHandler.GetLoginState)
+	e.GET("/logout", s.loginHandler.Logout)
+
+	// set websocket handler
+	g := e.Group("/ws", s.loginHandler.Filter())
+	g.GET(s.conf.WebSocketPath+"*", func(c echo.Context) error {
 		s.routingRoom(c.Response(), c.Request())
 		return nil
 	})
+
+	// serve static content
+	e.Static("/", "")
 
 	// start server
 	serverURL := s.conf.HTTP

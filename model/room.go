@@ -72,11 +72,11 @@ func (room *Room) Listen(ctx context.Context) {
 			log.Printf("Room(%s).Error", room.name)
 			// TODO err handling
 			log.Printf("Error Room(%s): %v", room.name, err)
+		case <-room.done:
+			log.Printf("Room(%s).OuterDone", room.name)
+			return
 		case <-ctx.Done():
 			log.Printf("Room(%s).ContextDone", room.name)
-			return
-		case <-done:
-			log.Printf("Room(%s).OuterDone", room.name)
 			return
 		}
 		// check whether room is exist?
