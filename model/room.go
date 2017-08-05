@@ -19,6 +19,7 @@ type Room struct {
 	messages   chan ChatMessage
 	broadcasts chan interface{}
 	errors     chan error
+	done       chan struct{}
 
 	OnClosed func(*Room)
 
@@ -34,6 +35,7 @@ func NewRoom(name string) *Room {
 		messages:   make(chan ChatMessage, 1),
 		broadcasts: make(chan interface{}, 1),
 		errors:     make(chan error, 1),
+		done:       make(chan struct{}, 1),
 
 		repo:    entity.Messages(),
 		clients: make(map[*Client]bool, 4),
@@ -72,6 +74,9 @@ func (room *Room) Listen(ctx context.Context) {
 			log.Printf("Error Room(%s): %v", room.name, err)
 		case <-ctx.Done():
 			log.Printf("Room(%s).ContextDone", room.name)
+			return
+		case <-done:
+			log.Printf("Room(%s).OuterDone", room.name)
 			return
 		}
 		// check whether room is exist?
@@ -147,4 +152,12 @@ func (room *Room) Send(m ChatMessage) {
 
 func (room *Room) Join(c *Client) {
 	room.joins <- c
+}
+
+func (room *Room) Leave(c *Client) {
+	room.leaves <- c
+}
+
+func (room *Room) Done() {
+	room.done <- struct{}{}
 }
