@@ -38,16 +38,23 @@ func NewClient(conn *websocket.Conn, user entity.User) *Client {
 // Listen starts handing reading/writing websocket.
 // it blocks until websocket is closed or context is done.
 func (c *Client) Listen(ctx context.Context) {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	go c.sendPump(ctx)
-	c.receivePump(ctx)
+	// two Pump functions are listening the closing event for each other.
+	sendingDone := make(chan struct{})
+	receivingDone := make(chan struct{})
+	go func() {
+		defer close(sendingDone)
+		c.sendPump(ctx, receivingDone)
+	}()
+	defer close(receivingDone)
+	c.receivePump(ctx, sendingDone)
 }
 
-func (c *Client) sendPump(ctx context.Context) {
+func (c *Client) sendPump(ctx context.Context, receivingDone chan struct{}) {
 	for {
 		select {
 		case <-ctx.Done():
+			return
+		case <-receivingDone:
 			return
 		case m := <-c.messages:
 			err := websocket.JSON.Send(c.conn, &m)
@@ -59,10 +66,12 @@ func (c *Client) sendPump(ctx context.Context) {
 	}
 }
 
-func (c *Client) receivePump(ctx context.Context) {
+func (c *Client) receivePump(ctx context.Context, sendingDone chan struct{}) {
 	for {
 		select {
 		case <-ctx.Done():
+			return
+		case <-sendingDone:
 			return
 		default:
 			err := c.handleClientMessage()
