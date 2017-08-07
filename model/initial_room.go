@@ -9,21 +9,26 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+// connection specified infomation.
+type connectionInfo struct {
+	currentRoomID uint64
+}
+
 // activeClient is a one active user which has several
 // websocket connections, rooms, and friends.
 //
-// activeClient manages multiple clients for each websocket conncetion,
+// activeClient has multiple websocket conncetion,
 // because one user has many websocket conncetions such as from PC,
 // mobile device, and so on.
 type activeClient struct {
-	conns   map[*Client]bool
+	conns   map[*Client]connectionInfo
 	rooms   map[uint64]bool // has rooms managed by room id
 	friends map[uint64]bool // has friends managed by user id
 }
 
 func newActiveClient(c *Client) *activeClient {
 	return &activeClient{
-		conns:   map[*Client]bool{c: true},
+		conns:   map[*Client]connectionInfo{c: connectionInfo{}},
 		rooms:   make(map[uint64]bool),
 		friends: make(map[uint64]bool),
 	}
@@ -33,30 +38,6 @@ func (ac *activeClient) Send(m ActionMessage) {
 	for c, _ := range ac.conns {
 		c.Send(m)
 	}
-}
-
-// activeRoom is a wrapper for Room which has
-// a number of active chat members.
-type activeRoom struct {
-	room    *Room
-	nMenber int
-}
-
-func newActiveRoom(r *Room) *activeRoom {
-	return &activeRoom{
-		room:    r,
-		nMenber: 0,
-	}
-}
-
-type enterRoomRequest struct {
-	EnterRoom
-	Client *Client
-}
-
-type exitRoomRequest struct {
-	ExitRoom
-	Client *Client
 }
 
 // InitialRoom is the room which have any clients created newly.
@@ -71,16 +52,16 @@ type InitialRoom struct {
 	messages    chan ActionMessage
 
 	// TODO RoomRepository to accept that correct user enters a room.
-	rooms   map[uint64]*activeRoom
-	clients map[uint64]*activeClient
+	roomManager *RoomManager
+	clients     map[uint64]*activeClient
 }
 
-func NewInitialRoom( /*RoomRepository*/ ) *InitialRoom {
+func NewInitialRoom( /*rRepo RoomRepository*/ ) *InitialRoom {
 	return &InitialRoom{
 		connects:    make(chan *Client, 1),
 		disconnects: make(chan *Client, 1),
 		messages:    make(chan ActionMessage, 1),
-		rooms:       make(map[uint64]*activeRoom),
+		roomManager: NewRoomManager( /*rRepo*/ ),
 		clients:     make(map[uint64]*activeClient),
 	}
 }
@@ -106,7 +87,7 @@ func (iroom *InitialRoom) Listen(ctx context.Context) {
 func (iroom *InitialRoom) connectClient(c *Client) {
 	// add conncetion to active user when the user is already connected from anywhere.
 	if activeC, ok := iroom.clients[c.userID]; ok {
-		activeC.conns[c] = true
+		activeC.conns[c] = connectionInfo{}
 		return
 	}
 
@@ -148,14 +129,26 @@ func (iroom *InitialRoom) Connect(ctx context.Context, conn *websocket.Conn, u e
 	c.Listen(ctx)
 }
 
+type enterRoomRequest struct {
+	EnterRoom
+	Client *Client
+}
+
+type exitRoomRequest struct {
+	ExitRoom
+	Client *Client
+}
+
 func (iroom *InitialRoom) disconnectClient(c *Client) {
 	activeC, ok := iroom.clients[c.userID]
 	if !ok {
 		return
 	}
-	if _, ok = activeC.conns[c]; !ok {
+	connInfo, ok := activeC.conns[c]
+	if !ok {
 		return
 	}
+	iroom.roomManager.DisconnectClient(connInfo.currentRoomID, c)
 
 	delete(activeC.conns, c)
 	if len(activeC.conns) == 0 {
@@ -171,8 +164,6 @@ func (iroom *InitialRoom) handleMessage(ctx context.Context, m ActionMessage) {
 	case ActionDeleteRoom:
 	case ActionEnterRoom:
 		iroom.enterRoom(ctx, m.(enterRoomRequest))
-	case ActionExitRoom:
-		iroom.exitRoom(m.(exitRoomRequest))
 	}
 }
 
@@ -182,37 +173,7 @@ func (iroom *InitialRoom) enterRoom(ctx context.Context, req enterRoomRequest) {
 		return
 	}
 
-	activeRoom, ok := iroom.rooms[req.RoomID]
-	// if the room is inactive, activate it.
-	if !ok {
-		// TODO implement RoomRepository.getRoom()
-		// roomEntity :=
-		// activeRoom = newActiveRoom(NewRoom(roomEntity))
-		// go activeRoom.room.Listen(ctx)
-	}
-	activeRoom.room.Join(req.Client)
-	activeRoom.nMenber += 1
-}
-
-func (iroom *InitialRoom) exitRoom(req exitRoomRequest) {
-	if err := iroom.validateClientHasRoom(req.Client, req.SenderID, req.RoomID); err != nil {
-		sendError(req.Client, err)
-		return
-	}
-
-	room, ok := iroom.rooms[req.RoomID]
-	if !ok {
-		log.Println("exit room for inactive room")
-		return
-	}
-	room.room.Leave(req.Client)
-	room.nMenber -= 1
-
-	// expire the active room from which all members have been leaved.
-	if room.nMenber == 0 {
-		room.room.Done()
-		delete(iroom.rooms, req.RoomID)
-	}
+	iroom.roomManager.EnterRoom(ctx, req.CurrentRoomID, req.RoomID, req.Client)
 }
 
 func (iroom *InitialRoom) validateClientHasRoom(conn *Client, userID, roomID uint64) error {

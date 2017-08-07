@@ -78,8 +78,9 @@ func NewErrorMessage(err error) ErrorMessage {
 // it implements ActionMessage interface.
 type EnterRoom struct {
 	EmbdFields
-	RoomID   uint64 `json:"room_id,omitempty"`
-	SenderID uint64 `json:"sender_id,omitempty"`
+	RoomID        uint64 `json:"enter_room_id,omitempty"`
+	CurrentRoomID uint64 `json:"current_room_id,omitempty"`
+	SenderID      uint64 `json:"sender_id,omitempty"`
 }
 
 func ParseEnterRoom(m AnyMessage, action Action) EnterRoom {
