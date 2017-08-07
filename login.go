@@ -155,7 +155,9 @@ func (lh *LoginHandler) Filter() echo.MiddlewareFunc {
 			if lh.IsLoggedInRequest(c) {
 				return handlerFunc(c)
 			}
-			return c.Redirect(http.StatusTemporaryRedirect, c.Request().URL.String())
+			return c.JSON(http.StatusForbidden, struct {
+				ErrorMsg string `json:"error"`
+			}{"you are not logged in"})
 		}
 	}
 }
