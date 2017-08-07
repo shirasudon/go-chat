@@ -98,7 +98,7 @@ func (s *Server) ListenAndServe() error {
 	e.Use(s.loginHandler.Middleware())
 	e.POST("/login", s.loginHandler.Login)
 	e.GET("/login", s.loginHandler.GetLoginState)
-	e.GET("/logout", s.loginHandler.Logout)
+	e.POST("/logout", s.loginHandler.Logout)
 
 	// set websocket handler
 	g := e.Group("/ws", s.loginHandler.Filter())

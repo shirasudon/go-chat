@@ -1,7 +1,6 @@
 package chat
 
 import (
-	"errors"
 	"net/http"
 	"sync"
 
@@ -11,7 +10,7 @@ import (
 )
 
 type UserForm struct {
-	Email      string `json:"email" form:"name" query:"name"`
+	Email      string `json:"email" form:"email" query:"name"`
 	Password   string `json:"password" form:"password" query:"password"`
 	RememberMe bool   `json:"rememberMe" form:"rememberMe" query:"rememberMe"`
 }
@@ -20,7 +19,7 @@ type LoginState struct {
 	LoggedIn   bool   `json:"logged_in"`
 	RememberMe bool   `json:"rememberMe"`
 	UserID     uint64 `json:"user_id"`
-	Error      error  `json:"error,omitempty"`
+	ErrorMsg   string `json:"error,omitempty"`
 }
 
 const (
@@ -75,8 +74,8 @@ func (lh *LoginHandler) Login(c echo.Context) error {
 
 	user, err := lh.userRepo.Get(u.Email, u.Password)
 	if err != nil {
-		c.JSON(http.StatusOK, LoginState{Error: err})
-		return err
+		c.JSON(http.StatusOK, LoginState{ErrorMsg: err.Error()})
+		return nil
 	}
 
 	// login succeed, save it into session and redirect to next page.
@@ -103,7 +102,7 @@ func (lh *LoginHandler) Logout(c echo.Context) error {
 	sess := session.Default(c)
 	loginState, ok := sess.Get(KeyLoginState).(LoginState)
 	if !ok {
-		return c.JSON(http.StatusOK, LoginState{Error: errors.New("you are not logged in")})
+		return c.JSON(http.StatusOK, LoginState{ErrorMsg: "you are not logged in"})
 	}
 	sess.Delete(KeyLoginState)
 	sess.Save()
@@ -118,7 +117,7 @@ func (lh *LoginHandler) GetLoginState(c echo.Context) error {
 	sess := session.Default(c)
 	loginState, ok := sess.Get(KeyLoginState).(LoginState)
 	if !ok {
-		return c.JSON(http.StatusOK, LoginState{LoggedIn: false, Error: errors.New("you are not logged in")})
+		return c.JSON(http.StatusOK, LoginState{LoggedIn: false, ErrorMsg: "you are not logged in"})
 	}
 	return c.JSON(http.StatusOK, loginState)
 }

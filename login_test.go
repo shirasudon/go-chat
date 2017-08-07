@@ -1,0 +1,168 @@
+package chat
+
+import (
+	"encoding/json"
+	"net/http/httptest"
+	"net/url"
+	"strings"
+	"testing"
+
+	"github.com/ipfans/echo-session"
+	"github.com/labstack/echo"
+	"github.com/shirasudon/go-chat/entity"
+	_ "github.com/shirasudon/go-chat/entity/stub"
+)
+
+var (
+	loginHandler *LoginHandler
+)
+
+func init() {
+	repository, _ := entity.OpenRepositories("stub")
+	loginHandler = NewLoginHandler(repository.Users())
+}
+
+func withSession(hf echo.HandlerFunc, c echo.Context) error {
+	return loginHandler.Middleware()(hf)(c)
+}
+
+func TestLogin(t *testing.T) {
+	// 1. correct user login
+	c, err := doLogin(CorrectEmail, CorrectPassword)
+	if err != nil {
+		t.Fatalf("can not login: %v", err)
+	}
+
+	// check session has LoginState.
+	sess := session.Default(c)
+	if ls, ok := sess.Get(KeyLoginState).(LoginState); !ok || !ls.LoggedIn {
+		t.Errorf("session does not have any LoginState after login")
+	}
+
+	// check response json
+	loginState, err := loginStateFromResponse(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !loginState.LoggedIn {
+		t.Error("can not logged in")
+	}
+	if msg := loginState.ErrorMsg; len(msg) > 0 {
+		t.Errorf("login succeeded but got error: %v", msg)
+	}
+
+	// 2. wrong user login
+	for _, testcase := range []struct {
+		Email    string
+		Password string
+	}{
+		{"wrong", CorrectPassword},
+		{CorrectEmail, "wrong"},
+		{"wrong", "wrong"},
+	} {
+		c, err := doLogin(testcase.Email, testcase.Password)
+		if err != nil {
+			t.Fatalf("got error: login with email: %v password: %v, err: %v", testcase.Email, testcase.Password, err)
+		}
+
+		// check session has LoginState.
+		sess := session.Default(c)
+		if _, ok := sess.Get(KeyLoginState).(LoginState); ok {
+			t.Errorf("session has any LoginState after login failed with email: %v, password: %v", testcase.Email, testcase.Password)
+		}
+
+		// check response json
+		loginState, err := loginStateFromResponse(c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if loginState.LoggedIn {
+			t.Errorf("LoggedIn is true after login failed with email: %v, password: %v", testcase.Email, testcase.Password)
+		}
+		if msg := loginState.ErrorMsg; len(msg) == 0 {
+			t.Errorf("missing ErrorMsg after login failed with email: %v, password: %v", testcase.Email, testcase.Password)
+		}
+	}
+}
+
+const (
+	CorrectEmail    = "user"
+	CorrectPassword = "password"
+)
+
+func doLogin(email, password string) (echo.Context, error) {
+	// POST form with email and password
+	f := make(url.Values)
+	f.Set("email", email)
+	f.Set("password", password)
+	req := httptest.NewRequest(echo.POST, "/login", strings.NewReader(f.Encode()))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
+	rec := httptest.NewRecorder()
+
+	e := echo.New()
+	c := e.NewContext(req, rec)
+	return c, withSession(loginHandler.Login, c)
+}
+
+func loginStateFromResponse(c echo.Context) (LoginState, error) {
+	loginState := LoginState{}
+	rec := c.Response().Writer.(*httptest.ResponseRecorder)
+	return loginState, json.Unmarshal(rec.Body.Bytes(), &loginState)
+}
+
+func TestLogout(t *testing.T) {
+	// firstly we try to logout without login.
+	c, err := doLogout()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check logout response
+	loginState, err := loginStateFromResponse(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loginState.LoggedIn {
+		t.Errorf("logout response without login expects LoggedIn = %v but %v", false, loginState.LoggedIn)
+	}
+	if len(loginState.ErrorMsg) == 0 {
+		t.Errorf("logout response without login expects some ErrorMsg but no message")
+	}
+
+	// TODO test logout using continuous session handling
+
+	//
+	// 	// secondary, we try to logout after logged in.
+	// 	c, _ = doLogin(CorrectEmail, CorrectPassword)
+	//
+	// 	c, err = doLogout()
+	// 	if err != nil {
+	// 		t.Fatal(err)
+	// 	}
+	//
+	// 	// check session has no loginState
+	// 	sess := session.Default(c)
+	// 	if _, ok := sess.Get(KeyLoginState).(LoginState); ok {
+	// 		t.Errorf("session have LoginState after logout")
+	// 	}
+	//
+	// 	// check logout response
+	// 	loginState, err = loginStateFromResponse(c)
+	// 	if err != nil {
+	// 		t.Fatal(err)
+	// 	}
+	// 	if loginState.LoggedIn {
+	// 		t.Errorf("logout response after login expects LoggedIn = %v but %v", false, loginState.LoggedIn)
+	// 	}
+	// 	if msg := loginState.ErrorMsg; len(msg) > 0 {
+	// 		t.Errorf("logout response after login expects no erorr message but message=%v", msg)
+	// 	}
+}
+
+func doLogout() (echo.Context, error) {
+	req := httptest.NewRequest(echo.POST, "/logout", nil)
+	rec := httptest.NewRecorder()
+	e := echo.New()
+	c := e.NewContext(req, rec)
+	return c, withSession(loginHandler.Logout, c)
+}
