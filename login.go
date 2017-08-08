@@ -1,13 +1,19 @@
 package chat
 
 import (
+	"encoding/gob"
 	"net/http"
-	"sync"
 
 	"github.com/ipfans/echo-session"
 	"github.com/labstack/echo"
 	"github.com/shirasudon/go-chat/entity"
 )
+
+func init() {
+	// register LoginState which is requirements
+	// to use echo-session and backed-end gorilla/sessions.
+	gob.Register(&LoginState{})
+}
 
 type UserForm struct {
 	Email      string `json:"email" form:"email" query:"name"`
@@ -25,9 +31,7 @@ type LoginState struct {
 const (
 	KeySessionID = "SESSION-ID"
 
-	// key for session value which is user loggedin information.
-	KeyUserTableID = "USER-ID"
-
+	// key for session value which is user loggedin state.
 	KeyLoginState = "LOGIN-STATE"
 
 	// seconds in 365 days, where 86400 is a seconds in 1 day
@@ -44,9 +48,6 @@ var DefaultOptions = session.Options{
 type LoginHandler struct {
 	userRepo entity.UserRepository
 	store    session.Store
-
-	mu            *sync.RWMutex
-	loggedinUsers map[uint64]entity.User
 }
 
 func NewLoginHandler(uRepo entity.UserRepository, secretKeyPairs ...[]byte) *LoginHandler {
@@ -59,10 +60,8 @@ func NewLoginHandler(uRepo entity.UserRepository, secretKeyPairs ...[]byte) *Log
 	store.Options(DefaultOptions)
 
 	return &LoginHandler{
-		userRepo:      uRepo,
-		store:         store,
-		mu:            new(sync.RWMutex),
-		loggedinUsers: make(map[uint64]entity.User),
+		userRepo: uRepo,
+		store:    store,
 	}
 }
 
@@ -74,42 +73,34 @@ func (lh *LoginHandler) Login(c echo.Context) error {
 
 	user, err := lh.userRepo.Get(u.Email, u.Password)
 	if err != nil {
-		c.JSON(http.StatusOK, LoginState{ErrorMsg: err.Error()})
-		return nil
+		return c.JSON(http.StatusOK, LoginState{ErrorMsg: err.Error()})
 	}
-
-	// login succeed, save it into session and redirect to next page.
-	lh.mu.Lock()
-	lh.loggedinUsers[user.ID] = user
-	lh.mu.Unlock()
 
 	loginState := LoginState{LoggedIn: true, UserID: user.ID, RememberMe: u.RememberMe}
 
 	sess := session.Default(c)
 	sess.Set(KeyLoginState, loginState)
-	// sess.Set(KeyUserTableID, loginState.UserID)
 	if loginState.RememberMe {
 		newOpt := DefaultOptions
 		newOpt.MaxAge = SecondsInYear
 		sess.Options(newOpt)
 	}
-	sess.Save()
+	if err := sess.Save(); err != nil {
+		return err
+	}
 
 	return c.JSON(http.StatusOK, loginState)
 }
 
 func (lh *LoginHandler) Logout(c echo.Context) error {
 	sess := session.Default(c)
-	loginState, ok := sess.Get(KeyLoginState).(LoginState)
-	if !ok {
+	if _, ok := sess.Get(KeyLoginState).(LoginState); !ok {
 		return c.JSON(http.StatusOK, LoginState{ErrorMsg: "you are not logged in"})
 	}
 	sess.Delete(KeyLoginState)
-	sess.Save()
-
-	lh.mu.Lock()
-	delete(lh.loggedinUsers, loginState.UserID)
-	lh.mu.Unlock()
+	if err := sess.Save(); err != nil {
+		return err
+	}
 	return c.JSON(http.StatusOK, LoginState{LoggedIn: false})
 }
 
@@ -124,22 +115,7 @@ func (lh *LoginHandler) GetLoginState(c echo.Context) error {
 
 func (lh *LoginHandler) IsLoggedInRequest(c echo.Context) bool {
 	loginState, ok := session.Default(c).Get(KeyLoginState).(LoginState)
-	if !ok || !loginState.LoggedIn {
-		return false
-	}
-	// here, user exactlly logged in,
-	// addionally we assert existance in loggedinUsers map.
-	if !lh.IsLoggedInUser(loginState.UserID) {
-		panic("session loggedin but loggedin user map is not.")
-	}
-	return true
-}
-
-func (lh *LoginHandler) IsLoggedInUser(id uint64) bool {
-	lh.mu.RLock()
-	defer lh.mu.RUnlock()
-	_, loggedin := lh.loggedinUsers[id]
-	return loggedin
+	return ok && loginState.LoggedIn
 }
 
 // Middleware returns echo.MiddlewareFunc.

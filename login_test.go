@@ -15,11 +15,13 @@ import (
 
 var (
 	loginHandler *LoginHandler
+	theEcho      *echo.Echo
 )
 
 func init() {
 	repository, _ := entity.OpenRepositories("stub")
 	loginHandler = NewLoginHandler(repository.Users())
+	theEcho = echo.New()
 }
 
 func withSession(hf echo.HandlerFunc, c echo.Context) error {
@@ -99,8 +101,7 @@ func doLogin(email, password string) (echo.Context, error) {
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
 	rec := httptest.NewRecorder()
 
-	e := echo.New()
-	c := e.NewContext(req, rec)
+	c := theEcho.NewContext(req, rec)
 	return c, withSession(loginHandler.Login, c)
 }
 
@@ -112,7 +113,7 @@ func loginStateFromResponse(c echo.Context) (LoginState, error) {
 
 func TestLogout(t *testing.T) {
 	// firstly we try to logout without login.
-	c, err := doLogout()
+	c, err := doLogout(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,40 +130,37 @@ func TestLogout(t *testing.T) {
 		t.Errorf("logout response without login expects some ErrorMsg but no message")
 	}
 
-	// TODO test logout using continuous session handling
+	// secondary, we try to logout after logged in.
+	c, _ = doLogin(CorrectEmail, CorrectPassword)
 
-	//
-	// 	// secondary, we try to logout after logged in.
-	// 	c, _ = doLogin(CorrectEmail, CorrectPassword)
-	//
-	// 	c, err = doLogout()
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
-	//
-	// 	// check session has no loginState
-	// 	sess := session.Default(c)
-	// 	if _, ok := sess.Get(KeyLoginState).(LoginState); ok {
-	// 		t.Errorf("session have LoginState after logout")
-	// 	}
-	//
-	// 	// check logout response
-	// 	loginState, err = loginStateFromResponse(c)
-	// 	if err != nil {
-	// 		t.Fatal(err)
-	// 	}
-	// 	if loginState.LoggedIn {
-	// 		t.Errorf("logout response after login expects LoggedIn = %v but %v", false, loginState.LoggedIn)
-	// 	}
-	// 	if msg := loginState.ErrorMsg; len(msg) > 0 {
-	// 		t.Errorf("logout response after login expects no erorr message but message=%v", msg)
-	// 	}
+	c, err = doLogout(c.Response().Header()["Set-Cookie"])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check session has no loginState
+	sess := session.Default(c)
+	if _, ok := sess.Get(KeyLoginState).(LoginState); ok {
+		t.Errorf("session have LoginState after logout")
+	}
+
+	// check logout response
+	loginState, err = loginStateFromResponse(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loginState.LoggedIn {
+		t.Errorf("logout response after login expects LoggedIn = %v but %v", false, loginState.LoggedIn)
+	}
+	if msg := loginState.ErrorMsg; len(msg) > 0 {
+		t.Errorf("logout response after login expects no erorr message but message=%v", msg)
+	}
 }
 
-func doLogout() (echo.Context, error) {
+func doLogout(cookie []string) (echo.Context, error) {
 	req := httptest.NewRequest(echo.POST, "/logout", nil)
+	req.Header["Cookie"] = cookie
 	rec := httptest.NewRecorder()
-	e := echo.New()
-	c := e.NewContext(req, rec)
+	c := theEcho.NewContext(req, rec)
 	return c, withSession(loginHandler.Logout, c)
 }
