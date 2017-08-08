@@ -79,7 +79,7 @@ func (lh *LoginHandler) Login(c echo.Context) error {
 	loginState := LoginState{LoggedIn: true, UserID: user.ID, RememberMe: u.RememberMe}
 
 	sess := session.Default(c)
-	sess.Set(KeyLoginState, loginState)
+	sess.Set(KeyLoginState, &loginState)
 	if loginState.RememberMe {
 		newOpt := DefaultOptions
 		newOpt.MaxAge = SecondsInYear
@@ -94,7 +94,7 @@ func (lh *LoginHandler) Login(c echo.Context) error {
 
 func (lh *LoginHandler) Logout(c echo.Context) error {
 	sess := session.Default(c)
-	if _, ok := sess.Get(KeyLoginState).(LoginState); !ok {
+	if _, ok := sess.Get(KeyLoginState).(*LoginState); !ok {
 		return c.JSON(http.StatusOK, LoginState{ErrorMsg: "you are not logged in"})
 	}
 	sess.Delete(KeyLoginState)
@@ -106,7 +106,7 @@ func (lh *LoginHandler) Logout(c echo.Context) error {
 
 func (lh *LoginHandler) GetLoginState(c echo.Context) error {
 	sess := session.Default(c)
-	loginState, ok := sess.Get(KeyLoginState).(LoginState)
+	loginState, ok := sess.Get(KeyLoginState).(*LoginState)
 	if !ok {
 		return c.JSON(http.StatusOK, LoginState{LoggedIn: false, ErrorMsg: "you are not logged in"})
 	}
@@ -114,7 +114,7 @@ func (lh *LoginHandler) GetLoginState(c echo.Context) error {
 }
 
 func (lh *LoginHandler) IsLoggedInRequest(c echo.Context) bool {
-	loginState, ok := session.Default(c).Get(KeyLoginState).(LoginState)
+	loginState, ok := session.Default(c).Get(KeyLoginState).(*LoginState)
 	return ok && loginState.LoggedIn
 }
 

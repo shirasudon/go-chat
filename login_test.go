@@ -37,7 +37,7 @@ func TestLogin(t *testing.T) {
 
 	// check session has LoginState.
 	sess := session.Default(c)
-	if ls, ok := sess.Get(KeyLoginState).(LoginState); !ok || !ls.LoggedIn {
+	if ls, ok := sess.Get(KeyLoginState).(*LoginState); !ok || !ls.LoggedIn {
 		t.Errorf("session does not have any LoginState after login")
 	}
 
@@ -69,7 +69,7 @@ func TestLogin(t *testing.T) {
 
 		// check session has LoginState.
 		sess := session.Default(c)
-		if _, ok := sess.Get(KeyLoginState).(LoginState); ok {
+		if _, ok := sess.Get(KeyLoginState).(*LoginState); ok {
 			t.Errorf("session has any LoginState after login failed with email: %v, password: %v", testcase.Email, testcase.Password)
 		}
 
@@ -140,7 +140,7 @@ func TestLogout(t *testing.T) {
 
 	// check session has no loginState
 	sess := session.Default(c)
-	if _, ok := sess.Get(KeyLoginState).(LoginState); ok {
+	if _, ok := sess.Get(KeyLoginState).(*LoginState); ok {
 		t.Errorf("session have LoginState after logout")
 	}
 
