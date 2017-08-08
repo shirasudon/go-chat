@@ -14,8 +14,8 @@ type Room struct {
 	name string
 
 	// event channels
-	joins      chan *Client
-	leaves     chan *Client
+	joins      chan *Conn
+	leaves     chan *Conn
 	messages   chan ChatMessage
 	broadcasts chan interface{}
 	errors     chan error
@@ -24,21 +24,21 @@ type Room struct {
 	OnClosed func(*Room)
 
 	repo    entity.MessageRepository
-	clients map[*Client]bool
+	clients map[*Conn]bool
 }
 
 func NewRoom(name string) *Room {
 	return &Room{
 		name:       name,
-		joins:      make(chan *Client, 1),
-		leaves:     make(chan *Client, 1),
+		joins:      make(chan *Conn, 1),
+		leaves:     make(chan *Conn, 1),
 		messages:   make(chan ChatMessage, 1),
 		broadcasts: make(chan interface{}, 1),
 		errors:     make(chan error, 1),
 		done:       make(chan struct{}, 1),
 
 		repo:    entity.Messages(),
-		clients: make(map[*Client]bool, 4),
+		clients: make(map[*Conn]bool, 4),
 	}
 }
 
@@ -87,20 +87,20 @@ func (room *Room) Listen(ctx context.Context) {
 	}
 }
 
-func (room *Room) join(c *Client) {
+func (room *Room) join(c *Conn) {
 	// TODO how over wrapped client is handled?
 	room.clients[c] = true
 
-	c.onAnyMessage = func(c *Client, any interface{}) {
+	c.onAnyMessage = func(c *Conn, any interface{}) {
 		room.broadcasts <- any
 	}
-	c.onChatMessage = func(c *Client, m ChatMessage) {
+	c.onChatMessage = func(c *Conn, m ChatMessage) {
 		room.messages <- m
 	}
-	c.onError = func(c *Client, err error) {
+	c.onError = func(c *Conn, err error) {
 		room.errors <- err
 	}
-	c.onClosed = func(c *Client) {
+	c.onClosed = func(c *Conn) {
 		room.leaves <- c
 	}
 
@@ -115,7 +115,7 @@ func (room *Room) join(c *Client) {
 	}
 }
 
-func (room *Room) leave(c *Client) {
+func (room *Room) leave(c *Conn) {
 	if _, exist := room.clients[c]; exist {
 		c.onAnyMessage = nil
 		c.onChatMessage = nil
@@ -150,11 +150,11 @@ func (room *Room) Send(m ChatMessage) {
 	room.messages <- m
 }
 
-func (room *Room) Join(c *Client) {
+func (room *Room) Join(c *Conn) {
 	room.joins <- c
 }
 
-func (room *Room) Leave(c *Client) {
+func (room *Room) Leave(c *Conn) {
 	room.leaves <- c
 }
 

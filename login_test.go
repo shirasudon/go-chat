@@ -164,3 +164,51 @@ func doLogout(cookie []string) (echo.Context, error) {
 	c := theEcho.NewContext(req, rec)
 	return c, withSession(loginHandler.Logout, c)
 }
+
+func TestGetLoginState(t *testing.T) {
+	// 1. before logged-in, it returns loginState with loggedin=false
+	c, err := doGetLoginState(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check response json
+	loginState, err := loginStateFromResponse(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loginState.LoggedIn {
+		t.Error("not loggedin but loginState.LoggedIn = true")
+	}
+	if msg := loginState.ErrorMsg; len(msg) == 0 {
+		t.Errorf("not loggedin but no error")
+	}
+
+	// 2. after logged-in, it returns loginState with LoggedIn = true.
+	c, _ = doLogin(CorrectEmail, CorrectPassword)
+
+	c, err = doGetLoginState(c.Response().Header()["Set-Cookie"])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check response json
+	loginState, err = loginStateFromResponse(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !loginState.LoggedIn {
+		t.Error("login succeeded but can not get logged in state")
+	}
+	if msg := loginState.ErrorMsg; len(msg) > 0 {
+		t.Errorf("login succeeded but got error: %v", msg)
+	}
+}
+
+func doGetLoginState(cookie []string) (echo.Context, error) {
+	req := httptest.NewRequest(echo.GET, "/login", nil)
+	req.Header["Cookie"] = cookie
+	rec := httptest.NewRecorder()
+	c := theEcho.NewContext(req, rec)
+	return c, withSession(loginHandler.GetLoginState, c)
+}

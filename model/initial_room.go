@@ -21,14 +21,14 @@ type connectionInfo struct {
 // because one user has many websocket conncetions such as from PC,
 // mobile device, and so on.
 type activeClient struct {
-	conns   map[*Client]connectionInfo
+	conns   map[*Conn]connectionInfo
 	rooms   map[uint64]bool // has rooms managed by room id
 	friends map[uint64]bool // has friends managed by user id
 }
 
-func newActiveClient(c *Client) *activeClient {
+func newActiveClient(c *Conn) *activeClient {
 	return &activeClient{
-		conns:   map[*Client]connectionInfo{c: connectionInfo{}},
+		conns:   map[*Conn]connectionInfo{c: connectionInfo{}},
 		rooms:   make(map[uint64]bool),
 		friends: make(map[uint64]bool),
 	}
@@ -47,8 +47,8 @@ func (ac *activeClient) Send(m ActionMessage) {
 //
 // All of the rooms are children of this room. So They are managed by InitialRoom.
 type InitialRoom struct {
-	connects    chan *Client
-	disconnects chan *Client
+	connects    chan *Conn
+	disconnects chan *Conn
 	messages    chan ActionMessage
 
 	// TODO RoomRepository to accept that correct user enters a room.
@@ -58,8 +58,8 @@ type InitialRoom struct {
 
 func NewInitialRoom( /*rRepo RoomRepository*/ ) *InitialRoom {
 	return &InitialRoom{
-		connects:    make(chan *Client, 1),
-		disconnects: make(chan *Client, 1),
+		connects:    make(chan *Conn, 1),
+		disconnects: make(chan *Conn, 1),
 		messages:    make(chan ActionMessage, 1),
 		roomManager: NewRoomManager( /*rRepo*/ ),
 		clients:     make(map[uint64]*activeClient),
@@ -84,7 +84,7 @@ func (iroom *InitialRoom) Listen(ctx context.Context) {
 	}
 }
 
-func (iroom *InitialRoom) connectClient(c *Client) {
+func (iroom *InitialRoom) connectClient(c *Conn) {
 	// add conncetion to active user when the user is already connected from anywhere.
 	if activeC, ok := iroom.clients[c.userID]; ok {
 		activeC.conns[c] = connectionInfo{}
@@ -111,11 +111,11 @@ func (iroom *InitialRoom) broadcastsFriends(activeC *activeClient, m ActionMessa
 // Connect new websocket client to room.
 // it blocks until context is done.
 func (iroom *InitialRoom) Connect(ctx context.Context, conn *websocket.Conn, u entity.User) {
-	c := NewClient(conn, u)
-	c.onClosed = func(closedC *Client) {
+	c := NewConn(conn, u)
+	c.onClosed = func(closedC *Conn) {
 		iroom.disconnects <- closedC
 	}
-	c.onAnyMessage = func(gotC *Client, msg interface{}) {
+	c.onAnyMessage = func(gotC *Conn, msg interface{}) {
 		m := msg.(ActionMessage)
 		switch m.Action() {
 		case ActionEnterRoom:
@@ -131,15 +131,15 @@ func (iroom *InitialRoom) Connect(ctx context.Context, conn *websocket.Conn, u e
 
 type enterRoomRequest struct {
 	EnterRoom
-	Client *Client
+	Client *Conn
 }
 
 type exitRoomRequest struct {
 	ExitRoom
-	Client *Client
+	Client *Conn
 }
 
-func (iroom *InitialRoom) disconnectClient(c *Client) {
+func (iroom *InitialRoom) disconnectClient(c *Conn) {
 	activeC, ok := iroom.clients[c.userID]
 	if !ok {
 		return
@@ -176,7 +176,7 @@ func (iroom *InitialRoom) enterRoom(ctx context.Context, req enterRoomRequest) {
 	iroom.roomManager.EnterRoom(ctx, req.CurrentRoomID, req.RoomID, req.Client)
 }
 
-func (iroom *InitialRoom) validateClientHasRoom(conn *Client, userID, roomID uint64) error {
+func (iroom *InitialRoom) validateClientHasRoom(conn *Conn, userID, roomID uint64) error {
 	if !iroom.connectionExist(userID, conn) {
 		return fmt.Errorf("request user id(%d) is not found", userID)
 	}
@@ -188,7 +188,7 @@ func (iroom *InitialRoom) validateClientHasRoom(conn *Client, userID, roomID uin
 }
 
 // check whether active client with the websocket connection exists?
-func (iroom *InitialRoom) connectionExist(userID uint64, conn *Client) bool {
+func (iroom *InitialRoom) connectionExist(userID uint64, conn *Conn) bool {
 	if activeC, ok := iroom.clients[userID]; ok {
 		if _, ok := activeC.conns[conn]; ok {
 			return true
@@ -197,7 +197,7 @@ func (iroom *InitialRoom) connectionExist(userID uint64, conn *Client) bool {
 	return false
 }
 
-func sendError(c *Client, err error) {
+func sendError(c *Conn, err error) {
 	log.Println(err)
 	go func() { c.Send(NewErrorMessage(err)) }()
 }

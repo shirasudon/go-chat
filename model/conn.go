@@ -10,9 +10,9 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-// Client is end-point for reading/writing messages from/to websocket.
-// One Client corresponds to one browser-side client.
-type Client struct {
+// Conn is end-point for reading/writing messages from/to websocket.
+// One Conn corresponds to one browser-side client.
+type Conn struct {
 	userID   uint64
 	userName string
 
@@ -20,14 +20,14 @@ type Client struct {
 
 	messages chan interface{}
 
-	onAnyMessage  func(*Client, interface{})
-	onChatMessage func(*Client, ChatMessage)
-	onClosed      func(*Client)
-	onError       func(*Client, error)
+	onAnyMessage  func(*Conn, interface{})
+	onChatMessage func(*Conn, ChatMessage)
+	onClosed      func(*Conn)
+	onError       func(*Conn, error)
 }
 
-func NewClient(conn *websocket.Conn, user entity.User) *Client {
-	return &Client{
+func NewConn(conn *websocket.Conn, user entity.User) *Conn {
+	return &Conn{
 		userID:   user.ID,
 		userName: user.Name,
 		conn:     conn,
@@ -37,7 +37,7 @@ func NewClient(conn *websocket.Conn, user entity.User) *Client {
 
 // Listen starts handing reading/writing websocket.
 // it blocks until websocket is closed or context is done.
-func (c *Client) Listen(ctx context.Context) {
+func (c *Conn) Listen(ctx context.Context) {
 	// two Pump functions are listening the closing event for each other.
 	sendingDone := make(chan struct{})
 	receivingDone := make(chan struct{})
@@ -49,7 +49,7 @@ func (c *Client) Listen(ctx context.Context) {
 	c.receivePump(ctx, sendingDone)
 }
 
-func (c *Client) sendPump(ctx context.Context, receivingDone chan struct{}) {
+func (c *Conn) sendPump(ctx context.Context, receivingDone chan struct{}) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -66,7 +66,7 @@ func (c *Client) sendPump(ctx context.Context, receivingDone chan struct{}) {
 	}
 }
 
-func (c *Client) receivePump(ctx context.Context, sendingDone chan struct{}) {
+func (c *Conn) receivePump(ctx context.Context, sendingDone chan struct{}) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -93,7 +93,7 @@ func (c *Client) receivePump(ctx context.Context, sendingDone chan struct{}) {
 	}
 }
 
-func (c *Client) handleClientMessage() error {
+func (c *Conn) handleClientMessage() error {
 	var message AnyMessage
 	if err := websocket.JSON.Receive(c.conn, &message); err != nil {
 		return err
@@ -105,7 +105,7 @@ func (c *Client) handleClientMessage() error {
 	return errors.New("got json without action field")
 }
 
-func (c *Client) handleArbitraryValue(m AnyMessage, action Action) error {
+func (c *Conn) handleArbitraryValue(m AnyMessage, action Action) error {
 	switch action {
 	case ActionChatMessage:
 		message := ParseChatMessage(m, action)
@@ -142,6 +142,6 @@ func (c *Client) handleArbitraryValue(m AnyMessage, action Action) error {
 }
 
 // Send aribitrary value to browser-side client.
-func (c *Client) Send(v interface{}) {
+func (c *Conn) Send(v interface{}) {
 	c.messages <- v
 }

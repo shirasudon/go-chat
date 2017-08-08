@@ -65,7 +65,7 @@ func (s *Server) acceptRoom(ws *websocket.Conn) {
 	}
 	s.mutex.Unlock()
 
-	c := model.NewClient(ws, entity.User{}) // TODO session's user
+	c := model.NewConn(ws, entity.User{}) // TODO session's user
 	room.Join(c)
 	c.Listen(s.ctx) // blocking to avoid connection closed
 }

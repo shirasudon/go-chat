@@ -39,7 +39,7 @@ func (rm *RoomManager) RoomExist(roomID uint64) bool {
 	return ok
 }
 
-func (rm *RoomManager) EnterRoom(ctx context.Context, currentRoomID, nextRoomID uint64, c *Client) {
+func (rm *RoomManager) EnterRoom(ctx context.Context, currentRoomID, nextRoomID uint64, c *Conn) {
 	// TODO exit previous room before enter new room.
 	if currentRoomID > 0 {
 		rm.exitRoom(currentRoomID, c)
@@ -57,7 +57,7 @@ func (rm *RoomManager) EnterRoom(ctx context.Context, currentRoomID, nextRoomID 
 	activeRoom.nMenber += 1
 }
 
-func (rm *RoomManager) exitRoom(roomID uint64, c *Client) {
+func (rm *RoomManager) exitRoom(roomID uint64, c *Conn) {
 	room, ok := rm.rooms[roomID]
 	if !ok {
 		log.Println("exit room for inactive room")
@@ -73,6 +73,6 @@ func (rm *RoomManager) exitRoom(roomID uint64, c *Client) {
 	}
 }
 
-func (rm *RoomManager) DisconnectClient(currentRoomID uint64, c *Client) {
+func (rm *RoomManager) DisconnectClient(currentRoomID uint64, c *Conn) {
 	rm.exitRoom(currentRoomID, c)
 }
