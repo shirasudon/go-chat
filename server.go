@@ -2,11 +2,8 @@ package chat
 
 import (
 	"context"
+	"errors"
 	"log"
-	"net/http"
-	"path"
-	"strings"
-	"sync"
 
 	"golang.org/x/net/websocket"
 
@@ -20,14 +17,13 @@ import (
 type Server struct {
 	websocketServer *websocket.Server
 	loginHandler    *LoginHandler
+	initialRoom     *model.InitialRoom
 
 	ctx context.Context
 
 	repos entity.Repositories
 
-	mutex *sync.RWMutex
-	rooms map[string]*model.Room
-	conf  Config
+	conf Config
 }
 
 // it returns new constructed server with config.
@@ -39,42 +35,32 @@ func NewServer(repos entity.Repositories, conf *Config) *Server {
 
 	s := &Server{
 		loginHandler: NewLoginHandler(repos.Users()),
+		initialRoom:  model.NewInitialRoom(repos),
 		ctx:          context.Background(),
 		repos:        repos,
-		mutex:        new(sync.RWMutex),
-		rooms:        make(map[string]*model.Room, 4),
 		conf:         *conf,
 	}
-	s.websocketServer = &websocket.Server{Handler: websocket.Handler(s.acceptRoom)}
+	s.websocketServer = &websocket.Server{} // TODO it is needed?
 	return s
 }
 
-func (s *Server) acceptRoom(ws *websocket.Conn) {
-	defer ws.Close()
-
-	log.Println("Server.acceptRoom: " + ws.Request().URL.String())
-	room_id := path.Base(ws.Request().URL.Path)
-
-	s.mutex.Lock()
-	room, exist := s.rooms[room_id]
-	if !exist {
-		room = model.NewRoom(room_id)
-		room.OnClosed = s.doneRoom
-		go room.Listen(s.ctx)
-		s.rooms[room_id] = room
+func (s *Server) serveChatWebsocket(c echo.Context) error {
+	userID, ok := c.Get(KeyLoggedInUserID).(uint64)
+	if !ok {
+		return errors.New("needs logged in, but access without logged in state")
 	}
-	s.mutex.Unlock()
+	user, err := s.repos.Users().Find(userID)
+	if err != nil {
+		return err
+	}
+	websocket.Handler(func(ws *websocket.Conn) {
+		log.Println("Server.acceptWSConn: ")
+		defer ws.Close()
 
-	c := model.NewConn(ws, entity.User{}) // TODO session's user
-	room.Join(c)
-	c.Listen(s.ctx) // blocking to avoid connection closed
-}
-
-func (s *Server) doneRoom(r *model.Room) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-	r.OnClosed = nil
-	delete(s.rooms, r.Name())
+		// blocking to avoid connection closed
+		s.initialRoom.Connect(s.ctx, ws, user)
+	}).ServeHTTP(c.Response(), c.Request())
+	return nil
 }
 
 // it starts server process.
@@ -86,7 +72,7 @@ func (s *Server) ListenAndServe() error {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	s.ctx = ctx // overwrite context to propagate cancel siganl to others.
+	s.ctx = ctx // override context to propagate done signal from the server.
 	defer cancel()
 
 	// initilize router
@@ -100,12 +86,12 @@ func (s *Server) ListenAndServe() error {
 	e.GET("/login", s.loginHandler.GetLoginState)
 	e.POST("/logout", s.loginHandler.Logout)
 
+	// start chat proces
+	s.initialRoom.Listen(ctx)
+
 	// set websocket handler
 	g := e.Group("/ws", s.loginHandler.Filter())
-	g.GET(s.conf.WebSocketPath+"*", func(c echo.Context) error {
-		s.routingRoom(c.Response(), c.Request())
-		return nil
-	})
+	g.GET(s.conf.WebSocketPath, s.serveChatWebsocket)
 
 	// serve static content
 	e.Static("/", "")
@@ -116,18 +102,6 @@ func (s *Server) ListenAndServe() error {
 	err := e.Start(serverURL)
 	e.Logger.Error(err)
 	return err
-}
-
-func (s *Server) routingRoom(w http.ResponseWriter, r *http.Request) {
-	log.Println("routingRoom: " + r.URL.String())
-
-	room_id := strings.TrimPrefix(r.URL.Path, s.conf.WebSocketPath)
-	if len(room_id) > 0 && !strings.Contains(room_id, "/") {
-		// serve websocket
-		s.websocketServer.ServeHTTP(w, r)
-	} else {
-		http.Error(w, "can not match any rooms", http.StatusBadRequest)
-	}
 }
 
 // It starts server process using default server with

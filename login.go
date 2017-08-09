@@ -105,8 +105,7 @@ func (lh *LoginHandler) Logout(c echo.Context) error {
 }
 
 func (lh *LoginHandler) GetLoginState(c echo.Context) error {
-	sess := session.Default(c)
-	loginState, ok := sess.Get(KeyLoginState).(*LoginState)
+	loginState, ok := lh.Session(c)
 	if !ok {
 		return c.JSON(http.StatusOK, LoginState{LoggedIn: false, ErrorMsg: "you are not logged in"})
 	}
@@ -114,8 +113,15 @@ func (lh *LoginHandler) GetLoginState(c echo.Context) error {
 }
 
 func (lh *LoginHandler) IsLoggedInRequest(c echo.Context) bool {
-	loginState, ok := session.Default(c).Get(KeyLoginState).(*LoginState)
+	loginState, ok := lh.Session(c)
 	return ok && loginState.LoggedIn
+}
+
+// it returns loginState as session state.
+// the second returned value is true when LoginState exists.
+func (lh *LoginHandler) Session(c echo.Context) (*LoginState, bool) {
+	loginState, ok := session.Default(c).Get(KeyLoginState).(*LoginState)
+	return loginState, ok
 }
 
 // Middleware returns echo.MiddlewareFunc.
@@ -124,11 +130,18 @@ func (lh *LoginHandler) Middleware() echo.MiddlewareFunc {
 	return session.Sessions(KeySessionID, lh.store)
 }
 
-// Filter is a middleware which filters unauthorized request.
+const KeyLoggedInUserID = "SESSION-USER-ID"
+
+// Filter is a middleware which filters unauthenticated request.
+//
+// it sets logged-in user's id for echo.Context using KeyLoggedInUserID
+// when the request is authenticated.
 func (lh *LoginHandler) Filter() echo.MiddlewareFunc {
 	return func(handlerFunc echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			if lh.IsLoggedInRequest(c) {
+				loginState, _ := lh.Session(c) // must return loginState.
+				c.Set(KeyLoggedInUserID, loginState.UserID)
 				return handlerFunc(c)
 			}
 			return c.JSON(http.StatusForbidden, struct {

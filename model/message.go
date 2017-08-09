@@ -9,6 +9,30 @@ type ActionMessage interface {
 	Action() Action
 }
 
+// common fields for the websocket action message structs.
+// it implements ActionMessage interface.
+type EmbdFields struct {
+	ActionName Action `json:"action,omitempty"`
+}
+
+func (ef EmbdFields) Action() Action { return ef.ActionName }
+
+// ToRoomMessage can return roomID for destination.
+type ToRoomMessage interface {
+	ToRoom() uint64
+}
+
+// common fields for the websocket message having
+// destination as room.
+// it implements ToRoomMessage interface.
+type ToRoomFields struct {
+	RoomID uint64 `json:"room_id,omitempty"`
+}
+
+func (tr ToRoomFields) ToRoom() uint64 {
+	return tr.RoomID
+}
+
 // AnyMessage is a arbitrary message through the websocket.
 // it implements ActionMessage interface.
 type AnyMessage map[string]interface{}
@@ -55,13 +79,6 @@ const (
 	ActionTypeEnd   Action = "TYPE_END"
 )
 
-// common fields for the websocket payload structs.
-type EmbdFields struct {
-	ActionName Action `json:"action,omitempty"`
-}
-
-func (ef EmbdFields) Action() Action { return ef.ActionName }
-
 // Error message.
 // it implements ActionMessage interface.
 type ErrorMessage struct {
@@ -71,6 +88,11 @@ type ErrorMessage struct {
 
 func NewErrorMessage(err error) ErrorMessage {
 	return ErrorMessage{EmbdFields: EmbdFields{ActionName: ActionError}, Error: err}
+}
+
+type UserConnect struct {
+	EmbdFields
+	UserID int `json:"user_id,omitempty"`
 }
 
 // EnterRoom indicates that user requests to enter
@@ -94,31 +116,17 @@ func ParseEnterRoom(m AnyMessage, action Action) EnterRoom {
 	return v
 }
 
-// ExitRoom indicates that user requests to exit
-// specified room.
-// it implements ActionMessage interface.
-type ExitRoom EnterRoom
-
-func ParseExitRoom(m AnyMessage, action Action) ExitRoom {
-	if action != ActionExitRoom {
-		panic("ParseUserJoinRoom: invalid action")
-	}
-	v := ExitRoom{}
-	v.ActionName = action
-	v.SenderID, _ = m["sender_id"].(uint64)
-	v.RoomID, _ = m["room_id"].(uint64)
-	return v
-}
+// == ChatMessage related ActionMessages ==
 
 // ChatMessage is chat message which is recieved from a browser-side
 // client and sends to other clients in the same room.
-// it implements ActionMessage interface.
+// it implements ActionMessage and ToRoomMessage interface.
 type ChatMessage struct {
 	EmbdFields
+	ToRoomFields
 	ID       uint64 `json:"id,omitempty"` // used only server->client
 	Content  string `json:"content,omitempty"`
 	SenderID uint64 `json:"sender_id,omitempty"`
-	RoomID   uint64 `json:"room_id,omitempty"`
 }
 
 func ParseChatMessage(m AnyMessage, action Action) ChatMessage {
@@ -135,11 +143,12 @@ func ParseChatMessage(m AnyMessage, action Action) ChatMessage {
 
 // ReadMessage indicates notification which some chat messages are read by
 // any user.
-// it implements ActionMessage interface.
+// it implements ActionMessage and ToRoomMessage interface.
 type ReadMessage struct {
 	EmbdFields
+	ToRoomFields
 	SenderID   uint64   `json:"sender_id,omitempty"`
-	MessageIDs []uint64 `json:"message_ids,omitempty"`
+	MessageIDs []uint64 `json:"message_ids"`
 }
 
 func ParseReadMessage(m AnyMessage, action Action) ReadMessage {
@@ -149,15 +158,19 @@ func ParseReadMessage(m AnyMessage, action Action) ReadMessage {
 	rm := ReadMessage{}
 	rm.ActionName = action
 	rm.SenderID, _ = m["sender_id"].(uint64)
+	rm.RoomID, _ = m["room_id"].(uint64)
 	rm.MessageIDs, _ = m["message_ids"].([]uint64)
 	return rm
 }
 
 // TypeStart indicates user starts key typing.
-// it implements ActionMessage interface.
+// it implements ActionMessage, ToRoomAction interface.
 type TypeStart struct {
 	EmbdFields
-	SenderID   uint64    `json:"sender_id,omitempty"`
+	ToRoomFields
+	SenderID uint64 `json:"sender_id,omitempty"`
+
+	// set by server and return client
 	SenderName string    `json:"sender_name,omitempty"`
 	StartAt    time.Time `json:"start_at,omitempty"`
 }
@@ -168,17 +181,19 @@ func ParseTypeStart(m AnyMessage, action Action) TypeStart {
 	}
 	ts := TypeStart{}
 	ts.ActionName = action
-	// ts.SenderID, _ = m["sender_id"].(uint)
-	// ts.SenderName, _ = m["sender_name"].(string)
-	// ts.StartAt, _ = m["start_at"].(time.Time)
+	ts.SenderID, _ = m["sender_id"].(uint64)
+	ts.RoomID, _ = m["room_id"].(uint64)
 	return ts
 }
 
 // TypeEnd indicates user ends key typing.
-// it implements ActionMessage interface.
+// it implements ActionMessage, ToRoomMessage interface.
 type TypeEnd struct {
 	EmbdFields
-	SenderID   uint64    `json:"sender_id,omitempty"`
+	ToRoomFields
+	SenderID uint64 `json:"sender_id,omitempty"`
+
+	// set by server and return client
 	SenderName string    `json:"sender_name,omitempty"`
 	EndAt      time.Time `json:"end_at,omitempty"`
 }
@@ -189,13 +204,7 @@ func ParseTypeEnd(m AnyMessage, action Action) TypeEnd {
 	}
 	te := TypeEnd{}
 	te.ActionName = action
-	// te.SenderID, _ = m["sender_id"].(uint)
-	// te.SenderName, _ = m["sender_name"].(string)
-	// te.EndAt, _ = m["end_at"].(time.Time)
+	te.SenderID, _ = m["sender_id"].(uint64)
+	te.RoomID, _ = m["room_id"].(uint64)
 	return te
-}
-
-type UserConnect struct {
-	EmbdFields
-	UserID int `json:"user_id,omitempty"`
 }

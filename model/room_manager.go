@@ -76,3 +76,11 @@ func (rm *RoomManager) exitRoom(roomID uint64, c *Conn) {
 func (rm *RoomManager) DisconnectClient(currentRoomID uint64, c *Conn) {
 	rm.exitRoom(currentRoomID, c)
 }
+
+func (rm *RoomManager) Send(m ToRoomMessage) {
+	activeR, ok := rm.rooms[m.ToRoom()]
+	if !ok {
+		return
+	}
+	activeR.room.Send(m)
+}

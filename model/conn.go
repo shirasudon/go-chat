@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync"
 
 	"github.com/shirasudon/go-chat/entity"
 
@@ -18,12 +19,15 @@ type Conn struct {
 
 	conn *websocket.Conn
 
-	messages chan interface{}
+	mu     *sync.RWMutex
+	closed bool // under mu
 
-	onAnyMessage  func(*Conn, interface{})
-	onChatMessage func(*Conn, ChatMessage)
-	onClosed      func(*Conn)
-	onError       func(*Conn, error)
+	messages chan interface{}
+	done     chan struct{}
+
+	onActionMessage func(*Conn, ActionMessage)
+	onClosed        func(*Conn)
+	onError         func(*Conn, error)
 }
 
 func NewConn(conn *websocket.Conn, user entity.User) *Conn {
@@ -31,63 +35,73 @@ func NewConn(conn *websocket.Conn, user entity.User) *Conn {
 		userID:   user.ID,
 		userName: user.Name,
 		conn:     conn,
+		mu:       new(sync.RWMutex),
+		closed:   false,
 		messages: make(chan interface{}, 1),
+		done:     make(chan struct{}, 1),
 	}
 }
 
 // Listen starts handing reading/writing websocket.
-// it blocks until websocket is closed or context is done.
+// it blocks until websocket is closed, context is done or
+// Done() signal is sent.
+//
+// when Listen() ends, Conn is closed.
 func (c *Conn) Listen(ctx context.Context) {
-	// two Pump functions are listening the closing event for each other.
-	sendingDone := make(chan struct{})
-	receivingDone := make(chan struct{})
-	go func() {
-		defer close(sendingDone)
-		c.sendPump(ctx, receivingDone)
+	ctx, cancel := context.WithCancel(ctx)
+	defer func() {
+		c.mu.Lock()
+		c.closed = true
+		c.mu.Unlock()
+		cancel()
+		if c.onClosed != nil {
+			c.onClosed(c)
+		}
 	}()
-	defer close(receivingDone)
-	c.receivePump(ctx, sendingDone)
+
+	go func() {
+		c.receivePump(ctx)
+	}()
+	c.sendPump(ctx)
 }
 
-func (c *Conn) sendPump(ctx context.Context, receivingDone chan struct{}) {
+func (c *Conn) sendPump(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-receivingDone:
+		case <-c.done:
 			return
 		case m := <-c.messages:
-			err := websocket.JSON.Send(c.conn, &m)
-			if err == io.EOF {
-				// closing connection is done by readPump, so no-op.
+			if err := websocket.JSON.Send(c.conn, m); err != nil {
+				// io.EOF means connection is closed
+				if err != io.EOF && c.onError != nil {
+					c.onError(c, err)
+				}
 				return
 			}
 		}
 	}
 }
 
-func (c *Conn) receivePump(ctx context.Context, sendingDone chan struct{}) {
+func (c *Conn) receivePump(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-sendingDone:
-			return
+		// receivePump run on other goroutine.
+		// done channel is not listened.
 		default:
 			err := c.handleClientMessage()
 			switch err {
 			case nil:
 				// Receive success, no-op
-			case io.EOF:
-				// connection is closed
-				if c.onClosed != nil {
-					c.onClosed(c)
-				}
-				return
 			default:
-				if c.onError != nil {
+				// io.EOF means connection is closed
+				if err != io.EOF && c.onError != nil {
 					c.onError(c, err)
 				}
+				return // to receivePump()
 			}
 		}
 	}
@@ -98,50 +112,65 @@ func (c *Conn) handleClientMessage() error {
 	if err := websocket.JSON.Receive(c.conn, &message); err != nil {
 		return err
 	}
-
-	if action := message.Action(); action != ActionEmpty {
-		return c.handleArbitraryValue(message, Action(action))
-	}
-	return errors.New("got json without action field")
+	return c.handleAnyMessae(message)
 }
 
-func (c *Conn) handleArbitraryValue(m AnyMessage, action Action) error {
-	switch action {
+func (c *Conn) handleAnyMessae(m AnyMessage) error {
+	var actionMessage ActionMessage
+	switch action := m.Action(); action {
 	case ActionChatMessage:
-		message := ParseChatMessage(m, action)
-		if c.onChatMessage != nil {
-			c.onChatMessage(c, message)
-		}
+		actionMessage = ParseChatMessage(m, action)
 
 	case ActionReadMessage:
-		message := ParseReadMessage(m, action)
-		if c.onAnyMessage != nil {
-			c.onAnyMessage(c, message)
-		}
+		actionMessage = ParseReadMessage(m, action)
 
 	case ActionTypeStart:
 		typing := ParseTypeStart(m, action)
 		typing.SenderID = c.userID
 		typing.SenderName = c.userName
-		if c.onAnyMessage != nil {
-			c.onAnyMessage(c, typing)
-		}
+		// restore as actionMessage
+		actionMessage = typing
 
 	case ActionTypeEnd:
 		typing := ParseTypeEnd(m, action)
 		typing.SenderID = c.userID
 		typing.SenderName = c.userName
-		if c.onAnyMessage != nil {
-			c.onAnyMessage(c, typing)
-		}
+		// restore as actionMessage
+		actionMessage = typing
 
+	case ActionEmpty:
+		return errors.New("got json without action field")
 	default:
-		return errors.New("handleArbitrayValue: unknown action: " + string(action))
+		return errors.New("handleAnyMessae: unknown action: " + string(action))
+	}
+
+	// send parsed ActionMessage to onActionMessage handler.
+	if actionMessage != nil && c.onActionMessage != nil {
+		c.onActionMessage(c, actionMessage)
 	}
 	return nil
 }
 
-// Send aribitrary value to browser-side client.
-func (c *Conn) Send(v interface{}) {
-	c.messages <- v
+// Send ActionMessage to browser-side client.
+// message is ignored when Conn is closed.
+func (c *Conn) Send(m ActionMessage) {
+	if c.isClosed() {
+		return
+	}
+	c.messages <- m
+}
+
+// send done signal to quit Listen() for client message.
+// signal is ignored when Conn is closed.
+func (c *Conn) Done() {
+	if c.isClosed() {
+		return
+	}
+	c.done <- struct{}{}
+}
+
+func (c *Conn) isClosed() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.closed
 }

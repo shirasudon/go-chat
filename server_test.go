@@ -20,17 +20,22 @@ func createConn(requestPath, origin string) (*websocket.Conn, error) {
 	return websocket.Dial(wsURL, "", origin)
 }
 
-var repository entity.Repositories
+var (
+	repository entity.Repositories
+	server     *Server
+)
 
 func init() {
 	repository, _ = entity.OpenRepositories("stub")
+	server = NewServer(repository, nil)
 }
 
-func TestServer(t *testing.T) {
+// TODO
+func TestServerServeChatWebsocket(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(NewServer(repository, nil).routingRoom))
 	defer ts.Close()
 
-	requestPath := ts.URL + "/chat/ws/room1"
+	requestPath := ts.URL + "/ws/chat/ws/room1"
 	origin := ts.URL[0:strings.LastIndex(ts.URL, ":")]
 
 	conn, err := createConn(requestPath, origin)

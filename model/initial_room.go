@@ -15,22 +15,27 @@ import (
 //
 // All of the rooms are children of this room. So They are managed by InitialRoom.
 type InitialRoom struct {
-	connects    chan *Conn
-	disconnects chan *Conn
-	messages    chan ActionMessage
+	connects          chan *Conn
+	disconnects       chan *Conn
+	messages          chan ActionMessage
+	enterRoomRequests chan enterRoomRequest
+	errors            chan error
 
 	// TODO RoomRepository to accept that correct user enters a room.
 	rooms   *RoomManager
 	clients *ClientManager
 }
 
-func NewInitialRoom( /*rRepo RoomRepository*/ ) *InitialRoom {
+func NewInitialRoom(repos entity.Repositories) *InitialRoom {
+	// TODO set repos to field
 	return &InitialRoom{
-		connects:    make(chan *Conn, 1),
-		disconnects: make(chan *Conn, 1),
-		messages:    make(chan ActionMessage, 1),
-		rooms:       NewRoomManager( /*rRepo*/ ),
-		clients:     NewClientManager(),
+		connects:          make(chan *Conn, 1),
+		disconnects:       make(chan *Conn, 1),
+		messages:          make(chan ActionMessage, 1),
+		enterRoomRequests: make(chan enterRoomRequest, 1),
+		errors:            make(chan error, 1),
+		rooms:             NewRoomManager( /*rRepo*/ ),
+		clients:           NewClientManager(),
 	}
 }
 
@@ -41,9 +46,28 @@ func (iroom *InitialRoom) Listen(ctx context.Context) {
 	for {
 		select {
 		case c := <-iroom.connects:
+			c.onClosed = func(closedC *Conn) {
+				iroom.disconnects <- closedC
+			}
+			c.onError = func(conn *Conn, err error) {
+				iroom.errors <- err
+			}
+			c.onActionMessage = func(gotC *Conn, m ActionMessage) {
+				// upgrade enter room message to enter room request
+				switch m.Action() {
+				case ActionEnterRoom:
+					iroom.enterRoomRequests <- enterRoomRequest{m.(EnterRoom), gotC}
+				default:
+					iroom.messages <- m
+				}
+			}
 			iroom.clients.connectClient(c)
 
 		case c := <-iroom.disconnects:
+			c.onActionMessage = nil
+			c.onError = nil
+			c.onClosed = nil
+
 			roomID := iroom.clients.roomIDFromConn(c)
 			iroom.rooms.DisconnectClient(roomID, c)
 			iroom.clients.disconnectClient(c)
@@ -51,59 +75,45 @@ func (iroom *InitialRoom) Listen(ctx context.Context) {
 		case m := <-iroom.messages:
 			iroom.handleMessage(ctx, m)
 
+		case req := <-iroom.enterRoomRequests:
+			iroom.enterRoom(ctx, req)
+
+		case err := <-iroom.errors:
+			// TODO error handling
+			log.Printf("Error: %v\n", err)
+
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
+type enterRoomRequest struct {
+	EnterRoom
+	Conn *Conn
+}
+
 // Connect new websocket client to room.
 // it blocks until context is done.
 func (iroom *InitialRoom) Connect(ctx context.Context, conn *websocket.Conn, u entity.User) {
 	c := NewConn(conn, u)
-	c.onClosed = func(closedC *Conn) {
-		iroom.disconnects <- closedC
-	}
-	c.onAnyMessage = func(gotC *Conn, msg interface{}) {
-		m := msg.(ActionMessage)
-		switch m.Action() {
-		case ActionEnterRoom:
-			m = enterRoomRequest{m.(EnterRoom), gotC}
-		case ActionExitRoom:
-			m = exitRoomRequest{m.(ExitRoom), gotC}
-		}
-		iroom.messages <- m
-	}
 	iroom.connects <- c
 	c.Listen(ctx)
 }
 
-type enterRoomRequest struct {
-	EnterRoom
-	Client *Conn
-}
-
-type exitRoomRequest struct {
-	ExitRoom
-	Client *Conn
-}
-
 func (iroom *InitialRoom) handleMessage(ctx context.Context, m ActionMessage) {
-	switch m.Action() {
-	case ActionCreateRoom:
-	case ActionDeleteRoom:
-	case ActionEnterRoom:
-		iroom.enterRoom(ctx, m.(enterRoomRequest))
+	switch r := m.(type) {
+	case ToRoomMessage:
+		iroom.rooms.Send(r)
 	}
 }
 
 func (iroom *InitialRoom) enterRoom(ctx context.Context, req enterRoomRequest) {
-	if err := iroom.clients.validateClientHasRoom(req.Client, req.SenderID, req.RoomID); err != nil {
-		sendError(req.Client, err)
+	if err := iroom.clients.validateClientHasRoom(req.Conn, req.SenderID, req.RoomID); err != nil {
+		sendError(req.Conn, err)
 		return
 	}
-
-	iroom.rooms.EnterRoom(ctx, req.CurrentRoomID, req.RoomID, req.Client)
+	iroom.rooms.EnterRoom(ctx, req.CurrentRoomID, req.RoomID, req.Conn)
 }
 
 func sendError(c *Conn, err error) {
