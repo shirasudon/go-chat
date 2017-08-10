@@ -59,18 +59,23 @@ func (c *Conn) Listen(ctx context.Context) {
 		}
 	}()
 
+	// signal of receivePump is done
+	receiveDoneCh := make(chan struct{}, 1)
 	go func() {
+		defer close(receiveDoneCh)
 		c.receivePump(ctx)
 	}()
-	c.sendPump(ctx)
+	c.sendPump(ctx, receiveDoneCh)
 }
 
-func (c *Conn) sendPump(ctx context.Context) {
+func (c *Conn) sendPump(ctx context.Context, receiveDoneCh chan struct{}) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-c.done:
+			return
+		case <-receiveDoneCh:
 			return
 		case m := <-c.messages:
 			if err := websocket.JSON.Send(c.conn, m); err != nil {
