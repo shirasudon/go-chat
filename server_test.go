@@ -1,16 +1,15 @@
 package chat
 
 import (
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
+	"github.com/labstack/echo"
 	"github.com/shirasudon/go-chat/entity"
 	_ "github.com/shirasudon/go-chat/entity/stub"
-	"github.com/shirasudon/go-chat/model"
+
 	"golang.org/x/net/websocket"
 )
 
@@ -32,55 +31,59 @@ func init() {
 
 // TODO
 func TestServerServeChatWebsocket(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(NewServer(repository, nil).routingRoom))
-	defer ts.Close()
+	e := echo.New()
+	serverErrCh := make(chan error, 1)
+	ts := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			c := e.NewContext(req, w)
+			c.Set(KeyLoggedInUserID, uint64(0)) // To use check for login state
+			if err := server.serveChatWebsocket(c); err != nil {
+				serverErrCh <- err
+			}
+		}),
+	)
+	defer func() {
+		ts.Close()
+		// catch server error at end
+		select {
+		case err := <-serverErrCh:
+			if err != nil {
+				t.Errorf("request handler returns erorr: %v", err)
+			}
+		default:
+		}
+	}()
 
 	requestPath := ts.URL + "/ws/chat/ws/room1"
 	origin := ts.URL[0:strings.LastIndex(ts.URL, ":")]
 
+	// create websocket connection for testiong server ts.
 	conn, err := createConn(requestPath, origin)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("can not create websocket connetion, error: %v", err)
 	}
 	defer conn.Close()
 
-	errCh := make(chan error)
-	go func() {
-		defer close(errCh)
-		// write to server
-		writeCM := model.ChatMessage{}
-		writeCM.ActionName = model.ActionChatMessage
-		if err := websocket.JSON.Send(conn, &writeCM); err != nil {
-			errCh <- err
-			return
-		}
-		// read from server
-		var readCM model.ChatMessage
-		if err := websocket.JSON.Receive(conn, &readCM); err != nil {
-			errCh <- err
-			return
-		}
+	// // TODO describe behaviors of the websocket client.
 
-		// check same data
-		if readCM != writeCM {
-			errCh <- errors.New("different chat message")
-		}
-	}()
+	// firstly enter any rooms
+	// TODO
 
-	// set timeout for this test
-	timer := time.NewTimer(200 * time.Millisecond)
-	defer timer.Stop()
+	// write message to server
+	// writeCM := model.ChatMessage{}
+	// writeCM.ActionName = model.ActionChatMessage
+	// if err := websocket.JSON.Send(conn, writeCM); err != nil {
+	// 	t.Fatal(err)
+	// }
 
-	for {
-		select {
-		case err, ok := <-errCh:
-			if !ok {
-				return
-			}
-			t.Error(err)
-		case <-timer.C:
-			t.Error("testing timeout, please check error log")
-			return
-		}
-	}
+	// read message from server
+	// var readCM model.ChatMessage
+	// if err := websocket.JSON.Receive(conn, &readCM); err != nil {
+	// 	t.Fatal(err)
+	// }
+
+	// check same message
+	// if readCM != writeCM {
+	// 	t.Errorf("different chat message, got: %v, expect: %v", readCM, writeCM)
+	// }
 }
