@@ -9,15 +9,8 @@ import (
 	"github.com/labstack/echo"
 	"github.com/shirasudon/go-chat/entity"
 	_ "github.com/shirasudon/go-chat/entity/stub"
-
-	"golang.org/x/net/websocket"
+	"github.com/shirasudon/go-chat/wstest"
 )
-
-// create client-side conncetion for the websocket
-func createConn(requestPath, origin string) (*websocket.Conn, error) {
-	wsURL := strings.Replace(requestPath, "http://", "ws://", 1)
-	return websocket.Dial(wsURL, "", origin)
-}
 
 var (
 	repository entity.Repositories
@@ -58,7 +51,7 @@ func TestServerServeChatWebsocket(t *testing.T) {
 	origin := ts.URL[0:strings.LastIndex(ts.URL, ":")]
 
 	// create websocket connection for testiong server ts.
-	conn, err := createConn(requestPath, origin)
+	conn, err := wstest.NewClientConn(requestPath, origin)
 	if err != nil {
 		t.Fatalf("can not create websocket connetion, error: %v", err)
 	}
