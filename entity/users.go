@@ -1,9 +1,16 @@
 package entity
 
+import "context"
+
 type User struct {
 	ID       uint64
 	Name     string
 	Password string
+}
+
+type UserRelation struct {
+	Friends []User
+	Rooms   []Room
 }
 
 type UserRepository interface {
@@ -12,4 +19,6 @@ type UserRepository interface {
 	Exist(name string, password string) bool
 
 	Find(id uint64) (User, error)
+
+	Relation(ctx context.Context, userID uint64) (UserRelation, error)
 }

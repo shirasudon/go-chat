@@ -20,8 +20,8 @@ type Room struct {
 	errors   chan error
 	done     chan struct{}
 
-	repo  entity.MessageRepository
-	conns map[*Conn]bool
+	msgRepo entity.MessageRepository
+	conns   map[*Conn]bool
 }
 
 func NewRoom(name string, mRepo entity.MessageRepository) *Room {
@@ -33,8 +33,8 @@ func NewRoom(name string, mRepo entity.MessageRepository) *Room {
 		errors:   make(chan error, 1),
 		done:     make(chan struct{}, 1),
 
-		repo:  mRepo,
-		conns: make(map[*Conn]bool, 4),
+		msgRepo: mRepo,
+		conns:   make(map[*Conn]bool, 4),
 	}
 }
 
@@ -87,7 +87,7 @@ func (room *Room) leaveAlls() {
 func (room *Room) handleMessage(ctx context.Context, m ToRoomMessage) error {
 	switch m := m.(type) {
 	case ChatMessage:
-		savedMsg, err := room.repo.Save(ctx, entity.Message{
+		savedMsg, err := room.msgRepo.Add(ctx, entity.Message{
 			Content: m.Content,
 			UserID:  m.SenderID,
 			RoomID:  m.RoomID,
@@ -97,7 +97,7 @@ func (room *Room) handleMessage(ctx context.Context, m ToRoomMessage) error {
 		}
 		m.ID = savedMsg.ID
 	case ReadMessage:
-		if err := room.repo.ReadMessage(ctx, m.RoomID, m.SenderID, m.MessageIDs); err != nil {
+		if err := room.msgRepo.ReadMessage(ctx, m.RoomID, m.SenderID, m.MessageIDs); err != nil {
 			return err
 		}
 	}

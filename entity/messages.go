@@ -28,7 +28,7 @@ type MessageRepository interface {
 	// user need not to set ID and CreatedAt for
 	// message since these are auto set.
 	// It returns stored Message and error.
-	Save(ctx context.Context, m Message) (Message, error)
+	Add(ctx context.Context, m Message) (Message, error)
 
 	// ReadMessage marks the messages specified by roomID, MessageIDs
 	// to be read by user specified by userID.

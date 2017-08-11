@@ -21,10 +21,18 @@ func RepositoryProducer(dataSourceName string) (entity.Repositories, error) {
 		return nil, err
 	}
 
+	rRepo, err := newRoomRepository(db)
+	if err != nil {
+		return nil, err
+	}
+	uRepo.rooms = rRepo
+	rRepo.users = uRepo
+
 	return &Repositories{
 		DB:                db,
 		UserRepository:    uRepo,
 		MessageRepository: nil, // TODO implement
+		RoomRepository:    rRepo,
 	}, nil
 }
 
@@ -32,6 +40,7 @@ type Repositories struct {
 	DB *sqlx.DB
 	*UserRepository
 	*MessageRepository
+	*RoomRepository
 }
 
 func (r Repositories) Users() entity.UserRepository {
@@ -43,7 +52,12 @@ func (r Repositories) Messages() entity.MessageRepository {
 	return r.MessageRepository
 }
 
+func (r Repositories) Rooms() entity.RoomRepository {
+	panic("entity/sqlite: TODO: not implement")
+	return r.RoomRepository
+}
+
 func (r Repositories) Close() error {
 	r.UserRepository.close()
-	return r.db.Close()
+	return r.DB.Close()
 }

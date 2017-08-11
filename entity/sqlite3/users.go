@@ -1,6 +1,9 @@
 package sqlite3
 
 import (
+	"context"
+	"errors"
+
 	"github.com/jmoiron/sqlx"
 	"github.com/shirasudon/go-chat/entity"
 )
@@ -12,13 +15,23 @@ type UserRepository struct {
 	findByID                *sqlx.Stmt
 	findByNameAndPassword   *sqlx.Stmt
 	insertByNameAndPassword *sqlx.Stmt
+
+	findFriendsByUserID *sqlx.Stmt
+
+	rooms entity.RoomRepository
 }
 
 const (
-	userQueryFindByID              = `SELECT * FROM users where id=$1`
-	userQueryFindByNameAndPassword = `SELECT * FROM users
-																	WHERE name=$1 and password=$2`
-	userQueryInsertByNameAndPassword = `INSERT INTO users (name, password) VALUES ($1, $2)`
+	userQueryFindByID = `
+SELECT * FROM users where id=$1 LIMIT 1`
+	userQueryFindByNameAndPassword = `
+SELECT * FROM users WHERE name=$1 and password=$2 LIMIT 1`
+	userQueryInsertByNameAndPassword = `
+INSERT INTO users (name, password) VALUES ($1, $2)`
+
+	userQueryFindFriendsByUserID = `
+SELECT * FROM users INNER JOIN user_friends ON users.id = user_friends.user_id
+ WHERE users.id = $1 ORDER BY users.id ASC`
 )
 
 func newUserRepository(db *sqlx.DB) (*UserRepository, error) {
@@ -34,13 +47,30 @@ func newUserRepository(db *sqlx.DB) (*UserRepository, error) {
 	if err != nil {
 		return nil, err
 	}
+	findFriendsByUserID, err := db.Preparex(userQueryFindFriendsByUserID)
+	if err != nil {
+		return nil, err
+	}
 
 	return &UserRepository{
 		db:                      db,
 		findByID:                findByID,
 		findByNameAndPassword:   findByNameAndPassword,
 		insertByNameAndPassword: insertByNameAndPassword,
+		findFriendsByUserID:     findFriendsByUserID,
 	}, nil
+}
+
+func (repo *UserRepository) close() {
+	for _, stmt := range []*sqlx.Stmt{
+		repo.findByID,
+		repo.findByNameAndPassword,
+		repo.insertByNameAndPassword,
+		repo.findFriendsByUserID,
+	} {
+		stmt.Close()
+	}
+	repo.rooms = nil
 }
 
 func (repo *UserRepository) Get(name string, password string) (entity.User, error) {
@@ -69,12 +99,17 @@ func (repo *UserRepository) Find(id uint64) (entity.User, error) {
 	return u, err
 }
 
-func (repo *UserRepository) close() {
-	for _, stmt := range []*sqlx.Stmt{
-		repo.findByID,
-		repo.findByNameAndPassword,
-		repo.insertByNameAndPassword,
-	} {
-		stmt.Close()
+func (repo *UserRepository) Relation(ctx context.Context, userID uint64) (entity.UserRelation, error) {
+	var relaion entity.UserRelation
+	// validate existance of repo.rooms to use it.
+	if repo.rooms == nil {
+		return relaion, errors.New("UserRepository does not have RoomRepository, be sure set it")
 	}
+
+	if err := repo.findFriendsByUserID.SelectContext(ctx, &(relaion.Friends), userID); err != nil {
+		return relaion, err
+	}
+	var err error
+	relaion.Rooms, err = repo.rooms.GetUserRooms(ctx, userID)
+	return relaion, err
 }

@@ -9,6 +9,7 @@ import (
 type Repositories interface {
 	Users() UserRepository
 	Messages() MessageRepository
+	Rooms() RoomRepository
 
 	// finalize database connection
 	Close() error
@@ -44,7 +45,7 @@ func OpenRepositories(dataSourceName string) (Repositories, error) {
 	// check exsitance of producer function and execute it.
 	if RepositoryProducer == nil {
 		return nil, errors.New(`entity.OpenRepositories: no exists for Repositories Producer.
-you should import producer package such as github/mzki/chat/entity/stub`)
+you should import producer package such as github.com/shirasudon/go-chat/entity/stub`)
 	}
 	var err error
 	repositories, err = RepositoryProducer(dataSourceName)
@@ -67,9 +68,16 @@ func Users() UserRepository {
 	return repositories.Users()
 }
 
-// return MessagesRepository from initialized Repositories.
+// return MessageRepository from initialized Repositories.
 // Be sure to call OpenRepositories() before use this.
 func Messages() MessageRepository {
 	mustRepositories()
 	return repositories.Messages()
+}
+
+// return RoomRepository from initialized Repositories.
+// Be sure to call OpenRepositories() before use this.
+func Rooms() RoomRepository {
+	mustRepositories()
+	return repositories.Rooms()
 }

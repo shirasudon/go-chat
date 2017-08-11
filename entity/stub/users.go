@@ -1,6 +1,7 @@
 package stub
 
 import (
+	"context"
 	"errors"
 
 	"github.com/shirasudon/go-chat/entity"
@@ -29,4 +30,18 @@ func (repo UserRepository) Exist(name string, password string) bool {
 
 func (repo UserRepository) Find(id uint64) (entity.User, error) {
 	return DummyUser, nil
+}
+
+var (
+	DummyUser2 = entity.User{ID: 2, Name: "user2", Password: "password"}
+	DummyUser3 = entity.User{ID: 3, Name: "user3", Password: "password"}
+
+	DummyUserRelation = entity.UserRelation{
+		Friends: []entity.User{DummyUser2, DummyUser3},
+		Rooms:   DummyRooms,
+	}
+)
+
+func (repo UserRepository) Relation(ctx context.Context, userID uint64) (entity.UserRelation, error) {
+	return DummyUserRelation, nil
 }

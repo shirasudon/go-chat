@@ -17,11 +17,15 @@ type repositories struct {
 }
 
 func (repositories) Users() entity.UserRepository {
-	return UserRepository{}
+	return &UserRepository{}
 }
 
 func (r repositories) Messages() entity.MessageRepository {
 	return r.MessageRepository
+}
+
+func (r repositories) Rooms() entity.RoomRepository {
+	return &RoomRepository{}
 }
 
 func (repositories) Close() error { return nil }
