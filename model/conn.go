@@ -123,73 +123,73 @@ func (c *Conn) receivePump(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			// Receive json message from client
-			var message AnyMessage
-			if err := websocket.JSON.Receive(c.conn, &message); err != nil {
-				// io.EOF means connection is closed
-				if err == io.EOF {
-					return
-				}
-				// actual error is handled by server.
-				if c.onError != nil {
-					c.onError(c, err)
-				}
-				// and return error message to client
-				c.Send(NewErrorMessage(errors.New("JSON structure must be a HashMap type")))
-				continue // to for-loop
+			message, err := c.receiveAnyMessage()
+			if err == io.EOF {
+				return
 			}
-
 			// Receive success, handling received message
-			if err := c.handleAnyMessage(message); err != nil {
-				if c.onError != nil {
-					c.onError(c, err)
-				}
-				c.Send(NewErrorMessage(err))
-			}
+			c.handleAnyMessage(message)
 		}
 	}
 }
 
-func (c *Conn) handleAnyMessage(m AnyMessage) error {
+// return fatal error, such as io.EOF with connection closed,
+// otherwise handle itself.
+func (c *Conn) receiveAnyMessage() (AnyMessage, error) {
+	var message AnyMessage
+	if err := websocket.JSON.Receive(c.conn, &message); err != nil {
+		// io.EOF means connection is closed
+		if err == io.EOF {
+			return nil, err
+		}
+
+		// actual error is handled by server.
+		if c.onError != nil {
+			c.onError(c, err)
+		}
+		// and return error message to client
+		c.Send(NewErrorMessage(errors.New("JSON structure must be a HashMap type")))
+	}
+	return message, nil
+}
+
+func (c *Conn) handleAnyMessage(m AnyMessage) {
 	action, err := c.convertAnyMessage(m)
 	if err != nil {
-		return err
+		if c.onError != nil {
+			c.onError(c, err)
+		}
+		c.Send(NewErrorMessage(err, action))
+		return
 	}
 	if c.onActionMessage != nil {
 		c.onActionMessage(c, action)
 	}
-	return nil
 }
 
 func (c *Conn) convertAnyMessage(m AnyMessage) (ActionMessage, error) {
 	switch action := m.Action(); action {
 	case ActionChatMessage:
-		cm := ParseChatMessage(m, action)
-		cm.Conn = c
-		return cm, nil
+		return ParseChatMessage(m, action), nil
 
 	case ActionReadMessage:
-		rm := ParseReadMessage(m, action)
-		rm.Conn = c
-		return rm, nil
+		return ParseReadMessage(m, action), nil
 
 	case ActionTypeStart:
 		typing := ParseTypeStart(m, action)
 		typing.SenderID = c.userID
 		typing.SenderName = c.userName
-		typing.Conn = c
 		return typing, nil
 
 	case ActionTypeEnd:
 		typing := ParseTypeEnd(m, action)
 		typing.SenderID = c.userID
 		typing.SenderName = c.userName
-		typing.Conn = c
 		return typing, nil
 
 	case ActionEmpty:
-		return nil, errors.New("json must have any action field")
+		return m, errors.New("JSON object must have any action field")
 	default:
-		return nil, errors.New("unknown action: " + string(action))
+		return m, errors.New("unknown action: " + string(action))
 	}
 }

@@ -56,9 +56,32 @@ func TestNewConn(t *testing.T) {
 		t.Fatalf("client send error: %v", err)
 	}
 
+	// Send invalid message and Receive error message
 	if err := websocket.JSON.Send(conn, "aa"); err != nil {
 		t.Fatalf("client send error: %v", err)
 	}
+	var errMsg ErrorMessage
+	if err := websocket.JSON.Receive(conn, &errMsg); err != nil {
+		t.Fatalf("client receive error: %v", err)
+	}
+	if len(errMsg.ErrorMsg) == 0 {
+		t.Errorf("got error message but message is empty")
+	}
+	t.Logf("error message is: %v", errMsg.ErrorMsg)
+
+	// Send no actiom Message
+	cm = ChatMessage{}
+	cm.ActionName = ActionEmpty
+	if err := websocket.JSON.Send(conn, cm); err != nil {
+		t.Fatalf("client send error: %v", err)
+	}
+	if err := websocket.JSON.Receive(conn, &errMsg); err != nil {
+		t.Fatalf("client receive error: %v", err)
+	}
+	if len(errMsg.ErrorMsg) == 0 {
+		t.Errorf("got error message but message is empty")
+	}
+	t.Logf("error message is: %v", errMsg.ErrorMsg)
 }
 
 func TestConnDone(t *testing.T) {

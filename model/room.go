@@ -52,15 +52,17 @@ func (room *Room) Listen(ctx context.Context) {
 		case c := <-room.leaves:
 			room.leave(c)
 		case m := <-room.messages:
-			if err := room.handleMessage(m); err != nil {
+			if err := room.handleMessage(ctx, m); err != nil {
 				log.Printf("message handling Room(%s): %v", room.name, err)
 			}
 		case err := <-room.errors:
 			// TODO err handling
 			log.Printf("error Room(%s): %v", room.name, err)
 		case <-room.done:
+			room.leaveAlls()
 			return
 		case <-ctx.Done():
+			room.leaveAlls()
 			return
 		}
 	}
@@ -76,19 +78,29 @@ func (room *Room) leave(c *Conn) {
 	}
 }
 
-func (room *Room) handleMessage(m ToRoomMessage) error {
+func (room *Room) leaveAlls() {
+	for c, _ := range room.conns {
+		delete(room.conns, c)
+	}
+}
+
+func (room *Room) handleMessage(ctx context.Context, m ToRoomMessage) error {
 	switch m := m.(type) {
 	case ChatMessage:
-		var err error
-		if m.ID, err = room.repo.Save(entity.Message{
+		savedMsg, err := room.repo.Save(ctx, entity.Message{
 			Content: m.Content,
 			UserID:  m.SenderID,
 			RoomID:  m.RoomID,
-		}); err != nil {
+		})
+		if err != nil {
+			return err
+		}
+		m.ID = savedMsg.ID
+	case ReadMessage:
+		if err := room.repo.ReadMessage(ctx, m.RoomID, m.SenderID, m.MessageIDs); err != nil {
 			return err
 		}
 	}
-
 	room.broadcast(m)
 	return nil
 }

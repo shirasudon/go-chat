@@ -13,6 +13,7 @@ type Message struct {
 	Content string `db:"content"`
 	UserID  uint64 `db:"user_id"`
 	RoomID  uint64 `db:"room_id"`
+	Deleted bool   `db:"deleted"`
 }
 
 type MessageRepository interface {
@@ -23,30 +24,14 @@ type MessageRepository interface {
 	// Typically offset message is got by first of the result of LatestRoomMessages().
 	PreviousRoomMessages(ctx context.Context, offset Message, n int) ([]Message, error)
 
-	// Save stores given message to the reposiotry. user need to set ID and CreatedAt for
+	// Save stores given message to the reposiotry.
+	// user need not to set ID and CreatedAt for
 	// message since these are auto set.
-	// It returns registered ID and error.
-	Save(m Message) (uint64, error)
-}
+	// It returns stored Message and error.
+	Save(ctx context.Context, m Message) (Message, error)
 
-type MessageRepositoryStub struct {
-	messages []Message
-}
-
-func NewMessageRepositoryStub() *MessageRepositoryStub {
-	return &MessageRepositoryStub{
-		messages: make([]Message, 0, 100),
-	}
-}
-
-func (repo *MessageRepositoryStub) AddToRoom(roomID, m Message) error {
-	repo.messages = append(repo.messages, m)
-	return nil
-}
-
-func (repo *MessageRepositoryStub) GetFromRoom(roomID int64, n int) ([]Message, error) {
-	if n > len(repo.messages) {
-		n = len(repo.messages)
-	}
-	return repo.messages[:n], nil
+	// ReadMessage marks the messages specified by roomID, MessageIDs
+	// to be read by user specified by userID.
+	// It returns some error for
+	ReadMessage(ctx context.Context, roomID, userID uint64, messageIDs []uint64) error
 }

@@ -13,7 +13,6 @@ type ActionMessage interface {
 // it implements ActionMessage interface.
 type EmbdFields struct {
 	ActionName Action `json:"action,omitempty"`
-	Conn       *Conn  `json:"-"` // ignore for JSON
 }
 
 func (ef EmbdFields) Action() Action { return ef.ActionName }

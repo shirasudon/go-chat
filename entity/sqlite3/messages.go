@@ -16,6 +16,10 @@ func (mr MessageRepository) PreviousRoomMessages(ctx context.Context, offset ent
 	panic("not implemented")
 }
 
-func (mr MessageRepository) Save(m entity.Message) (uint64, error) {
+func (mr MessageRepository) Save(ctx context.Context, m entity.Message) (entity.Message, error) {
+	panic("not implemented")
+}
+
+func (mr MessageRepository) ReadMessage(ctx context.Context, roomID, userID uint64, messageIDs []uint64) error {
 	panic("not implemented")
 }
