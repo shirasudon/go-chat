@@ -95,9 +95,28 @@ func NewErrorMessage(err error, cause ...ActionMessage) ErrorMessage {
 	return em
 }
 
+// UserConnect indicates connect acitve user to chat server.
+// it implements ActionMessage interface
 type UserConnect struct {
 	EmbdFields
-	UserID int `json:"user_id,omitempty"`
+	UserID uint64 `json:"user_id,omitempty"`
+}
+
+func NewUserConnect(userID uint64) UserConnect {
+	return UserConnect{
+		EmbdFields: EmbdFields{
+			ActionName: ActionUserConnect,
+		},
+		UserID: userID,
+	}
+}
+
+// UserDisconnect indicates disconnect acitve user to chat server.
+// it implements ActionMessage interface
+type UserDisconnect UserConnect
+
+func NewUserDisconnect(userID uint64) UserDisconnect {
+	return UserDisconnect(NewUserConnect(userID))
 }
 
 // EnterRoom indicates that user requests to enter

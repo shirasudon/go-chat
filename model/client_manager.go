@@ -62,11 +62,10 @@ func (cm *ClientManager) connectClient(c *Conn) {
 	// create new active client because the connection is newly.
 	// and broadcasts user connect event to all active friends
 	activeC := newActiveClient(c)
-	// TODO set friends and rooms to active user.
+	// TODO set friends and rooms to new active user.
 	cm.clients[c.userID] = activeC
 
-	uc := UserConnect{} // TODO implement UserConncet.
-	cm.broadcastsFriends(activeC, uc)
+	cm.broadcastsFriends(activeC, NewUserConnect(c.userID))
 }
 
 // NoUserID is nerver used as user id.
@@ -93,8 +92,7 @@ func (cm *ClientManager) disconnectClient(c *Conn) {
 	delete(activeC.conns, c)
 	if len(activeC.conns) == 0 {
 		delete(cm.clients, c.userID)
-		// udc := UserDisconnect{} // TODO implement UserDisconncet.
-		// cm.broadcastsFriends(activeC, udc)
+		cm.broadcastsFriends(activeC, NewUserDisconnect(c.userID))
 	}
 }
 
