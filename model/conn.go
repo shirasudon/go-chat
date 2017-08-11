@@ -42,6 +42,30 @@ func NewConn(conn *websocket.Conn, user entity.User) *Conn {
 	}
 }
 
+// Send ActionMessage to browser-side client.
+// message is ignored when Conn is closed.
+func (c *Conn) Send(m ActionMessage) {
+	if c.isClosed() {
+		return
+	}
+	c.messages <- m
+}
+
+// send done signal to quit Listen() for client message.
+// signal is ignored when Conn is closed.
+func (c *Conn) Done() {
+	if c.isClosed() {
+		return
+	}
+	c.done <- struct{}{}
+}
+
+func (c *Conn) isClosed() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.closed
+}
+
 // Listen starts handing reading/writing websocket.
 // it blocks until websocket is closed, context is done or
 // Done() signal is sent.
@@ -80,102 +104,92 @@ func (c *Conn) sendPump(ctx context.Context, receiveDoneCh chan struct{}) {
 		case m := <-c.messages:
 			if err := websocket.JSON.Send(c.conn, m); err != nil {
 				// io.EOF means connection is closed
-				if err != io.EOF && c.onError != nil {
+				if err == io.EOF {
+					return
+				}
+				if c.onError != nil {
 					c.onError(c, err)
 				}
-				return
 			}
 		}
 	}
 }
 
 func (c *Conn) receivePump(ctx context.Context) {
+	// receivePump run on other goroutine.
+	// done channel is not listened.
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		// receivePump run on other goroutine.
-		// done channel is not listened.
 		default:
-			err := c.handleClientMessage()
-			switch err {
-			case nil:
-				// Receive success, no-op
-			default:
+			// Receive json message from client
+			var message AnyMessage
+			if err := websocket.JSON.Receive(c.conn, &message); err != nil {
 				// io.EOF means connection is closed
-				if err != io.EOF && c.onError != nil {
+				if err == io.EOF {
+					return
+				}
+				// actual error is handled by server.
+				if c.onError != nil {
 					c.onError(c, err)
 				}
-				return // to receivePump()
+				// and return error message to client
+				c.Send(NewErrorMessage(errors.New("JSON structure must be a HashMap type")))
+				continue // to for-loop
+			}
+
+			// Receive success, handling received message
+			if err := c.handleAnyMessage(message); err != nil {
+				if c.onError != nil {
+					c.onError(c, err)
+				}
+				c.Send(NewErrorMessage(err))
 			}
 		}
 	}
 }
 
-func (c *Conn) handleClientMessage() error {
-	var message AnyMessage
-	if err := websocket.JSON.Receive(c.conn, &message); err != nil {
+func (c *Conn) handleAnyMessage(m AnyMessage) error {
+	action, err := c.convertAnyMessage(m)
+	if err != nil {
 		return err
 	}
-	return c.handleAnyMessae(message)
+	if c.onActionMessage != nil {
+		c.onActionMessage(c, action)
+	}
+	return nil
 }
 
-func (c *Conn) handleAnyMessae(m AnyMessage) error {
-	var actionMessage ActionMessage
+func (c *Conn) convertAnyMessage(m AnyMessage) (ActionMessage, error) {
 	switch action := m.Action(); action {
 	case ActionChatMessage:
-		actionMessage = ParseChatMessage(m, action)
+		cm := ParseChatMessage(m, action)
+		cm.Conn = c
+		return cm, nil
 
 	case ActionReadMessage:
-		actionMessage = ParseReadMessage(m, action)
+		rm := ParseReadMessage(m, action)
+		rm.Conn = c
+		return rm, nil
 
 	case ActionTypeStart:
 		typing := ParseTypeStart(m, action)
 		typing.SenderID = c.userID
 		typing.SenderName = c.userName
-		// restore as actionMessage
-		actionMessage = typing
+		typing.Conn = c
+		return typing, nil
 
 	case ActionTypeEnd:
 		typing := ParseTypeEnd(m, action)
 		typing.SenderID = c.userID
 		typing.SenderName = c.userName
-		// restore as actionMessage
-		actionMessage = typing
+		typing.Conn = c
+		return typing, nil
 
 	case ActionEmpty:
-		return errors.New("got json without action field")
+		return nil, errors.New("json must have any action field")
 	default:
-		return errors.New("handleAnyMessae: unknown action: " + string(action))
+		return nil, errors.New("unknown action: " + string(action))
 	}
-
-	// send parsed ActionMessage to onActionMessage handler.
-	if actionMessage != nil && c.onActionMessage != nil {
-		c.onActionMessage(c, actionMessage)
-	}
-	return nil
-}
-
-// Send ActionMessage to browser-side client.
-// message is ignored when Conn is closed.
-func (c *Conn) Send(m ActionMessage) {
-	if c.isClosed() {
-		return
-	}
-	c.messages <- m
-}
-
-// send done signal to quit Listen() for client message.
-// signal is ignored when Conn is closed.
-func (c *Conn) Done() {
-	if c.isClosed() {
-		return
-	}
-	c.done <- struct{}{}
-}
-
-func (c *Conn) isClosed() bool {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.closed
 }

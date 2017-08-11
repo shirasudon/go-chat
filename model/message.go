@@ -13,6 +13,7 @@ type ActionMessage interface {
 // it implements ActionMessage interface.
 type EmbdFields struct {
 	ActionName Action `json:"action,omitempty"`
+	Conn       *Conn  `json:"-"` // ignore for JSON
 }
 
 func (ef EmbdFields) Action() Action { return ef.ActionName }
@@ -83,11 +84,16 @@ const (
 // it implements ActionMessage interface.
 type ErrorMessage struct {
 	EmbdFields
-	Error error `json:"error"`
+	ErrorMsg string        `json:"error,omitempty"`
+	Cause    ActionMessage `json:"cause,omitempty"`
 }
 
-func NewErrorMessage(err error) ErrorMessage {
-	return ErrorMessage{EmbdFields: EmbdFields{ActionName: ActionError}, Error: err}
+func NewErrorMessage(err error, cause ...ActionMessage) ErrorMessage {
+	em := ErrorMessage{EmbdFields: EmbdFields{ActionName: ActionError}, ErrorMsg: err.Error()}
+	if len(cause) > 0 {
+		em.Cause = cause[0]
+	}
+	return em
 }
 
 type UserConnect struct {

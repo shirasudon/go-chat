@@ -55,6 +55,10 @@ func TestNewConn(t *testing.T) {
 	if err := websocket.JSON.Send(conn, cm); err != nil {
 		t.Fatalf("client send error: %v", err)
 	}
+
+	if err := websocket.JSON.Send(conn, "aa"); err != nil {
+		t.Fatalf("client send error: %v", err)
+	}
 }
 
 func TestConnDone(t *testing.T) {
