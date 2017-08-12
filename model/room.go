@@ -24,9 +24,10 @@ type Room struct {
 	conns   map[*Conn]bool
 }
 
-func NewRoom(name string, mRepo entity.MessageRepository) *Room {
+func NewRoom(rm entity.Room, mRepo entity.MessageRepository) *Room {
 	return &Room{
-		name:     name,
+		id:       rm.ID,
+		name:     rm.Name,
 		joins:    make(chan *Conn, 1),
 		leaves:   make(chan *Conn, 1),
 		messages: make(chan ToRoomMessage, 1),

@@ -20,7 +20,7 @@ type InitialRoom struct {
 	messages    chan actionMessageRequest
 	errors      chan error
 
-	// TODO RoomRepository to accept that correct user enters a room.
+	repos   entity.Repositories
 	rooms   *RoomManager
 	clients *ClientManager
 }
@@ -34,14 +34,14 @@ type actionMessageRequest struct {
 }
 
 func NewInitialRoom(repos entity.Repositories) *InitialRoom {
-	// TODO set repos to field
 	return &InitialRoom{
 		connects:    make(chan *Conn, 1),
 		disconnects: make(chan *Conn, 1),
 		messages:    make(chan actionMessageRequest, 1),
 		errors:      make(chan error, 1),
-		rooms:       NewRoomManager( /*rRepo*/ ),
-		clients:     NewClientManager(),
+		repos:       repos,
+		rooms:       NewRoomManager(repos),
+		clients:     NewClientManager(repos),
 	}
 }
 
@@ -58,7 +58,7 @@ func (iroom *InitialRoom) Listen(ctx context.Context) {
 				iroom.messages <- actionMessageRequest{m, conn}
 			}
 
-			iroom.clients.connectClient(c)
+			iroom.clients.connectClient(ctx, c)
 
 		case c := <-iroom.disconnects:
 			c.onActionMessage = nil
@@ -101,13 +101,15 @@ func (iroom *InitialRoom) handleMessage(ctx context.Context, req actionMessageRe
 
 func (iroom *InitialRoom) enterRoom(ctx context.Context, em EnterRoom, conn *Conn) {
 	if err := iroom.clients.validateClientHasRoom(conn, em.SenderID, em.RoomID); err != nil {
-		sendError(conn, err)
+		sendError(conn, err, em)
 		return
 	}
-	iroom.rooms.EnterRoom(ctx, em.CurrentRoomID, em.RoomID, conn)
+	if err := iroom.rooms.EnterRoom(ctx, em.CurrentRoomID, em.RoomID, conn); err != nil {
+		sendError(conn, err, em)
+	}
 }
 
-func sendError(c *Conn, err error) {
+func sendError(c *Conn, err error, cause ...ActionMessage) {
 	log.Println(err)
-	go func() { c.Send(NewErrorMessage(err)) }()
+	go func() { c.Send(NewErrorMessage(err, cause...)) }()
 }

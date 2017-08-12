@@ -31,6 +31,10 @@ func (repo RoomRepository) Remove(ctx context.Context, r entity.Room) error {
 	panic("not implemented")
 }
 
+func (repo RoomRepository) Find(ctx context.Context, roomID uint64) (entity.Room, error) {
+	panic("not implemented")
+}
+
 func (repo RoomRepository) RoomHasMember(ctx context.Context, roomID uint64, userID uint64) bool {
 	panic("not implemented")
 }

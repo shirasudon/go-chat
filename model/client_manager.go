@@ -1,6 +1,11 @@
 package model
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+
+	"github.com/shirasudon/go-chat/entity"
+)
 
 // connection specified infomation.
 type connectionInfo struct {
@@ -35,12 +40,14 @@ func (ac *activeClient) Send(m ActionMessage) {
 
 // ClientManager manages active clients.
 type ClientManager struct {
-	clients map[uint64]*activeClient
+	userRepo entity.UserRepository
+	clients  map[uint64]*activeClient
 }
 
-func NewClientManager() *ClientManager {
+func NewClientManager(repos entity.Repositories) *ClientManager {
 	return &ClientManager{
-		clients: make(map[uint64]*activeClient),
+		userRepo: repos.Users(),
+		clients:  make(map[uint64]*activeClient),
 	}
 }
 
@@ -52,20 +59,31 @@ func (cm *ClientManager) broadcastsFriends(ac *activeClient, m ActionMessage) {
 	}
 }
 
-func (cm *ClientManager) connectClient(c *Conn) {
+func (cm *ClientManager) connectClient(ctx context.Context, c *Conn) error {
 	// add conncetion to active user when the user is already connected from anywhere.
 	if activeC, ok := cm.clients[c.userID]; ok {
 		activeC.conns[c] = connectionInfo{}
-		return
+		return nil
 	}
 
 	// create new active client because the connection is newly.
 	// and broadcasts user connect event to all active friends
 	activeC := newActiveClient(c)
-	// TODO set friends and rooms to new active user.
+	// set friends and rooms to new active user.
+	relation, err := cm.userRepo.Relation(ctx, c.userID)
+	if err != nil {
+		return err
+	}
+	for _, f := range relation.Friends {
+		activeC.friends[f.ID] = true
+	}
+	for _, r := range relation.Rooms {
+		activeC.rooms[r.ID] = true
+	}
 	cm.clients[c.userID] = activeC
 
 	cm.broadcastsFriends(activeC, NewUserConnect(c.userID))
+	return nil
 }
 
 // NoUserID is nerver used as user id.

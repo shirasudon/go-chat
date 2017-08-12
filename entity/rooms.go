@@ -1,6 +1,8 @@
 package entity
 
-import "context"
+import (
+	"context"
+)
 
 type Room struct {
 	ID         uint64
@@ -19,6 +21,8 @@ type RoomRepository interface {
 
 	// remove room from repository.
 	Remove(ctx context.Context, r Room) error
+
+	Find(ctx context.Context, roomID uint64) (Room, error)
 
 	// check whether the room specified by roomID has
 	// member specified by userID.

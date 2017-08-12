@@ -3,6 +3,8 @@ package model
 import (
 	"context"
 	"log"
+
+	"github.com/shirasudon/go-chat/entity"
 )
 
 // activeRoom is a wrapper for Room which has
@@ -20,13 +22,16 @@ func newActiveRoom(r *Room) *activeRoom {
 }
 
 type RoomManager struct {
-	// TODO RoomRepository to accept that correct user enters a room.
-	rooms map[uint64]*activeRoom
+	roomRepo entity.RoomRepository
+	msgRepo  entity.MessageRepository
+	rooms    map[uint64]*activeRoom
 }
 
-func NewRoomManager( /*RoomRepository*/ ) *RoomManager {
+func NewRoomManager(repos entity.Repositories) *RoomManager {
 	return &RoomManager{
-		rooms: make(map[uint64]*activeRoom),
+		roomRepo: repos.Rooms(),
+		msgRepo:  repos.Messages(),
+		rooms:    make(map[uint64]*activeRoom),
 	}
 }
 
@@ -39,8 +44,8 @@ func (rm *RoomManager) RoomExist(roomID uint64) bool {
 	return ok
 }
 
-func (rm *RoomManager) EnterRoom(ctx context.Context, currentRoomID, nextRoomID uint64, c *Conn) {
-	// TODO exit previous room before enter new room.
+func (rm *RoomManager) EnterRoom(ctx context.Context, currentRoomID, nextRoomID uint64, c *Conn) error {
+	// exit previous room before enter new room.
 	if currentRoomID > 0 {
 		rm.exitRoom(currentRoomID, c)
 	}
@@ -48,13 +53,17 @@ func (rm *RoomManager) EnterRoom(ctx context.Context, currentRoomID, nextRoomID 
 	activeRoom, ok := rm.rooms[nextRoomID]
 	// if the room is inactive, activate it.
 	if !ok {
-		// TODO implement RoomRepository.getRoom()
-		// roomEntity :=
-		// activeRoom = newActiveRoom(NewRoom(roomEntity))
+		roomEntity, err := rm.roomRepo.Find(ctx, nextRoomID)
+		if err != nil {
+			return err
+		}
+		room := NewRoom(roomEntity, rm.msgRepo)
+		activeRoom = newActiveRoom(room)
 		go activeRoom.room.Listen(ctx)
 	}
 	activeRoom.room.Join(c)
 	activeRoom.nMenber += 1
+	return nil
 }
 
 func (rm *RoomManager) exitRoom(roomID uint64, c *Conn) {
