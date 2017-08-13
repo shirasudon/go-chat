@@ -21,8 +21,7 @@ type InitialRoom struct {
 	errors      chan error
 
 	repos   entity.Repositories
-	rooms   *RoomManager
-	clients *ClientManager
+	chatHub *ChatHub
 }
 
 // actionMessageRequest is a composit struct of
@@ -40,8 +39,7 @@ func NewInitialRoom(repos entity.Repositories) *InitialRoom {
 		messages:    make(chan actionMessageRequest, 1),
 		errors:      make(chan error, 1),
 		repos:       repos,
-		rooms:       NewRoomManager(repos),
-		clients:     NewClientManager(repos),
+		chatHub:     NewChatHub(repos),
 	}
 }
 
@@ -50,34 +48,38 @@ func (iroom *InitialRoom) Listen(ctx context.Context) {
 	defer cancel()
 
 	for {
+		// disconnect event has priority than others
+		// because disconnected client can not be received any message.
+		select {
+		case c := <-iroom.disconnects:
+			if err := iroom.disconnectClient(ctx, c); err != nil {
+				// TODO err handling
+				log.Printf("Disonnect Error: %v\n", err)
+			}
+			continue
+		case <-ctx.Done():
+			return
+		default:
+			// fall through if no disconnect events.
+		}
+
 		select {
 		case c := <-iroom.connects:
-			c.onClosed = func(conn *Conn) { iroom.disconnects <- conn }
-			c.onError = func(conn *Conn, err error) { iroom.errors <- err }
-			c.onActionMessage = func(conn *Conn, m ActionMessage) {
-				iroom.messages <- actionMessageRequest{m, conn}
-			}
-
-			if err := iroom.clients.connectClient(ctx, c); err != nil {
-				// TODO err handling
-			}
-			if err := iroom.rooms.connectClient(ctx, c.userID); err != nil {
-				// TODO err handling
+			if err := iroom.connectClient(ctx, c); err != nil {
+				// TODO: error handling
+				log.Printf("Connect Error: %v\n", err)
 			}
 
 		case c := <-iroom.disconnects:
-			c.onActionMessage = nil
-			c.onError = nil
-			c.onClosed = nil
-
-			iroom.clients.disconnectClient(c)
-			if err := iroom.rooms.disconnectClient(ctx, c.userID); err != nil {
+			if err := iroom.disconnectClient(ctx, c); err != nil {
 				// TODO err handling
+				log.Printf("Disonnect Error: %v\n", err)
 			}
 
-		case m := <-iroom.messages:
-			if err := iroom.handleMessage(ctx, m); err != nil {
+		case req := <-iroom.messages:
+			if err := iroom.chatHub.handleMessage(ctx, req); err != nil {
 				// TODO err handling
+				log.Printf("Message Error: %v\n", err)
 			}
 
 		case err := <-iroom.errors:
@@ -98,17 +100,22 @@ func (iroom *InitialRoom) Connect(ctx context.Context, conn *websocket.Conn, u e
 	c.Listen(ctx)
 }
 
-func (iroom *InitialRoom) handleMessage(ctx context.Context, req actionMessageRequest) error {
-	switch m := req.ActionMessage.(type) {
-	case ToRoomMessage:
-		memberIDs := iroom.rooms.roomMemberIDs(m.ToRoom())
-		iroom.clients.broadcastsUsers(memberIDs, req.ActionMessage)
-		// case CreateRoom:
-		// 	iroom.rooms.CreateRoom(m)
-		// case DeleteRoom:
-		// 	iroom.rooms.DeleteRoom(m)
+func (iroom *InitialRoom) connectClient(ctx context.Context, c *Conn) error {
+	c.onClosed = func(conn *Conn) { iroom.disconnects <- conn }
+	c.onError = func(conn *Conn, err error) { iroom.errors <- err }
+	c.onActionMessage = func(conn *Conn, m ActionMessage) {
+		iroom.messages <- actionMessageRequest{m, conn}
 	}
-	return nil
+
+	return iroom.chatHub.connectClient(ctx, c)
+}
+
+func (iroom *InitialRoom) disconnectClient(ctx context.Context, c *Conn) error {
+	c.onActionMessage = nil
+	c.onError = nil
+	c.onClosed = nil
+
+	return iroom.chatHub.disconnectClient(ctx, c)
 }
 
 func sendError(c *Conn, err error, cause ...ActionMessage) {

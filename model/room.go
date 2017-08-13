@@ -16,7 +16,7 @@ type Room struct {
 	// event channels
 	joins    chan *Conn
 	leaves   chan *Conn
-	messages chan ToRoomMessage
+	messages chan ChatActionMessage
 	errors   chan error
 	done     chan struct{}
 
@@ -30,7 +30,7 @@ func NewRoom(rm entity.Room, mRepo entity.MessageRepository) *Room {
 		name:     rm.Name,
 		joins:    make(chan *Conn, 1),
 		leaves:   make(chan *Conn, 1),
-		messages: make(chan ToRoomMessage, 1),
+		messages: make(chan ChatActionMessage, 1),
 		errors:   make(chan error, 1),
 		done:     make(chan struct{}, 1),
 
@@ -85,7 +85,7 @@ func (room *Room) leaveAlls() {
 	}
 }
 
-func (room *Room) handleMessage(ctx context.Context, m ToRoomMessage) error {
+func (room *Room) handleMessage(ctx context.Context, m ChatActionMessage) error {
 	switch m := m.(type) {
 	case ChatMessage:
 		savedMsg, err := room.msgRepo.Add(ctx, entity.Message{
@@ -106,7 +106,7 @@ func (room *Room) handleMessage(ctx context.Context, m ToRoomMessage) error {
 	return nil
 }
 
-func (room *Room) broadcast(m ToRoomMessage) {
+func (room *Room) broadcast(m ChatActionMessage) {
 	if m, ok := m.(ActionMessage); ok {
 		for c, _ := range room.conns {
 			c.Send(m)
@@ -114,7 +114,7 @@ func (room *Room) broadcast(m ToRoomMessage) {
 	}
 }
 
-func (room *Room) Send(m ToRoomMessage) {
+func (room *Room) Send(m ChatActionMessage) {
 	room.messages <- m
 }
 

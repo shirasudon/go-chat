@@ -17,20 +17,30 @@ type EmbdFields struct {
 
 func (ef EmbdFields) Action() Action { return ef.ActionName }
 
-// ToRoomMessage can return roomID for destination.
-type ToRoomMessage interface {
-	ToRoom() uint64
+// ChatActionMessage is used for chat context, which has
+// roomID and senderID(userID) for destination.
+// it also implements ActionMessage interface.
+type ChatActionMessage interface {
+	ActionMessage
+	GetRoomID() uint64
+	GetSenderID() uint64
 }
 
-// common fields for the websocket message having
-// destination as room.
-// it implements ToRoomMessage interface.
-type ToRoomFields struct {
-	RoomID uint64 `json:"room_id,omitempty"`
+// common fields for the websocket message to be
+// used to chat context.
+// it implements ChatActionMessage interface.
+type ChatActionFields struct {
+	EmbdFields
+	RoomID   uint64 `json:"room_id,omitempty"`
+	SenderID uint64 `json:"sender_id,omitempty"` // it is overwritten by the server
 }
 
-func (tr ToRoomFields) ToRoom() uint64 {
+func (tr ChatActionFields) GetRoomID() uint64 {
 	return tr.RoomID
+}
+
+func (tr ChatActionFields) GetSenderID() uint64 {
+	return tr.SenderID
 }
 
 // AnyMessage is a arbitrary message through the websocket.
@@ -144,13 +154,11 @@ func ParseEnterRoom(m AnyMessage, action Action) EnterRoom {
 
 // ChatMessage is chat message which is recieved from a browser-side
 // client and sends to other clients in the same room.
-// it implements ActionMessage and ToRoomMessage interface.
+// it implements ChatActionMessage interface.
 type ChatMessage struct {
-	EmbdFields
-	ToRoomFields
-	ID       uint64 `json:"id,omitempty"` // used only server->client
-	Content  string `json:"content,omitempty"`
-	SenderID uint64 `json:"sender_id,omitempty"`
+	ChatActionFields
+	ID      uint64 `json:"id,omitempty"` // used only server->client
+	Content string `json:"content,omitempty"`
 }
 
 func ParseChatMessage(m AnyMessage, action Action) ChatMessage {
@@ -167,11 +175,9 @@ func ParseChatMessage(m AnyMessage, action Action) ChatMessage {
 
 // ReadMessage indicates notification which some chat messages are read by
 // any user.
-// it implements ActionMessage and ToRoomMessage interface.
+// it implements ChatActionMessage interface.
 type ReadMessage struct {
-	EmbdFields
-	ToRoomFields
-	SenderID   uint64   `json:"sender_id,omitempty"`
+	ChatActionFields
 	MessageIDs []uint64 `json:"message_ids"`
 }
 
@@ -188,11 +194,9 @@ func ParseReadMessage(m AnyMessage, action Action) ReadMessage {
 }
 
 // TypeStart indicates user starts key typing.
-// it implements ActionMessage, ToRoomAction interface.
+// it implements ChatActionMessage interface.
 type TypeStart struct {
-	EmbdFields
-	ToRoomFields
-	SenderID uint64 `json:"sender_id,omitempty"`
+	ChatActionFields
 
 	// set by server and return client
 	SenderName string    `json:"sender_name,omitempty"`
@@ -211,11 +215,9 @@ func ParseTypeStart(m AnyMessage, action Action) TypeStart {
 }
 
 // TypeEnd indicates user ends key typing.
-// it implements ActionMessage, ToRoomMessage interface.
+// it implements ChatActionMessage interface.
 type TypeEnd struct {
-	EmbdFields
-	ToRoomFields
-	SenderID uint64 `json:"sender_id,omitempty"`
+	ChatActionFields
 
 	// set by server and return client
 	SenderName string    `json:"sender_name,omitempty"`

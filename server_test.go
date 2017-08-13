@@ -59,24 +59,21 @@ func TestServerServeChatWebsocket(t *testing.T) {
 
 	// // TODO describe behaviors of the websocket client.
 
-	// firstly enter any rooms
-	// TODO
-
 	// write message to server
-	// writeCM := model.ChatMessage{}
+	// writeCM := model.ChatMessage{Content: "hello!"}
 	// writeCM.ActionName = model.ActionChatMessage
 	// if err := websocket.JSON.Send(conn, writeCM); err != nil {
 	// 	t.Fatal(err)
 	// }
 
-	// read message from server
+	// // read message from server
 	// var readCM model.ChatMessage
 	// if err := websocket.JSON.Receive(conn, &readCM); err != nil {
 	// 	t.Fatal(err)
 	// }
 
-	// check same message
-	// if readCM != writeCM {
+	// // check same message
+	// if readCM.Content != writeCM.Content {
 	// 	t.Errorf("different chat message, got: %v, expect: %v", readCM, writeCM)
 	// }
 }
