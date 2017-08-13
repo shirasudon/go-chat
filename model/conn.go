@@ -170,10 +170,14 @@ func (c *Conn) handleAnyMessage(m AnyMessage) {
 func (c *Conn) convertAnyMessage(m AnyMessage) (ActionMessage, error) {
 	switch action := m.Action(); action {
 	case ActionChatMessage:
-		return ParseChatMessage(m, action), nil
+		cm := ParseChatMessage(m, action)
+		cm.SenderID = c.userID
+		return cm, nil
 
 	case ActionReadMessage:
-		return ParseReadMessage(m, action), nil
+		rm := ParseReadMessage(m, action)
+		rm.SenderID = c.userID
+		return rm, nil
 
 	case ActionTypeStart:
 		typing := ParseTypeStart(m, action)

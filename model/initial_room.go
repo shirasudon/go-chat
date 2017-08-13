@@ -58,19 +58,27 @@ func (iroom *InitialRoom) Listen(ctx context.Context) {
 				iroom.messages <- actionMessageRequest{m, conn}
 			}
 
-			iroom.clients.connectClient(ctx, c)
+			if err := iroom.clients.connectClient(ctx, c); err != nil {
+				// TODO err handling
+			}
+			if err := iroom.rooms.connectClient(ctx, c.userID); err != nil {
+				// TODO err handling
+			}
 
 		case c := <-iroom.disconnects:
 			c.onActionMessage = nil
 			c.onError = nil
 			c.onClosed = nil
 
-			roomID := iroom.clients.roomIDFromConn(c)
-			iroom.rooms.DisconnectClient(roomID, c)
 			iroom.clients.disconnectClient(c)
+			if err := iroom.rooms.disconnectClient(ctx, c.userID); err != nil {
+				// TODO err handling
+			}
 
 		case m := <-iroom.messages:
-			iroom.handleMessage(ctx, m)
+			if err := iroom.handleMessage(ctx, m); err != nil {
+				// TODO err handling
+			}
 
 		case err := <-iroom.errors:
 			// TODO error handling
@@ -90,23 +98,17 @@ func (iroom *InitialRoom) Connect(ctx context.Context, conn *websocket.Conn, u e
 	c.Listen(ctx)
 }
 
-func (iroom *InitialRoom) handleMessage(ctx context.Context, req actionMessageRequest) {
+func (iroom *InitialRoom) handleMessage(ctx context.Context, req actionMessageRequest) error {
 	switch m := req.ActionMessage.(type) {
 	case ToRoomMessage:
-		iroom.rooms.Send(m)
-	case EnterRoom:
-		iroom.enterRoom(ctx, m, req.Conn)
+		memberIDs := iroom.rooms.roomMemberIDs(m.ToRoom())
+		iroom.clients.broadcastsUsers(memberIDs, req.ActionMessage)
+		// case CreateRoom:
+		// 	iroom.rooms.CreateRoom(m)
+		// case DeleteRoom:
+		// 	iroom.rooms.DeleteRoom(m)
 	}
-}
-
-func (iroom *InitialRoom) enterRoom(ctx context.Context, em EnterRoom, conn *Conn) {
-	if err := iroom.clients.validateClientHasRoom(conn, em.SenderID, em.RoomID); err != nil {
-		sendError(conn, err, em)
-		return
-	}
-	if err := iroom.rooms.EnterRoom(ctx, em.CurrentRoomID, em.RoomID, conn); err != nil {
-		sendError(conn, err, em)
-	}
+	return nil
 }
 
 func sendError(c *Conn, err error, cause ...ActionMessage) {

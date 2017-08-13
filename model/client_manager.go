@@ -54,7 +54,15 @@ func NewClientManager(repos entity.Repositories) *ClientManager {
 func (cm *ClientManager) broadcastsFriends(ac *activeClient, m ActionMessage) {
 	for friendID, _ := range ac.friends {
 		if activeFriend, ok := cm.clients[friendID]; ok {
-			activeFriend.Send(m)
+			go func(ac *activeClient) { ac.Send(m) }(activeFriend)
+		}
+	}
+}
+
+func (cm *ClientManager) broadcastsUsers(userIDs []uint64, m ActionMessage) {
+	for _, userID := range userIDs {
+		if activeUser, ok := cm.clients[userID]; ok {
+			go func(ac *activeClient) { ac.Send(m) }(activeUser)
 		}
 	}
 }
@@ -84,21 +92,6 @@ func (cm *ClientManager) connectClient(ctx context.Context, c *Conn) error {
 
 	cm.broadcastsFriends(activeC, NewUserConnect(c.userID))
 	return nil
-}
-
-// NoUserID is nerver used as user id.
-const NoUserID = 0
-
-func (cm *ClientManager) roomIDFromConn(c *Conn) uint64 {
-	activeC, ok := cm.clients[c.userID]
-	if !ok {
-		return NoUserID
-	}
-	connInfo, ok := activeC.conns[c]
-	if !ok {
-		return NoUserID
-	}
-	return connInfo.currentRoomID
 }
 
 func (cm *ClientManager) disconnectClient(c *Conn) {

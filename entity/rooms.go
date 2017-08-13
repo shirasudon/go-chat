@@ -10,6 +10,11 @@ type Room struct {
 	IsTalkRoom bool
 }
 
+type RoomRelation struct {
+	RoomID  uint64
+	Members []User
+}
+
 type RoomRepository interface {
 
 	// get rooms which user has, from repository.
@@ -24,10 +29,10 @@ type RoomRepository interface {
 
 	Find(ctx context.Context, roomID uint64) (Room, error)
 
+	FindWithRelation(ctx context.Context, roomID uint64) (Room, RoomRelation, error)
+
 	// check whether the room specified by roomID has
 	// member specified by userID.
 	// return true if the room has the member.
 	RoomHasMember(ctx context.Context, roomID, userID uint64) bool
-
-	// Members(roomID uint64) ([]entity.User, error)
 }

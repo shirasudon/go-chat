@@ -2,94 +2,99 @@ package model
 
 import (
 	"context"
-	"log"
 
 	"github.com/shirasudon/go-chat/entity"
 )
 
-// activeRoom is a wrapper for Room which has
-// a number of active chat members.
+// activeRoom is a wrapper for entity.Room which has
+// a number of active members.
 type activeRoom struct {
-	room    *Room
-	nMenber int
+	entity.Room
+
+	// room members in the Repository, including both active and inactive client.
+	members map[uint64]bool
+
+	// the number of active connections
+	nActiveMembers int
 }
 
-func newActiveRoom(r *Room) *activeRoom {
+func newActiveRoom(r entity.Room, relation entity.RoomRelation) *activeRoom {
+	members := make(map[uint64]bool, len(relation.Members))
+	for _, m := range relation.Members {
+		members[m.ID] = true
+	}
 	return &activeRoom{
-		room:    r,
-		nMenber: 0,
+		Room:           r,
+		members:        members,
+		nActiveMembers: 0,
 	}
 }
 
 type RoomManager struct {
 	roomRepo entity.RoomRepository
-	msgRepo  entity.MessageRepository
 	rooms    map[uint64]*activeRoom
 }
 
 func NewRoomManager(repos entity.Repositories) *RoomManager {
 	return &RoomManager{
 		roomRepo: repos.Rooms(),
-		msgRepo:  repos.Messages(),
 		rooms:    make(map[uint64]*activeRoom),
 	}
 }
 
-func (rm *RoomManager) Room(roomID uint64) *activeRoom {
-	return rm.rooms[roomID]
-}
-
-func (rm *RoomManager) RoomExist(roomID uint64) bool {
-	_, ok := rm.rooms[roomID]
-	return ok
-}
-
-func (rm *RoomManager) EnterRoom(ctx context.Context, currentRoomID, nextRoomID uint64, c *Conn) error {
-	// exit previous room before enter new room.
-	if currentRoomID > 0 {
-		rm.exitRoom(currentRoomID, c)
-	}
-
-	activeRoom, ok := rm.rooms[nextRoomID]
-	// if the room is inactive, activate it.
+func (rm *RoomManager) roomMemberIDs(roomID uint64) []uint64 {
+	activeR, ok := rm.rooms[roomID]
 	if !ok {
-		roomEntity, err := rm.roomRepo.Find(ctx, nextRoomID)
-		if err != nil {
-			return err
-		}
-		room := NewRoom(roomEntity, rm.msgRepo)
-		activeRoom = newActiveRoom(room)
-		go activeRoom.room.Listen(ctx)
+		return []uint64{}
 	}
-	activeRoom.room.Join(c)
-	activeRoom.nMenber += 1
+
+	ids := make([]uint64, len(activeR.members))
+	for id, _ := range activeR.members {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+func (rm *RoomManager) connectClient(ctx context.Context, userID uint64) error {
+	rooms, err := rm.roomRepo.GetUserRooms(ctx, userID)
+	if err != nil {
+		return err
+	}
+
+	// increase active member count for active rooms.
+	// or activate room if inactive.
+	for _, r := range rooms {
+		activeR, ok := rm.rooms[r.ID]
+		if !ok {
+			_, relation, err := rm.roomRepo.FindWithRelation(ctx, r.ID)
+			if err != nil {
+				return err
+			}
+			activeR = newActiveRoom(r, relation)
+			rm.rooms[r.ID] = activeR
+		}
+		activeR.nActiveMembers += 1
+	}
 	return nil
 }
 
-func (rm *RoomManager) exitRoom(roomID uint64, c *Conn) {
-	room, ok := rm.rooms[roomID]
-	if !ok {
-		log.Println("exit room for inactive room")
-		return
+func (rm *RoomManager) disconnectClient(ctx context.Context, userID uint64) error {
+	rooms, err := rm.roomRepo.GetUserRooms(ctx, userID)
+	if err != nil {
+		return err
 	}
-	room.room.Leave(c)
-	room.nMenber -= 1
 
-	// expire the active room from which all members have been leaved.
-	if room.nMenber == 0 {
-		room.room.Done()
-		delete(rm.rooms, roomID)
+	// decrease active member count for active rooms.
+	// and expires if no member exist
+	for _, r := range rooms {
+		activeR, ok := rm.rooms[r.ID]
+		if !ok {
+			continue
+		}
+		activeR.nActiveMembers -= 1
+		if activeR.nActiveMembers == 0 {
+			delete(rm.rooms, r.ID)
+		}
 	}
-}
-
-func (rm *RoomManager) DisconnectClient(currentRoomID uint64, c *Conn) {
-	rm.exitRoom(currentRoomID, c)
-}
-
-func (rm *RoomManager) Send(m ToRoomMessage) {
-	activeR, ok := rm.rooms[m.ToRoom()]
-	if !ok {
-		return
-	}
-	activeR.room.Send(m)
+	return nil
 }
