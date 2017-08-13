@@ -96,17 +96,17 @@ func (iroom *InitialRoom) Listen(ctx context.Context) {
 // it blocks until context is done.
 func (iroom *InitialRoom) Connect(ctx context.Context, conn *websocket.Conn, u entity.User) {
 	c := NewConn(conn, u)
-	iroom.connects <- c
-	c.Listen(ctx)
-}
-
-func (iroom *InitialRoom) connectClient(ctx context.Context, c *Conn) error {
 	c.onClosed = func(conn *Conn) { iroom.disconnects <- conn }
 	c.onError = func(conn *Conn, err error) { iroom.errors <- err }
 	c.onActionMessage = func(conn *Conn, m ActionMessage) {
 		iroom.messages <- actionMessageRequest{m, conn}
 	}
 
+	iroom.connects <- c
+	c.Listen(ctx)
+}
+
+func (iroom *InitialRoom) connectClient(ctx context.Context, c *Conn) error {
 	return iroom.chatHub.connectClient(ctx, c)
 }
 

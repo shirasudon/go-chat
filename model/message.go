@@ -60,6 +60,26 @@ func (a AnyMessage) Action() Action {
 	return ActionEmpty
 }
 
+func (a AnyMessage) String(key string) string {
+	n, _ := a[key].(string)
+	return n
+}
+
+func (a AnyMessage) Number(key string) float64 {
+	n, _ := a[key].(float64)
+	return n
+}
+
+func (a AnyMessage) Array(key string) []interface{} {
+	n, _ := a[key].([]interface{})
+	return n
+}
+
+func (a AnyMessage) Object(key string) map[string]interface{} {
+	n, _ := a[key].(map[string]interface{})
+	return n
+}
+
 // Action indicates a action type for the JSON data schema.
 type Action string
 
@@ -145,8 +165,8 @@ func ParseEnterRoom(m AnyMessage, action Action) EnterRoom {
 	}
 	v := EnterRoom{}
 	v.ActionName = action
-	v.SenderID, _ = m["sender_id"].(uint64)
-	v.RoomID, _ = m["room_id"].(uint64)
+	v.SenderID = uint64(m.Number("sender_id"))
+	v.RoomID = uint64(m.Number("room_id"))
 	return v
 }
 
@@ -167,9 +187,8 @@ func ParseChatMessage(m AnyMessage, action Action) ChatMessage {
 	}
 	cm := ChatMessage{}
 	cm.ActionName = action
-	cm.Content, _ = m["content"].(string)
-	cm.SenderID, _ = m["sender_id"].(uint64)
-	cm.RoomID, _ = m["room_id"].(uint64)
+	cm.Content = m.String("content")
+	cm.RoomID = uint64(m.Number("room_id"))
 	return cm
 }
 
@@ -187,9 +206,15 @@ func ParseReadMessage(m AnyMessage, action Action) ReadMessage {
 	}
 	rm := ReadMessage{}
 	rm.ActionName = action
-	rm.SenderID, _ = m["sender_id"].(uint64)
-	rm.RoomID, _ = m["room_id"].(uint64)
-	rm.MessageIDs, _ = m["message_ids"].([]uint64)
+	rm.RoomID = uint64(m.Number("room_id"))
+	anys := m.Array("message_ids")
+	msg_ids := make([]uint64, 0, len(anys))
+	for _, v := range anys {
+		if n, ok := v.(float64); ok {
+			msg_ids = append(msg_ids, uint64(n))
+		}
+	}
+	rm.MessageIDs = msg_ids
 	return rm
 }
 
@@ -209,8 +234,7 @@ func ParseTypeStart(m AnyMessage, action Action) TypeStart {
 	}
 	ts := TypeStart{}
 	ts.ActionName = action
-	ts.SenderID, _ = m["sender_id"].(uint64)
-	ts.RoomID, _ = m["room_id"].(uint64)
+	ts.RoomID = uint64(m.Number("room_id"))
 	return ts
 }
 
@@ -230,7 +254,6 @@ func ParseTypeEnd(m AnyMessage, action Action) TypeEnd {
 	}
 	te := TypeEnd{}
 	te.ActionName = action
-	te.SenderID, _ = m["sender_id"].(uint64)
-	te.RoomID, _ = m["room_id"].(uint64)
+	te.RoomID = uint64(m.Number("room_id"))
 	return te
 }

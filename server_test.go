@@ -1,20 +1,28 @@
 package chat
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"golang.org/x/net/websocket"
+
 	"github.com/labstack/echo"
 	"github.com/shirasudon/go-chat/entity"
 	_ "github.com/shirasudon/go-chat/entity/stub"
+	"github.com/shirasudon/go-chat/model"
 	"github.com/shirasudon/go-chat/wstest"
 )
 
 var (
 	repository entity.Repositories
 	server     *Server
+)
+
+const (
+	LoginUserID = 2
 )
 
 func init() {
@@ -29,7 +37,7 @@ func TestServerServeChatWebsocket(t *testing.T) {
 	ts := httptest.NewServer(
 		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			c := e.NewContext(req, w)
-			c.Set(KeyLoggedInUserID, uint64(0)) // To use check for login state
+			c.Set(KeyLoggedInUserID, uint64(LoginUserID)) // To use check for login state
 			if err := server.serveChatWebsocket(c); err != nil {
 				serverErrCh <- err
 			}
@@ -47,6 +55,12 @@ func TestServerServeChatWebsocket(t *testing.T) {
 		}
 	}()
 
+	// run server process
+	go func() {
+		server.ListenAndServe()
+	}()
+	defer server.Shutdown(context.Background())
+
 	requestPath := ts.URL + "/ws/chat/ws/room1"
 	origin := ts.URL[0:strings.LastIndex(ts.URL, ":")]
 
@@ -57,23 +71,26 @@ func TestServerServeChatWebsocket(t *testing.T) {
 	}
 	defer conn.Close()
 
-	// // TODO describe behaviors of the websocket client.
-
 	// write message to server
-	// writeCM := model.ChatMessage{Content: "hello!"}
-	// writeCM.ActionName = model.ActionChatMessage
-	// if err := websocket.JSON.Send(conn, writeCM); err != nil {
-	// 	t.Fatal(err)
-	// }
+	writeCM := model.ChatMessage{Content: "hello!"}
+	writeCM.RoomID = 3
+	writeCM.ActionName = model.ActionChatMessage
+	if err := websocket.JSON.Send(conn, writeCM); err != nil {
+		t.Fatal(err)
+	}
 
-	// // read message from server
-	// var readCM model.ChatMessage
-	// if err := websocket.JSON.Receive(conn, &readCM); err != nil {
-	// 	t.Fatal(err)
-	// }
+	// read message from server
+	var readAny model.AnyMessage
+	if err := websocket.JSON.Receive(conn, &readAny); err != nil {
+		t.Fatal(err)
+	}
+	if readAny.Action() != model.ActionChatMessage {
+		t.Fatalf("%#v", readAny)
+	}
+	readCM := model.ParseChatMessage(readAny, readAny.Action())
 
-	// // check same message
-	// if readCM.Content != writeCM.Content {
-	// 	t.Errorf("different chat message, got: %v, expect: %v", readCM, writeCM)
-	// }
+	// check same message
+	if readCM.Content != writeCM.Content {
+		t.Errorf("different chat message, got: %#v, expect: %#v", readCM, writeCM)
+	}
 }

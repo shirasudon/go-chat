@@ -15,6 +15,7 @@ import (
 
 // it represents server which can accepts chat room and its clients.
 type Server struct {
+	echo            *echo.Echo
 	websocketServer *websocket.Server
 	loginHandler    *LoginHandler
 	initialRoom     *model.InitialRoom
@@ -75,8 +76,14 @@ func (s *Server) ListenAndServe() error {
 	s.ctx = ctx // override context to propagate done signal from the server.
 	defer cancel()
 
+	// start chat process
+	go s.initialRoom.Listen(ctx)
+
 	// initilize router
 	e := echo.New()
+	e.HideBanner = true
+	s.echo = e
+
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
@@ -85,9 +92,6 @@ func (s *Server) ListenAndServe() error {
 	e.POST("/login", s.loginHandler.Login)
 	e.GET("/login", s.loginHandler.GetLoginState)
 	e.POST("/logout", s.loginHandler.Logout)
-
-	// start chat proces
-	s.initialRoom.Listen(ctx)
 
 	// set websocket handler
 	g := e.Group("/ws", s.loginHandler.Filter())
@@ -102,6 +106,10 @@ func (s *Server) ListenAndServe() error {
 	err := e.Start(serverURL)
 	e.Logger.Error(err)
 	return err
+}
+
+func (s *Server) Shutdown(ctx context.Context) error {
+	return s.echo.Shutdown(ctx)
 }
 
 // It starts server process using default server with

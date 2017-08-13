@@ -14,7 +14,7 @@ var (
 	DummyRoom3 = entity.Room{ID: 3, Name: "title3"}
 
 	DummyRoomRelation = entity.RoomRelation{
-		Members: DummyUserRelation.Friends,
+		Members: []entity.User{DummyUser2, DummyUser3},
 	}
 
 	DummyRooms = []entity.Room{
