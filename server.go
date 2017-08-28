@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"log"
+	"path"
+	"strings"
 
 	"golang.org/x/net/websocket"
 
@@ -18,7 +20,7 @@ type Server struct {
 	echo            *echo.Echo
 	websocketServer *websocket.Server
 	loginHandler    *LoginHandler
-	initialRoom     *model.ChatHub
+	chatHub         *model.ChatHub
 
 	ctx context.Context
 
@@ -36,7 +38,7 @@ func NewServer(repos entity.Repositories, conf *Config) *Server {
 
 	s := &Server{
 		loginHandler: NewLoginHandler(repos.Users()),
-		initialRoom:  model.NewChatHub(repos),
+		chatHub:      model.NewChatHub(repos),
 		ctx:          context.Background(),
 		repos:        repos,
 		conf:         *conf,
@@ -46,6 +48,7 @@ func NewServer(repos entity.Repositories, conf *Config) *Server {
 }
 
 func (s *Server) serveChatWebsocket(c echo.Context) error {
+	// KeyLoggedInUserID is set at middleware layer, loginHandler.Filter.
 	userID, ok := c.Get(KeyLoggedInUserID).(uint64)
 	if !ok {
 		return errors.New("needs logged in, but access without logged in state")
@@ -59,7 +62,7 @@ func (s *Server) serveChatWebsocket(c echo.Context) error {
 		defer ws.Close()
 
 		// blocking to avoid connection closed
-		s.initialRoom.Connect(s.ctx, ws, user)
+		s.chatHub.Connect(s.ctx, ws, user)
 	}).ServeHTTP(c.Response(), c.Request())
 	return nil
 }
@@ -77,7 +80,7 @@ func (s *Server) ListenAndServe() error {
 	defer cancel()
 
 	// start chat process
-	go s.initialRoom.Listen(ctx)
+	go s.chatHub.Listen(ctx)
 
 	// initilize router
 	e := echo.New()
@@ -94,15 +97,22 @@ func (s *Server) ListenAndServe() error {
 	e.POST("/logout", s.loginHandler.Logout)
 
 	// set websocket handler
-	g := e.Group("/ws", s.loginHandler.Filter())
-	g.GET(s.conf.WebSocketPath, s.serveChatWebsocket)
+	{
+		chatPath := strings.TrimSuffix(s.conf.ChatPath, "/")
+		chatGroup := e.Group(chatPath, s.loginHandler.Filter())
+		chatWSPath := path.Join(chatPath, "ws")
+		chatGroup.GET(chatWSPath, s.serveChatWebsocket)
+
+		log.Println("chat API listen at " + chatPath)
+		log.Println("chat API accepts websocket connection at " + chatPath)
+	}
 
 	// serve static content
 	e.Static("/", "")
 
 	// start server
 	serverURL := s.conf.HTTP
-	log.Println("WebSocket server listen at " + serverURL + s.conf.WebSocketPath)
+	log.Println("server listen at " + serverURL)
 	err := e.Start(serverURL)
 	e.Logger.Error(err)
 	return err

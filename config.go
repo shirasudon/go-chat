@@ -16,26 +16,26 @@ type Config struct {
 	// Http service address for the server.
 	HTTP string
 
-	// root path for the websocket server.
-	WebSocketPath string
+	// root path for the chat application
+	ChatPath string
 }
 
 const (
-	DefaultHTTP          = "localhost:8080"
-	DefaultWebSocketPath = "/chat/ws/"
+	DefaultHTTP     = "localhost:8080"
+	DefaultChatPath = "/chat/"
 )
 
 var DefaultConfig = Config{
-	HTTP:          DefaultHTTP,
-	WebSocketPath: DefaultWebSocketPath,
+	HTTP:     DefaultHTTP,
+	ChatPath: DefaultChatPath,
 }
 
 func (c Config) validate() error {
-	if len(c.WebSocketPath) == 0 {
-		return fmt.Errorf("WebSocketPath must have any content")
+	if len(c.ChatPath) == 0 {
+		return fmt.Errorf("ChatPath must have any content")
 	}
-	if !strings.HasSuffix(c.WebSocketPath, "/") {
-		return fmt.Errorf("WebSocketPath must end by / but %s", c.WebSocketPath)
+	if !strings.HasSuffix(c.ChatPath, "/") {
+		return fmt.Errorf("ChatPath must end by / but %s", c.ChatPath)
 	}
 	return nil
 }

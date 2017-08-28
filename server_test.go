@@ -61,7 +61,7 @@ func TestServerServeChatWebsocket(t *testing.T) {
 	}()
 	defer server.Shutdown(context.Background())
 
-	requestPath := ts.URL + "/ws/chat/ws/room1"
+	requestPath := ts.URL + "/chat/ws"
 	origin := ts.URL[0:strings.LastIndex(ts.URL, ":")]
 
 	// create websocket connection for testiong server ts.
