@@ -18,7 +18,7 @@ type Server struct {
 	echo            *echo.Echo
 	websocketServer *websocket.Server
 	loginHandler    *LoginHandler
-	initialRoom     *model.InitialRoom
+	initialRoom     *model.ChatHub
 
 	ctx context.Context
 
@@ -36,7 +36,7 @@ func NewServer(repos entity.Repositories, conf *Config) *Server {
 
 	s := &Server{
 		loginHandler: NewLoginHandler(repos.Users()),
-		initialRoom:  model.NewInitialRoom(repos),
+		initialRoom:  model.NewChatHub(repos),
 		ctx:          context.Background(),
 		repos:        repos,
 		conf:         *conf,
