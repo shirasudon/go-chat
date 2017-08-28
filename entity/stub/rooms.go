@@ -27,8 +27,8 @@ func (repo *RoomRepository) GetUserRooms(ctx context.Context, userID uint64) ([]
 	return DummyRooms, nil
 }
 
-func (repo *RoomRepository) Add(ctx context.Context, r entity.Room) (entity.Room, error) {
-	return r, nil
+func (repo *RoomRepository) Add(ctx context.Context, r entity.Room) (uint64, error) {
+	return 1, nil
 }
 
 func (repo *RoomRepository) Remove(ctx context.Context, r entity.Room) error {

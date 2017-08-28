@@ -25,7 +25,7 @@ type InitialRoom struct {
 }
 
 // actionMessageRequest is a composit struct of
-// ActionMessage and Conn sent the message.
+// ActionMessage and Conn to send the message.
 // It is used to handle ActionMessage by InitialRoom.
 type actionMessageRequest struct {
 	ActionMessage
@@ -79,6 +79,7 @@ func (iroom *InitialRoom) Listen(ctx context.Context) {
 		case req := <-iroom.messages:
 			if err := iroom.chatHub.handleMessage(ctx, req); err != nil {
 				// TODO err handling
+				sendError(req.Conn, err, req.ActionMessage)
 				log.Printf("Message Error: %v\n", err)
 			}
 

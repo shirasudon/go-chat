@@ -23,7 +23,7 @@ func (repo RoomRepository) GetUserRooms(ctx context.Context, userID uint64) ([]e
 	panic("not implemented")
 }
 
-func (repo RoomRepository) Add(ctx context.Context, r entity.Room) (entity.Room, error) {
+func (repo RoomRepository) Add(ctx context.Context, r entity.Room) (uint64, error) {
 	panic("not implemented")
 }
 

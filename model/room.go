@@ -88,7 +88,8 @@ func (room *Room) leaveAlls() {
 func (room *Room) handleMessage(ctx context.Context, m ChatActionMessage) error {
 	switch m := m.(type) {
 	case ChatMessage:
-		savedMsg, err := room.msgRepo.Add(ctx, entity.Message{
+		var err error
+		m.ID, err = room.msgRepo.Add(ctx, entity.Message{
 			Content: m.Content,
 			UserID:  m.SenderID,
 			RoomID:  m.RoomID,
@@ -96,7 +97,7 @@ func (room *Room) handleMessage(ctx context.Context, m ChatActionMessage) error 
 		if err != nil {
 			return err
 		}
-		m.ID = savedMsg.ID
+
 	case ReadMessage:
 		if err := room.msgRepo.ReadMessage(ctx, m.RoomID, m.SenderID, m.MessageIDs); err != nil {
 			return err

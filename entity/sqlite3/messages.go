@@ -16,7 +16,7 @@ func (mr MessageRepository) PreviousRoomMessages(ctx context.Context, offset ent
 	panic("not implemented")
 }
 
-func (mr MessageRepository) Add(ctx context.Context, m entity.Message) (entity.Message, error) {
+func (mr MessageRepository) Add(ctx context.Context, m entity.Message) (uint64, error) {
 	panic("not implemented")
 }
 

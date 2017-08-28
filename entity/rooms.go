@@ -21,8 +21,8 @@ type RoomRepository interface {
 	GetUserRooms(ctx context.Context, userID uint64) ([]Room, error)
 
 	// store new room to repository and return
-	// stored room.
-	Add(ctx context.Context, r Room) (Room, error)
+	// stored room id.
+	Add(ctx context.Context, r Room) (uint64, error)
 
 	// remove room from repository.
 	Remove(ctx context.Context, r Room) error

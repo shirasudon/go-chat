@@ -43,11 +43,11 @@ func (repo *MessageRepository) PreviousRoomMessages(ctx context.Context, offset 
 	return repo.messages[offsetIdx-n : offsetIdx], nil
 }
 
-func (repo *MessageRepository) Add(ctx context.Context, m entity.Message) (entity.Message, error) {
+func (repo *MessageRepository) Add(ctx context.Context, m entity.Message) (uint64, error) {
 	m.ID = uint64(len(repo.messages))
 	m.CreatedAt = time.Now()
 	repo.messages = append(repo.messages)
-	return m, nil
+	return m.ID, nil
 }
 
 func (repo *MessageRepository) ReadMessage(ctx context.Context, roomID, userID uint64, messageIDs []uint64) error {

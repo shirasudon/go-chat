@@ -2,7 +2,6 @@ package model
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/shirasudon/go-chat/entity"
 )
@@ -56,12 +55,9 @@ func (hub *ChatHub) handleMessage(ctx context.Context, req actionMessageRequest)
 	switch m := req.ActionMessage.(type) {
 	case ChatActionMessage:
 		if err := hub.clients.validateClientHasRoom(req.Conn, m.GetSenderID(), m.GetRoomID()); err != nil {
-			sendError(req.Conn, fmt.Errorf("request user(%d) does not have room(%d)", m.GetSenderID(), m.GetRoomID()), m)
 			return err
 		}
-		if err := hub.handleChatActionMessage(ctx, req.Conn, m); err != nil {
-			return err
-		}
+		return hub.handleChatActionMessage(ctx, req.Conn, m)
 	}
 
 	return nil
@@ -70,7 +66,8 @@ func (hub *ChatHub) handleMessage(ctx context.Context, req actionMessageRequest)
 func (hub *ChatHub) handleChatActionMessage(ctx context.Context, conn *Conn, m ChatActionMessage) error {
 	switch m := m.(type) {
 	case ChatMessage:
-		addedMsg, err := hub.msgRepo.Add(ctx, entity.Message{
+		var err error
+		m.ID, err = hub.msgRepo.Add(ctx, entity.Message{
 			Content: m.Content,
 			UserID:  m.SenderID,
 			RoomID:  m.RoomID,
@@ -78,7 +75,6 @@ func (hub *ChatHub) handleChatActionMessage(ctx context.Context, conn *Conn, m C
 		if err != nil {
 			return err
 		}
-		m.ID = addedMsg.ID
 		hub.broadcastsRoomMembers(m.RoomID, m)
 
 	case ReadMessage:
