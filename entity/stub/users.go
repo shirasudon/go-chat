@@ -33,8 +33,10 @@ var (
 )
 
 func (repo UserRepository) Get(name string, password string) (entity.User, error) {
-	if repo.Exist(name, password) {
-		return entity.User{ID: 0, Name: name, Password: password}, nil
+	for _, u := range userMap {
+		if name == u.Name && password == u.Password {
+			return u, nil
+		}
 	}
 	return entity.User{}, ErrNotFound
 }
@@ -45,12 +47,8 @@ func (repo UserRepository) Set(name string, password string) (uint64, error) {
 }
 
 func (repo UserRepository) Exist(name string, password string) bool {
-	for _, u := range userMap {
-		if name == u.Name && password == u.Password {
-			return true
-		}
-	}
-	return false
+	_, err := repo.Get(name, password)
+	return err == nil
 }
 
 func (repo UserRepository) Find(id uint64) (entity.User, error) {

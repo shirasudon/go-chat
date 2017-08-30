@@ -1,0 +1,25 @@
+<html>
+<head>
+    <title>websocket sample</title>
+    <script type="text/javascript">
+
+    function init() { 
+        var form = document.getElementById("login-form");
+        form.submit();
+    }
+
+    window.addEventListener("load", init, false);
+
+    </script>
+</head>
+<body>
+    <h2>Login then redirect to chat page</h2>
+
+    <div>
+        <form id="login-form" action="http://localhost:8080/login" method="POST">
+            <input name="email" value="user2"/>
+            <input name="password" value="password"/>
+        </form>
+    </div>
+</body>
+</html>

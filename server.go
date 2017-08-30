@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log"
-	"path"
 	"strings"
 
 	"golang.org/x/net/websocket"
@@ -100,11 +99,10 @@ func (s *Server) ListenAndServe() error {
 	{
 		chatPath := strings.TrimSuffix(s.conf.ChatPath, "/")
 		chatGroup := e.Group(chatPath, s.loginHandler.Filter())
-		chatWSPath := path.Join(chatPath, "ws")
-		chatGroup.GET(chatWSPath, s.serveChatWebsocket)
+		wsRoute := chatGroup.GET("/ws", s.serveChatWebsocket)
 
 		log.Println("chat API listen at " + chatPath)
-		log.Println("chat API accepts websocket connection at " + chatPath)
+		log.Println("chat API accepts websocket connection at " + wsRoute.Path)
 	}
 
 	// serve static content
