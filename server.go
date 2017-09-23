@@ -12,6 +12,7 @@ import (
 	"github.com/labstack/echo/middleware"
 	"github.com/shirasudon/go-chat/entity"
 	"github.com/shirasudon/go-chat/model"
+	"github.com/shirasudon/go-chat/model/action"
 	"github.com/shirasudon/go-chat/ws"
 )
 
@@ -62,11 +63,11 @@ func (s *Server) serveChatWebsocket(c echo.Context) error {
 		defer wsConn.Close()
 
 		conn := ws.NewConn(wsConn, user)
-		conn.OnActionMessage(func(conn *ws.Conn, m model.ActionMessage) {
+		conn.OnActionMessage(func(conn *ws.Conn, m action.ActionMessage) {
 			s.chatHub.Send(conn, m)
 		})
 		conn.OnError(func(conn *ws.Conn, err error) {
-			conn.Send(model.NewErrorMessage(err))
+			conn.Send(action.NewErrorMessage(err))
 		})
 		conn.OnClosed(func(conn *ws.Conn) {
 			s.chatHub.Disconnect(conn)

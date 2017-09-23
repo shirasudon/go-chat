@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/shirasudon/go-chat/entity"
-	"github.com/shirasudon/go-chat/model"
+	"github.com/shirasudon/go-chat/model/action"
 
 	"golang.org/x/net/websocket"
 )
@@ -26,7 +26,7 @@ type Conn struct {
 
 	messages chan interface{}
 
-	onActionMessage func(*Conn, model.ActionMessage)
+	onActionMessage func(*Conn, action.ActionMessage)
 	onClosed        func(*Conn)
 	onError         func(*Conn, error)
 }
@@ -49,7 +49,7 @@ func (c *Conn) UserID() uint64 {
 
 // set callback function to handle the event for a message is received.
 // the callback function may be called asynchronously.
-func (c *Conn) OnActionMessage(f func(*Conn, model.ActionMessage)) {
+func (c *Conn) OnActionMessage(f func(*Conn, action.ActionMessage)) {
 	c.onActionMessage = f
 }
 
@@ -67,7 +67,7 @@ func (c *Conn) OnError(f func(*Conn, error)) {
 
 // Send ActionMessage to browser-side client.
 // message is ignored when Conn is closed.
-func (c *Conn) Send(m model.ActionMessage) {
+func (c *Conn) Send(m action.ActionMessage) {
 	select {
 	case c.messages <- m:
 	case <-c.done:
@@ -146,8 +146,11 @@ func (c *Conn) receivePump(ctx context.Context) {
 			return
 		default:
 			message, err := c.receiveAnyMessage()
-			if err == io.EOF {
-				return
+			if err != nil {
+				if err == io.EOF {
+					return
+				}
+				continue
 			}
 			// Receive success, handling received message
 			c.handleAnyMessage(message)
@@ -157,8 +160,8 @@ func (c *Conn) receivePump(ctx context.Context) {
 
 // return fatal error, such as io.EOF with connection closed,
 // otherwise handle itself.
-func (c *Conn) receiveAnyMessage() (model.AnyMessage, error) {
-	var message model.AnyMessage
+func (c *Conn) receiveAnyMessage() (action.AnyMessage, error) {
+	var message action.AnyMessage
 	if err := websocket.JSON.Receive(c.conn, &message); err != nil {
 		// io.EOF means connection is closed
 		if err == io.EOF {
@@ -170,22 +173,23 @@ func (c *Conn) receiveAnyMessage() (model.AnyMessage, error) {
 			c.onError(c, err)
 		}
 		// and return error message to client
-		c.Send(model.NewErrorMessage(errors.New("JSON structure must be a HashMap type")))
+		c.Send(action.NewErrorMessage(errors.New("JSON structure must be a HashMap type")))
+		return nil, err
 	}
 	return message, nil
 }
 
-func (c *Conn) handleAnyMessage(m model.AnyMessage) {
-	m.SetNumber(model.KeySenderID, float64(c.userID))
-	action, err := model.ConvertAnyMessage(m)
+func (c *Conn) handleAnyMessage(m action.AnyMessage) {
+	m.SetNumber(action.KeySenderID, float64(c.userID))
+	actionMsg, err := action.ConvertAnyMessage(m)
 	if err != nil {
 		if c.onError != nil {
 			c.onError(c, err)
 		}
-		c.Send(model.NewErrorMessage(err, action))
+		c.Send(action.NewErrorMessage(err, m))
 		return
 	}
 	if c.onActionMessage != nil {
-		c.onActionMessage(c, action)
+		c.onActionMessage(c, actionMsg)
 	}
 }

@@ -1,4 +1,4 @@
-package model
+package action
 
 import (
 	"errors"
@@ -165,6 +165,17 @@ func NewErrorMessage(err error, cause ...ActionMessage) ErrorMessage {
 		em.Cause = cause[0]
 	}
 	return em
+}
+
+func ParseErrorMessage(m AnyMessage, action Action) (ErrorMessage, error) {
+	if action != ActionError {
+		return ErrorMessage{}, errors.New("ParseErrorMessage: invalid action")
+	}
+	msg := ErrorMessage{}
+	msg.ActionName = action
+	msg.ErrorMsg = m.String("error")
+	msg.Cause = AnyMessage(m.Object("cause"))
+	return msg, nil
 }
 
 // UserConnect indicates connect acitve user to chat server.

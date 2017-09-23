@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/shirasudon/go-chat/entity"
-	"github.com/shirasudon/go-chat/model"
+	"github.com/shirasudon/go-chat/model/action"
 	"github.com/shirasudon/go-chat/ws/wstest"
 
 	"golang.org/x/net/websocket"
@@ -22,8 +22,8 @@ func TestNewConn(t *testing.T) {
 	server := wstest.NewServer(websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
 
-		cm := model.ChatMessage{Content: GreetingMsg}
-		cm.ActionName = model.ActionChatMessage
+		cm := action.ChatMessage{Content: GreetingMsg}
+		cm.ActionName = action.ActionChatMessage
 		conn := NewConn(ws, entity.User{})
 		conn.Send(cm)
 		conn.Listen(ctx)
@@ -43,7 +43,7 @@ func TestNewConn(t *testing.T) {
 	defer conn.Close()
 
 	// Receive hello message
-	var cm model.ChatMessage
+	var cm action.ChatMessage
 	if err := websocket.JSON.Receive(conn, &cm); err != nil {
 		t.Fatalf("client receive error: %v", err)
 	}
@@ -61,28 +61,43 @@ func TestNewConn(t *testing.T) {
 	if err := websocket.JSON.Send(conn, "aa"); err != nil {
 		t.Fatalf("client send error: %v", err)
 	}
-	var errMsg model.ErrorMessage
-	if err := websocket.JSON.Receive(conn, &errMsg); err != nil {
+
+	var (
+		anyMsg action.AnyMessage
+		errMsg action.ErrorMessage
+	)
+	if err := websocket.JSON.Receive(conn, &anyMsg); err != nil {
 		t.Fatalf("client receive error: %v", err)
+	}
+
+	errMsg, err = action.ParseErrorMessage(anyMsg, action.ActionError)
+	if err != nil {
+		t.Fatalf("parse ErrorMessage fail: %v", err)
 	}
 	if len(errMsg.ErrorMsg) == 0 {
 		t.Errorf("got error message but message is empty")
 	}
-	t.Logf("error message is: %v", errMsg.ErrorMsg)
+	t.Logf("LOG: send invalid message, then return: %v", errMsg.ErrorMsg)
 
 	// Send no actiom Message
-	cm = model.ChatMessage{}
-	cm.ActionName = model.ActionEmpty
+	cm = action.ChatMessage{}
+	cm.ActionName = action.ActionEmpty
 	if err := websocket.JSON.Send(conn, cm); err != nil {
 		t.Fatalf("client send error: %v", err)
 	}
-	if err := websocket.JSON.Receive(conn, &errMsg); err != nil {
+	if err := websocket.JSON.Receive(conn, &anyMsg); err != nil {
 		t.Fatalf("client receive error: %v", err)
 	}
+
+	errMsg, err = action.ParseErrorMessage(anyMsg, action.ActionError)
+	if err != nil {
+		t.Fatalf("parse ErrorMessage fail: %v", err)
+	}
+
 	if len(errMsg.ErrorMsg) == 0 {
 		t.Errorf("got error message but message is empty")
 	}
-	t.Logf("error message is: %v", errMsg.ErrorMsg)
+	t.Logf("LOG: send invalid message, then return: %v", errMsg.ErrorMsg)
 }
 
 func TestConnClose(t *testing.T) {

@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/shirasudon/go-chat/entity"
+	"github.com/shirasudon/go-chat/model/action"
 )
 
 // ChatHub is the hub which accepts any websocket connections to
@@ -25,7 +26,7 @@ type ChatHub struct {
 // ActionMessage and Conn to send the message.
 // It is used to handle ActionMessage by ChatHub.
 type actionMessageRequest struct {
-	ActionMessage
+	action.ActionMessage
 	Conn Conn
 }
 
@@ -104,7 +105,7 @@ func (hub *ChatHub) Disconnect(conn Conn) {
 // Send ActionMessage with the connection which sent the message.
 // the connection is used to verify that the message is exactlly
 // sent by the connected connection.
-func (hub *ChatHub) Send(conn Conn, message ActionMessage) {
+func (hub *ChatHub) Send(conn Conn, message action.ActionMessage) {
 	hub.messages <- actionMessageRequest{message, conn}
 }
 
@@ -116,7 +117,7 @@ func (hub *ChatHub) disconnectClient(ctx context.Context, c Conn) error {
 	return hub.messageHandler.disconnectClient(ctx, c)
 }
 
-func sendError(c Conn, err error, cause ...ActionMessage) {
+func sendError(c Conn, err error, cause ...action.ActionMessage) {
 	log.Println(err)
-	go func() { c.Send(NewErrorMessage(err, cause...)) }()
+	go func() { c.Send(action.NewErrorMessage(err, cause...)) }()
 }

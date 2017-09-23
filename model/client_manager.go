@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/shirasudon/go-chat/entity"
+	"github.com/shirasudon/go-chat/model/action"
 )
 
 // connection specified infomation.
@@ -32,7 +33,7 @@ func newActiveClient(c Conn) *activeClient {
 	}
 }
 
-func (ac *activeClient) Send(m ActionMessage) {
+func (ac *activeClient) Send(m action.ActionMessage) {
 	for c, _ := range ac.conns {
 		c.Send(m)
 	}
@@ -51,7 +52,7 @@ func NewClientManager(repos entity.Repositories) *ClientManager {
 	}
 }
 
-func (cm *ClientManager) broadcastsFriends(ac *activeClient, m ActionMessage) {
+func (cm *ClientManager) broadcastsFriends(ac *activeClient, m action.ActionMessage) {
 	for friendID, _ := range ac.friends {
 		if activeFriend, ok := cm.clients[friendID]; ok {
 			go func(ac *activeClient) { ac.Send(m) }(activeFriend)
@@ -59,7 +60,7 @@ func (cm *ClientManager) broadcastsFriends(ac *activeClient, m ActionMessage) {
 	}
 }
 
-func (cm *ClientManager) broadcastsUsers(userIDs []uint64, m ActionMessage) {
+func (cm *ClientManager) broadcastsUsers(userIDs []uint64, m action.ActionMessage) {
 	for _, userID := range userIDs {
 		if activeUser, ok := cm.clients[userID]; ok {
 			go func(ac *activeClient) { ac.Send(m) }(activeUser)
@@ -90,7 +91,7 @@ func (cm *ClientManager) connectClient(ctx context.Context, c Conn) error {
 	}
 	cm.clients[c.UserID()] = activeC
 
-	cm.broadcastsFriends(activeC, NewUserConnect(c.UserID()))
+	cm.broadcastsFriends(activeC, action.NewUserConnect(c.UserID()))
 	return nil
 }
 
@@ -103,7 +104,7 @@ func (cm *ClientManager) disconnectClient(c Conn) {
 	delete(activeC.conns, c)
 	if len(activeC.conns) == 0 {
 		delete(cm.clients, c.UserID())
-		cm.broadcastsFriends(activeC, NewUserDisconnect(c.UserID()))
+		cm.broadcastsFriends(activeC, action.NewUserDisconnect(c.UserID()))
 	}
 }
 

@@ -12,7 +12,7 @@ import (
 	"github.com/labstack/echo"
 	"github.com/shirasudon/go-chat/entity"
 	_ "github.com/shirasudon/go-chat/entity/stub"
-	"github.com/shirasudon/go-chat/model"
+	"github.com/shirasudon/go-chat/model/action"
 	"github.com/shirasudon/go-chat/ws/wstest"
 )
 
@@ -71,22 +71,22 @@ func TestServerServeChatWebsocket(t *testing.T) {
 	defer conn.Close()
 
 	// write message to server
-	writeCM := model.ChatMessage{Content: "hello!"}
+	writeCM := action.ChatMessage{Content: "hello!"}
 	writeCM.RoomID = 3
-	writeCM.ActionName = model.ActionChatMessage
+	writeCM.ActionName = action.ActionChatMessage
 	if err := websocket.JSON.Send(conn, writeCM); err != nil {
 		t.Fatal(err)
 	}
 
 	// read message from server
-	var readAny model.AnyMessage
+	var readAny action.AnyMessage
 	if err := websocket.JSON.Receive(conn, &readAny); err != nil {
 		t.Fatal(err)
 	}
-	if readAny.Action() != model.ActionChatMessage {
+	if readAny.Action() != action.ActionChatMessage {
 		t.Fatalf("%#v", readAny)
 	}
-	readCM, err := model.ParseChatMessage(readAny, readAny.Action())
+	readCM, err := action.ParseChatMessage(readAny, readAny.Action())
 	if err != nil {
 		t.Errorf("can not parse ChatMessage: %v", err)
 	}
