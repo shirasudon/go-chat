@@ -12,6 +12,7 @@ import (
 	"github.com/labstack/echo/middleware"
 	"github.com/shirasudon/go-chat/entity"
 	"github.com/shirasudon/go-chat/model"
+	"github.com/shirasudon/go-chat/ws"
 )
 
 // it represents server which can accepts chat room and its clients.
@@ -56,12 +57,24 @@ func (s *Server) serveChatWebsocket(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	websocket.Handler(func(ws *websocket.Conn) {
+	websocket.Handler(func(wsConn *websocket.Conn) {
 		log.Println("Server.acceptWSConn: ")
-		defer ws.Close()
+		defer wsConn.Close()
+
+		conn := ws.NewConn(wsConn, user)
+		conn.OnActionMessage(func(conn *ws.Conn, m model.ActionMessage) {
+			s.chatHub.Send(conn, m)
+		})
+		conn.OnError(func(conn *ws.Conn, err error) {
+			conn.Send(model.NewErrorMessage(err))
+		})
+		conn.OnClosed(func(conn *ws.Conn) {
+			s.chatHub.Disconnect(conn)
+		})
+		s.chatHub.Connect(conn)
 
 		// blocking to avoid connection closed
-		s.chatHub.Connect(s.ctx, ws, user)
+		conn.Listen(c.Request().Context())
 	}).ServeHTTP(c.Response(), c.Request())
 	return nil
 }

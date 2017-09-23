@@ -1,4 +1,4 @@
-package model
+package ws
 
 import (
 	"context"
@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	"github.com/shirasudon/go-chat/entity"
-	"github.com/shirasudon/go-chat/wstest"
+	"github.com/shirasudon/go-chat/model"
+	"github.com/shirasudon/go-chat/ws/wstest"
 
 	"golang.org/x/net/websocket"
 )
@@ -21,8 +22,8 @@ func TestNewConn(t *testing.T) {
 	server := wstest.NewServer(websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
 
-		cm := ChatMessage{Content: GreetingMsg}
-		cm.ActionName = ActionChatMessage
+		cm := model.ChatMessage{Content: GreetingMsg}
+		cm.ActionName = model.ActionChatMessage
 		conn := NewConn(ws, entity.User{})
 		conn.Send(cm)
 		conn.Listen(ctx)
@@ -42,7 +43,7 @@ func TestNewConn(t *testing.T) {
 	defer conn.Close()
 
 	// Receive hello message
-	var cm ChatMessage
+	var cm model.ChatMessage
 	if err := websocket.JSON.Receive(conn, &cm); err != nil {
 		t.Fatalf("client receive error: %v", err)
 	}
@@ -60,7 +61,7 @@ func TestNewConn(t *testing.T) {
 	if err := websocket.JSON.Send(conn, "aa"); err != nil {
 		t.Fatalf("client send error: %v", err)
 	}
-	var errMsg ErrorMessage
+	var errMsg model.ErrorMessage
 	if err := websocket.JSON.Receive(conn, &errMsg); err != nil {
 		t.Fatalf("client receive error: %v", err)
 	}
@@ -70,8 +71,8 @@ func TestNewConn(t *testing.T) {
 	t.Logf("error message is: %v", errMsg.ErrorMsg)
 
 	// Send no actiom Message
-	cm = ChatMessage{}
-	cm.ActionName = ActionEmpty
+	cm = model.ChatMessage{}
+	cm.ActionName = model.ActionEmpty
 	if err := websocket.JSON.Send(conn, cm); err != nil {
 		t.Fatalf("client send error: %v", err)
 	}
@@ -84,7 +85,7 @@ func TestNewConn(t *testing.T) {
 	t.Logf("error message is: %v", errMsg.ErrorMsg)
 }
 
-func TestConnDone(t *testing.T) {
+func TestConnClose(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -93,7 +94,7 @@ func TestConnDone(t *testing.T) {
 		defer ws.Close()
 
 		conn := NewConn(ws, entity.User{})
-		conn.Done() // to quit Listen() immediately
+		conn.Close() // to quit Listen() immediately
 		conn.Listen(ctx)
 		endCh <- true
 	}))

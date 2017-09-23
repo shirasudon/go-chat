@@ -19,14 +19,14 @@ type connectionInfo struct {
 // because one user has many websocket conncetions such as from PC,
 // mobile device, and so on.
 type activeClient struct {
-	conns   map[*Conn]connectionInfo
+	conns   map[Conn]connectionInfo
 	rooms   map[uint64]bool // has rooms managed by room id
 	friends map[uint64]bool // has friends managed by user id
 }
 
-func newActiveClient(c *Conn) *activeClient {
+func newActiveClient(c Conn) *activeClient {
 	return &activeClient{
-		conns:   map[*Conn]connectionInfo{c: connectionInfo{}},
+		conns:   map[Conn]connectionInfo{c: connectionInfo{}},
 		rooms:   make(map[uint64]bool),
 		friends: make(map[uint64]bool),
 	}
@@ -67,9 +67,9 @@ func (cm *ClientManager) broadcastsUsers(userIDs []uint64, m ActionMessage) {
 	}
 }
 
-func (cm *ClientManager) connectClient(ctx context.Context, c *Conn) error {
+func (cm *ClientManager) connectClient(ctx context.Context, c Conn) error {
 	// add conncetion to active user when the user is already connected from anywhere.
-	if activeC, ok := cm.clients[c.userID]; ok {
+	if activeC, ok := cm.clients[c.UserID()]; ok {
 		activeC.conns[c] = connectionInfo{}
 		return nil
 	}
@@ -78,7 +78,7 @@ func (cm *ClientManager) connectClient(ctx context.Context, c *Conn) error {
 	// and broadcasts user connect event to all active friends
 	activeC := newActiveClient(c)
 	// set friends and rooms to new active user.
-	relation, err := cm.userRepo.Relation(ctx, c.userID)
+	relation, err := cm.userRepo.Relation(ctx, c.UserID())
 	if err != nil {
 		return err
 	}
@@ -88,26 +88,26 @@ func (cm *ClientManager) connectClient(ctx context.Context, c *Conn) error {
 	for _, r := range relation.Rooms {
 		activeC.rooms[r.ID] = true
 	}
-	cm.clients[c.userID] = activeC
+	cm.clients[c.UserID()] = activeC
 
-	cm.broadcastsFriends(activeC, NewUserConnect(c.userID))
+	cm.broadcastsFriends(activeC, NewUserConnect(c.UserID()))
 	return nil
 }
 
-func (cm *ClientManager) disconnectClient(c *Conn) {
-	activeC, ok := cm.clients[c.userID]
+func (cm *ClientManager) disconnectClient(c Conn) {
+	activeC, ok := cm.clients[c.UserID()]
 	if !ok {
 		return
 	}
 
 	delete(activeC.conns, c)
 	if len(activeC.conns) == 0 {
-		delete(cm.clients, c.userID)
-		cm.broadcastsFriends(activeC, NewUserDisconnect(c.userID))
+		delete(cm.clients, c.UserID())
+		cm.broadcastsFriends(activeC, NewUserDisconnect(c.UserID()))
 	}
 }
 
-func (cm *ClientManager) validateClientHasRoom(conn *Conn, userID, roomID uint64) error {
+func (cm *ClientManager) validateClientHasRoom(conn Conn, userID, roomID uint64) error {
 	if !cm.connectionExist(userID, conn) {
 		return fmt.Errorf("request user id(%d) is not found", userID)
 	}
@@ -119,7 +119,7 @@ func (cm *ClientManager) validateClientHasRoom(conn *Conn, userID, roomID uint64
 }
 
 // check whether active client with the websocket connection exists?
-func (cm *ClientManager) connectionExist(userID uint64, conn *Conn) bool {
+func (cm *ClientManager) connectionExist(userID uint64, conn Conn) bool {
 	if activeC, ok := cm.clients[userID]; ok {
 		if _, ok := activeC.conns[conn]; ok {
 			return true

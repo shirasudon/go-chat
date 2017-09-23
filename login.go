@@ -16,7 +16,7 @@ func init() {
 }
 
 type UserForm struct {
-	Email      string `json:"email" form:"email" query:"name"`
+	Name       string `json:"name" form:"name" query:"name"`
 	Password   string `json:"password" form:"password" query:"password"`
 	RememberMe bool   `json:"rememberMe" form:"rememberMe" query:"rememberMe"`
 }
@@ -71,7 +71,7 @@ func (lh *LoginHandler) Login(c echo.Context) error {
 		return err
 	}
 
-	user, err := lh.userRepo.Get(u.Email, u.Password)
+	user, err := lh.userRepo.FindByNameAndPassword(u.Name, u.Password)
 	if err != nil {
 		return c.JSON(http.StatusOK, LoginState{ErrorMsg: err.Error()})
 	}

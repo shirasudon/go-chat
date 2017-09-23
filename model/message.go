@@ -1,6 +1,7 @@
 package model
 
 import (
+	"errors"
 	"time"
 )
 
@@ -9,6 +10,100 @@ type ActionMessage interface {
 	Action() Action
 }
 
+// AnyMessage is a arbitrary message through the websocket.
+// it implements ActionMessage interface.
+type AnyMessage map[string]interface{}
+
+// get action from any message which indicates
+// what action is contained any message.
+// return empty action if no action exist.
+func (a AnyMessage) Action() Action {
+	if action, ok := a[KeyAction].(string); ok {
+		return Action(action)
+	}
+	return ActionEmpty
+}
+
+func (a AnyMessage) String(key string) string {
+	n, _ := a[key].(string)
+	return n
+}
+
+func (a AnyMessage) SetString(key string, val string) {
+	a[key] = val
+}
+
+func (a AnyMessage) Number(key string) float64 {
+	n, _ := a[key].(float64)
+	return n
+}
+
+func (a AnyMessage) SetNumber(key string, val float64) {
+	a[key] = val
+}
+
+func (a AnyMessage) Array(key string) []interface{} {
+	n, _ := a[key].([]interface{})
+	return n
+}
+
+func (a AnyMessage) Object(key string) map[string]interface{} {
+	n, _ := a[key].(map[string]interface{})
+	return n
+}
+
+// Convert AnyMessage to ActionMessage specified by
+// AnyMessage.Action().
+// it returns error if AnyMessage has invalid data structure.
+func ConvertAnyMessage(m AnyMessage) (ActionMessage, error) {
+	a := m.Action()
+	switch a {
+	case ActionChatMessage:
+		return ParseChatMessage(m, a)
+	case ActionReadMessage:
+		return ParseReadMessage(m, a)
+	case ActionTypeStart:
+		return ParseTypeStart(m, a)
+	case ActionTypeEnd:
+		return ParseTypeEnd(m, a)
+	case ActionEmpty:
+		return m, errors.New("JSON object must have any action field")
+	}
+	return m, errors.New("unknown action: " + string(a))
+}
+
+// Action indicates a action type for the JSON data schema.
+type Action string
+
+const (
+	// no meaning action
+	ActionEmpty Action = ""
+
+	// internal server error
+	ActionError Action = "ERROR"
+
+	// server to front-end client
+	ActionUserConnect    Action = "USER_CONNECT"
+	ActionUserDisconnect Action = "USER_DISCONNECT"
+
+	ActionCreateRoom Action = "CREATE_ROOM"
+	ActionDeleteRoom Action = "DELETE_ROOM"
+
+	// server from/to front-end client
+	ActionReadMessage Action = "READ_MESSAGE"
+	ActionChatMessage Action = "CHAT_MESSAGE"
+
+	ActionTypeStart Action = "TYPE_START"
+	ActionTypeEnd   Action = "TYPE_END"
+)
+
+const (
+	// key for the action field in AnyMessage.
+	KeyAction   = "action"
+	KeySenderID = "sender_id"
+	KeyRoomID   = "room_id"
+)
+
 // common fields for the websocket action message structs.
 // it implements ActionMessage interface.
 type EmbdFields struct {
@@ -16,6 +111,12 @@ type EmbdFields struct {
 }
 
 func (ef EmbdFields) Action() Action { return ef.ActionName }
+
+// helper function for parsing fields from AnyMessage.
+// it will load Action from AnyMessage.
+func (ef *EmbdFields) ParseFields(m AnyMessage) {
+	ef.ActionName = m.Action()
+}
 
 // ChatActionMessage is used for chat context, which has
 // roomID and senderID(userID) for destination.
@@ -43,71 +144,12 @@ func (tr ChatActionFields) GetSenderID() uint64 {
 	return tr.SenderID
 }
 
-// AnyMessage is a arbitrary message through the websocket.
-// it implements ActionMessage interface.
-type AnyMessage map[string]interface{}
-
-// key for the action field in AnyMessage.
-const KeyAction = "action"
-
-// get action from any message which indicates
-// what action is contained any message.
-// return empty action if no action exist.
-func (a AnyMessage) Action() Action {
-	if action, ok := a[KeyAction].(string); ok {
-		return Action(action)
-	}
-	return ActionEmpty
+// helper function for parsing fields from AnyMessage.
+// it will load RoomID and SenderID from AnyMessage.
+func (fields *ChatActionFields) ParseFields(m AnyMessage) {
+	fields.SenderID = uint64(m.Number(KeySenderID))
+	fields.RoomID = uint64(m.Number(KeyRoomID))
 }
-
-func (a AnyMessage) String(key string) string {
-	n, _ := a[key].(string)
-	return n
-}
-
-func (a AnyMessage) Number(key string) float64 {
-	n, _ := a[key].(float64)
-	return n
-}
-
-func (a AnyMessage) Array(key string) []interface{} {
-	n, _ := a[key].([]interface{})
-	return n
-}
-
-func (a AnyMessage) Object(key string) map[string]interface{} {
-	n, _ := a[key].(map[string]interface{})
-	return n
-}
-
-// Action indicates a action type for the JSON data schema.
-type Action string
-
-const (
-	// no meaning action
-	ActionEmpty Action = ""
-
-	// internal server error
-	ActionError Action = "ERROR"
-
-	// server to front-end client
-	ActionUserConnect    Action = "USER_CONNECT"
-	ActionUserDisconnect Action = "USER_DISCONNECT"
-
-	ActionCreateRoom Action = "CREATE_ROOM"
-	ActionDeleteRoom Action = "DELETE_ROOM"
-
-	// front-end client to server
-	ActionEnterRoom Action = "ENTER_ROOM"
-	ActionExitRoom  Action = "EXIT_ROOM"
-
-	// server from/to front-end client
-	ActionReadMessage Action = "READ_MESSAGE"
-	ActionChatMessage Action = "CHAT_MESSAGE"
-
-	ActionTypeStart Action = "TYPE_START"
-	ActionTypeEnd   Action = "TYPE_END"
-)
 
 // Error message.
 // it implements ActionMessage interface.
@@ -149,27 +191,6 @@ func NewUserDisconnect(userID uint64) UserDisconnect {
 	return UserDisconnect(NewUserConnect(userID))
 }
 
-// EnterRoom indicates that user requests to enter
-// specified room.
-// it implements ActionMessage interface.
-type EnterRoom struct {
-	EmbdFields
-	RoomID        uint64 `json:"enter_room_id,omitempty"`
-	CurrentRoomID uint64 `json:"current_room_id,omitempty"`
-	SenderID      uint64 `json:"sender_id,omitempty"`
-}
-
-func ParseEnterRoom(m AnyMessage, action Action) EnterRoom {
-	if action != ActionEnterRoom {
-		panic("ParseUserJoinRoom: invalid action")
-	}
-	v := EnterRoom{}
-	v.ActionName = action
-	v.SenderID = uint64(m.Number("sender_id"))
-	v.RoomID = uint64(m.Number("room_id"))
-	return v
-}
-
 // == ChatMessage related ActionMessages ==
 
 // ChatMessage is chat message which is recieved from a browser-side
@@ -181,15 +202,15 @@ type ChatMessage struct {
 	Content string `json:"content,omitempty"`
 }
 
-func ParseChatMessage(m AnyMessage, action Action) ChatMessage {
+func ParseChatMessage(m AnyMessage, action Action) (ChatMessage, error) {
 	if action != ActionChatMessage {
-		panic("ParseChatMessage: invalid action")
+		return ChatMessage{}, errors.New("ParseChatMessage: invalid action")
 	}
 	cm := ChatMessage{}
 	cm.ActionName = action
 	cm.Content = m.String("content")
-	cm.RoomID = uint64(m.Number("room_id"))
-	return cm
+	cm.ChatActionFields.ParseFields(m)
+	return cm, nil
 }
 
 // ReadMessage indicates notification which some chat messages are read by
@@ -200,13 +221,13 @@ type ReadMessage struct {
 	MessageIDs []uint64 `json:"message_ids"`
 }
 
-func ParseReadMessage(m AnyMessage, action Action) ReadMessage {
+func ParseReadMessage(m AnyMessage, action Action) (ReadMessage, error) {
 	if action != ActionReadMessage {
-		panic("ParseReadMessage: invalid action")
+		return ReadMessage{}, errors.New("ParseReadMessage: invalid action")
 	}
 	rm := ReadMessage{}
 	rm.ActionName = action
-	rm.RoomID = uint64(m.Number("room_id"))
+	rm.ChatActionFields.ParseFields(m)
 	anys := m.Array("message_ids")
 	msg_ids := make([]uint64, 0, len(anys))
 	for _, v := range anys {
@@ -215,7 +236,7 @@ func ParseReadMessage(m AnyMessage, action Action) ReadMessage {
 		}
 	}
 	rm.MessageIDs = msg_ids
-	return rm
+	return rm, nil
 }
 
 // TypeStart indicates user starts key typing.
@@ -228,14 +249,14 @@ type TypeStart struct {
 	StartAt    time.Time `json:"start_at,omitempty"`
 }
 
-func ParseTypeStart(m AnyMessage, action Action) TypeStart {
+func ParseTypeStart(m AnyMessage, action Action) (TypeStart, error) {
 	if action != ActionTypeStart {
-		panic("ParseTypeStart: invalid action")
+		return TypeStart{}, errors.New("ParseTypeStart: invalid action")
 	}
 	ts := TypeStart{}
 	ts.ActionName = action
-	ts.RoomID = uint64(m.Number("room_id"))
-	return ts
+	ts.ChatActionFields.ParseFields(m)
+	return ts, nil
 }
 
 // TypeEnd indicates user ends key typing.
@@ -248,12 +269,12 @@ type TypeEnd struct {
 	EndAt      time.Time `json:"end_at,omitempty"`
 }
 
-func ParseTypeEnd(m AnyMessage, action Action) TypeEnd {
+func ParseTypeEnd(m AnyMessage, action Action) (TypeEnd, error) {
 	if action != ActionTypeEnd {
-		panic("ParseTypeEnd: invalid action")
+		return TypeEnd{}, errors.New("ParseTypeEnd: invalid action")
 	}
 	te := TypeEnd{}
 	te.ActionName = action
-	te.RoomID = uint64(m.Number("room_id"))
-	return te
+	te.ChatActionFields.ParseFields(m)
+	return te, nil
 }

@@ -30,9 +30,13 @@ var (
 	userRelationMap = map[uint64]entity.UserRelation{
 		2: DummyUser2Relation,
 	}
+
+	userIDRelationMap = map[uint64]uint64{
+		2: 3,
+	}
 )
 
-func (repo UserRepository) Get(name string, password string) (entity.User, error) {
+func (repo UserRepository) FindByNameAndPassword(name string, password string) (entity.User, error) {
 	for _, u := range userMap {
 		if name == u.Name && password == u.Password {
 			return u, nil
@@ -41,13 +45,13 @@ func (repo UserRepository) Get(name string, password string) (entity.User, error
 	return entity.User{}, ErrNotFound
 }
 
-func (repo UserRepository) Set(name string, password string) (uint64, error) {
+func (repo UserRepository) Save(u entity.User) (uint64, error) {
 	panic("not implement")
 	return 0, nil
 }
 
-func (repo UserRepository) Exist(name string, password string) bool {
-	_, err := repo.Get(name, password)
+func (repo UserRepository) ExistByNameAndPassword(name string, password string) bool {
+	_, err := repo.FindByNameAndPassword(name, password)
 	return err == nil
 }
 
@@ -57,6 +61,10 @@ func (repo UserRepository) Find(id uint64) (entity.User, error) {
 		return u, nil
 	}
 	return DummyUser, ErrNotFound
+}
+
+func (repo UserRepository) FindAllRelatedUsers(user_id uint64) ([]entity.User, error) {
+	panic("TODO")
 }
 
 func (repo UserRepository) Relation(ctx context.Context, userID uint64) (entity.UserRelation, error) {

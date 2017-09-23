@@ -30,7 +30,7 @@ func withSession(hf echo.HandlerFunc, c echo.Context) error {
 
 func TestLogin(t *testing.T) {
 	// 1. correct user login
-	c, err := doLogin(CorrectEmail, CorrectPassword)
+	c, err := doLogin(CorrectName, CorrectPassword)
 	if err != nil {
 		t.Fatalf("can not login: %v", err)
 	}
@@ -55,22 +55,22 @@ func TestLogin(t *testing.T) {
 
 	// 2. wrong user login
 	for _, testcase := range []struct {
-		Email    string
+		Name     string
 		Password string
 	}{
 		{"wrong", CorrectPassword},
-		{CorrectEmail, "wrong"},
+		{CorrectName, "wrong"},
 		{"wrong", "wrong"},
 	} {
-		c, err := doLogin(testcase.Email, testcase.Password)
+		c, err := doLogin(testcase.Name, testcase.Password)
 		if err != nil {
-			t.Fatalf("got error: login with email: %v password: %v, err: %v", testcase.Email, testcase.Password, err)
+			t.Fatalf("got error: login with email: %v password: %v, err: %v", testcase.Name, testcase.Password, err)
 		}
 
 		// check session has LoginState.
 		sess := session.Default(c)
 		if _, ok := sess.Get(KeyLoginState).(*LoginState); ok {
-			t.Errorf("session has any LoginState after login failed with email: %v, password: %v", testcase.Email, testcase.Password)
+			t.Errorf("session has any LoginState after login failed with email: %v, password: %v", testcase.Name, testcase.Password)
 		}
 
 		// check response json
@@ -79,23 +79,23 @@ func TestLogin(t *testing.T) {
 			t.Fatal(err)
 		}
 		if loginState.LoggedIn {
-			t.Errorf("LoggedIn is true after login failed with email: %v, password: %v", testcase.Email, testcase.Password)
+			t.Errorf("LoggedIn is true after login failed with email: %v, password: %v", testcase.Name, testcase.Password)
 		}
 		if msg := loginState.ErrorMsg; len(msg) == 0 {
-			t.Errorf("missing ErrorMsg after login failed with email: %v, password: %v", testcase.Email, testcase.Password)
+			t.Errorf("missing ErrorMsg after login failed with email: %v, password: %v", testcase.Name, testcase.Password)
 		}
 	}
 }
 
 const (
-	CorrectEmail    = "user"
+	CorrectName     = "user"
 	CorrectPassword = "password"
 )
 
-func doLogin(email, password string) (echo.Context, error) {
+func doLogin(name, password string) (echo.Context, error) {
 	// POST form with email and password
 	f := make(url.Values)
-	f.Set("email", email)
+	f.Set("name", name)
 	f.Set("password", password)
 	req := httptest.NewRequest(echo.POST, "/login", strings.NewReader(f.Encode()))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
@@ -131,7 +131,7 @@ func TestLogout(t *testing.T) {
 	}
 
 	// secondary, we try to logout after logged in.
-	c, _ = doLogin(CorrectEmail, CorrectPassword)
+	c, _ = doLogin(CorrectName, CorrectPassword)
 
 	c, err = doLogout(c.Response().Header()["Set-Cookie"])
 	if err != nil {
@@ -185,7 +185,7 @@ func TestGetLoginState(t *testing.T) {
 	}
 
 	// 2. after logged-in, it returns loginState with LoggedIn = true.
-	c, _ = doLogin(CorrectEmail, CorrectPassword)
+	c, _ = doLogin(CorrectName, CorrectPassword)
 
 	c, err = doGetLoginState(c.Response().Header()["Set-Cookie"])
 	if err != nil {

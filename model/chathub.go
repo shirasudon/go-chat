@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/shirasudon/go-chat/entity"
-	"golang.org/x/net/websocket"
 )
 
 // ChatHub is the hub which accepts any websocket connections to
@@ -13,8 +12,8 @@ import (
 // any websocket connections connect this hub firstly, then the
 // connections are managed by ChatHub.
 type ChatHub struct {
-	connects    chan *Conn
-	disconnects chan *Conn
+	connects    chan Conn
+	disconnects chan Conn
 	messages    chan actionMessageRequest
 	errors      chan error
 
@@ -24,16 +23,16 @@ type ChatHub struct {
 
 // actionMessageRequest is a composit struct of
 // ActionMessage and Conn to send the message.
-// It is used to handle ActionMessage by InitialRoom.
+// It is used to handle ActionMessage by ChatHub.
 type actionMessageRequest struct {
 	ActionMessage
-	Conn *Conn
+	Conn Conn
 }
 
 func NewChatHub(repos entity.Repositories) *ChatHub {
 	return &ChatHub{
-		connects:       make(chan *Conn, 1),
-		disconnects:    make(chan *Conn, 1),
+		connects:       make(chan Conn, 1),
+		disconnects:    make(chan Conn, 1),
 		messages:       make(chan actionMessageRequest, 1),
 		errors:         make(chan error, 1),
 		repos:          repos,
@@ -92,32 +91,32 @@ func (hub *ChatHub) Listen(ctx context.Context) {
 }
 
 // Connect new websocket connection to the hub.
-// it blocks until context is done.
-func (hub *ChatHub) Connect(ctx context.Context, conn *websocket.Conn, u entity.User) {
-	c := NewConn(conn, u)
-	c.onClosed = func(conn *Conn) { hub.disconnects <- conn }
-	c.onError = func(conn *Conn, err error) { hub.errors <- err }
-	c.onActionMessage = func(conn *Conn, m ActionMessage) {
-		hub.messages <- actionMessageRequest{m, conn}
-	}
-
-	hub.connects <- c
-	c.Listen(ctx)
+func (hub *ChatHub) Connect(conn Conn) {
+	hub.connects <- conn
 }
 
-func (hub *ChatHub) connectClient(ctx context.Context, c *Conn) error {
+// Disconnect the given websocket connection from the hub.
+// it will no-operation when non-connected connection is given.
+func (hub *ChatHub) Disconnect(conn Conn) {
+	hub.connects <- conn
+}
+
+// Send ActionMessage with the connection which sent the message.
+// the connection is used to verify that the message is exactlly
+// sent by the connected connection.
+func (hub *ChatHub) Send(conn Conn, message ActionMessage) {
+	hub.messages <- actionMessageRequest{message, conn}
+}
+
+func (hub *ChatHub) connectClient(ctx context.Context, c Conn) error {
 	return hub.messageHandler.connectClient(ctx, c)
 }
 
-func (hub *ChatHub) disconnectClient(ctx context.Context, c *Conn) error {
-	c.onActionMessage = nil
-	c.onError = nil
-	c.onClosed = nil
-
+func (hub *ChatHub) disconnectClient(ctx context.Context, c Conn) error {
 	return hub.messageHandler.disconnectClient(ctx, c)
 }
 
-func sendError(c *Conn, err error, cause ...ActionMessage) {
+func sendError(c Conn, err error, cause ...ActionMessage) {
 	log.Println(err)
 	go func() { c.Send(NewErrorMessage(err, cause...)) }()
 }

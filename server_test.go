@@ -13,7 +13,7 @@ import (
 	"github.com/shirasudon/go-chat/entity"
 	_ "github.com/shirasudon/go-chat/entity/stub"
 	"github.com/shirasudon/go-chat/model"
-	"github.com/shirasudon/go-chat/wstest"
+	"github.com/shirasudon/go-chat/ws/wstest"
 )
 
 var (
@@ -30,7 +30,6 @@ func init() {
 	server = NewServer(repository, nil)
 }
 
-// TODO
 func TestServerServeChatWebsocket(t *testing.T) {
 	e := echo.New()
 	serverErrCh := make(chan error, 1)
@@ -87,7 +86,10 @@ func TestServerServeChatWebsocket(t *testing.T) {
 	if readAny.Action() != model.ActionChatMessage {
 		t.Fatalf("%#v", readAny)
 	}
-	readCM := model.ParseChatMessage(readAny, readAny.Action())
+	readCM, err := model.ParseChatMessage(readAny, readAny.Action())
+	if err != nil {
+		t.Errorf("can not parse ChatMessage: %v", err)
+	}
 
 	// check same message
 	if readCM.Content != writeCM.Content {

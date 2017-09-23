@@ -21,19 +21,19 @@ func newMessageHandler(repos entity.Repositories) *messageHandler {
 	}
 }
 
-func (handler *messageHandler) connectClient(ctx context.Context, c *Conn) error {
+func (handler *messageHandler) connectClient(ctx context.Context, c Conn) error {
 	if err := handler.clients.connectClient(ctx, c); err != nil {
 		return err
 	}
-	if err := handler.rooms.connectClient(ctx, c.userID); err != nil {
+	if err := handler.rooms.connectClient(ctx, c.UserID()); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (handler *messageHandler) disconnectClient(ctx context.Context, c *Conn) error {
+func (handler *messageHandler) disconnectClient(ctx context.Context, c Conn) error {
 	handler.clients.disconnectClient(c)
-	if err := handler.rooms.disconnectClient(ctx, c.userID); err != nil {
+	if err := handler.rooms.disconnectClient(ctx, c.UserID()); err != nil {
 		return err
 	}
 	return nil
@@ -52,6 +52,7 @@ func (handler *messageHandler) broadcastsFriends(userID uint64, m ActionMessage)
 }
 
 func (handler *messageHandler) handleMessage(ctx context.Context, req actionMessageRequest) error {
+	// TODO set UserID to req.ActionMessage
 	switch m := req.ActionMessage.(type) {
 	case ChatActionMessage:
 		if err := handler.clients.validateClientHasRoom(req.Conn, m.GetSenderID(), m.GetRoomID()); err != nil {
@@ -63,7 +64,7 @@ func (handler *messageHandler) handleMessage(ctx context.Context, req actionMess
 	return nil
 }
 
-func (handler *messageHandler) handleChatActionMessage(ctx context.Context, conn *Conn, m ChatActionMessage) error {
+func (handler *messageHandler) handleChatActionMessage(ctx context.Context, conn Conn, m ChatActionMessage) error {
 	switch m := m.(type) {
 	case ChatMessage:
 		var err error
