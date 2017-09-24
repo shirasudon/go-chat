@@ -23,6 +23,10 @@ func (repositories) Users() entity.UserRepository {
 	return &UserRepository{}
 }
 
+func (r repositories) UserRelations() entity.UserRelationRepository {
+	return &UserRelationRepository{}
+}
+
 func (r repositories) Messages() entity.MessageRepository {
 	return r.MessageRepository
 }

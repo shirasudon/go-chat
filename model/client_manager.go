@@ -41,14 +41,14 @@ func (ac *activeClient) Send(m action.ActionMessage) {
 
 // ClientManager manages active clients.
 type ClientManager struct {
-	userRepo entity.UserRepository
-	clients  map[uint64]*activeClient
+	userRelations entity.UserRelationRepository
+	clients       map[uint64]*activeClient
 }
 
 func NewClientManager(repos entity.Repositories) *ClientManager {
 	return &ClientManager{
-		userRepo: repos.Users(),
-		clients:  make(map[uint64]*activeClient),
+		userRelations: repos.UserRelations(),
+		clients:       make(map[uint64]*activeClient),
 	}
 }
 
@@ -79,7 +79,7 @@ func (cm *ClientManager) connectClient(ctx context.Context, c Conn) error {
 	// and broadcasts user connect event to all active friends
 	activeC := newActiveClient(c)
 	// set friends and rooms to new active user.
-	relation, err := cm.userRepo.Relation(ctx, c.UserID())
+	relation, err := cm.userRelations.Find(ctx, c.UserID())
 	if err != nil {
 		return err
 	}

@@ -10,6 +10,7 @@ import (
 // user can get each repository from this.
 type Repositories interface {
 	Users() UserRepository
+	UserRelations() UserRelationRepository
 	Messages() MessageRepository
 	Rooms() RoomRepository
 
@@ -74,6 +75,13 @@ func mustRepositories() {
 func Users() UserRepository {
 	mustRepositories()
 	return repositories.Users()
+}
+
+// return UserRelationRepository from initialized Repositories.
+// Be sure to call OpenRepositories() before use this.
+func UserRelations() UserRelationRepository {
+	mustRepositories()
+	return repositories.UserRelations()
 }
 
 // return MessageRepository from initialized Repositories.

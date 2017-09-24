@@ -8,11 +8,6 @@ type User struct {
 	Password string
 }
 
-type UserRelation struct {
-	Friends []User
-	Rooms   []Room
-}
-
 type UserRepository interface {
 	FindByNameAndPassword(ctx context.Context, name, password string) (User, error)
 	ExistByNameAndPassword(ctx context.Context, name, password string) bool
@@ -20,8 +15,14 @@ type UserRepository interface {
 	Save(context.Context, User) (uint64, error)
 
 	Find(ctx context.Context, id uint64) (User, error)
+}
 
-	FindAllRelatedUsers(ctx context.Context, user_id uint64) ([]User, error)
+type UserRelation struct {
+	User
+	Friends []User
+	Rooms   []Room
+}
 
-	Relation(ctx context.Context, userID uint64) (UserRelation, error)
+type UserRelationRepository interface {
+	Find(ctx context.Context, userID uint64) (UserRelation, error)
 }
