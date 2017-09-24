@@ -14,7 +14,11 @@ var (
 	DummyRoom3 = entity.Room{ID: 3, Name: "title3"}
 
 	DummyRoomRelation = entity.RoomRelation{
-		Members: []entity.User{DummyUser2, DummyUser3},
+		Room: DummyRoom2,
+		Members: map[uint64]entity.User{
+			2: DummyUser2,
+			3: DummyUser3,
+		},
 	}
 
 	DummyRooms = []entity.Room{
@@ -39,12 +43,14 @@ func (repo *RoomRepository) Find(ctx context.Context, roomID uint64) (entity.Roo
 	return DummyRoom, nil
 }
 
-func (repo *RoomRepository) FindWithRelation(ctx context.Context, roomID uint64) (entity.Room, entity.RoomRelation, error) {
+type RoomRelationRepository struct{}
+
+func (repo *RoomRelationRepository) Find(ctx context.Context, roomID uint64) (entity.RoomRelation, error) {
 	relation := DummyRoomRelation
-	relation.RoomID = roomID
-	return DummyRoom, relation, nil
+	relation.ID = roomID
+	return relation, nil
 }
 
-func (repo *RoomRepository) RoomHasMember(ctx context.Context, roomID uint64, userID uint64) bool {
+func (repo *RoomRelationRepository) ExistRoomMember(ctx context.Context, roomID uint64, userID uint64) bool {
 	return true
 }

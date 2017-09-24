@@ -2,17 +2,14 @@ package entity
 
 import (
 	"context"
+	"errors"
+	"fmt"
 )
 
 type Room struct {
 	ID         uint64
 	Name       string
 	IsTalkRoom bool
-}
-
-type RoomRelation struct {
-	RoomID  uint64
-	Members []User
 }
 
 type RoomRepository interface {
@@ -28,11 +25,45 @@ type RoomRepository interface {
 	Remove(ctx context.Context, r Room) error
 
 	Find(ctx context.Context, roomID uint64) (Room, error)
+}
 
-	FindWithRelation(ctx context.Context, roomID uint64) (Room, RoomRelation, error)
+type RoomRelation struct {
+	Room
+	Members  map[uint64]User
+	Messages []Message // TODO cache to avoid a large allocation.
+}
+
+func (rr *RoomRelation) AddMessage(userID uint64, content string) error {
+	// non room member's message is invalid.
+	if _, ok := rr.Members[userID]; !ok {
+		return fmt.Errorf("user(id=%d) is not a member in the room(id=%d)", userID, rr.ID)
+	}
+	msg := Message{}
+	msg.RoomID = rr.ID
+	msg.UserID = userID
+	msg.Content = content
+	rr.Messages = append(rr.Messages, msg)
+	return nil
+}
+
+func (rr *RoomRelation) AddMember(u User) error {
+	// the user not in the datastore is invalid.
+	if u.ID < 1 {
+		return errors.New("invalid user")
+	}
+	// the user already exist in the room is invalid
+	if _, ok := rr.Members[u.ID]; ok {
+		return fmt.Errorf("user(id=%d) is already member in the room(id=%d)", u.ID, rr.ID)
+	}
+	rr.Members[u.ID] = u
+	return nil
+}
+
+type RoomRelationRepository interface {
+	Find(ctx context.Context, roomID uint64) (RoomRelation, error)
 
 	// check whether the room specified by roomID has
 	// member specified by userID.
 	// return true if the room has the member.
-	RoomHasMember(ctx context.Context, roomID, userID uint64) bool
+	ExistRoomMember(ctx context.Context, roomID, userID uint64) bool
 }

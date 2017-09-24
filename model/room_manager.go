@@ -31,14 +31,16 @@ func newActiveRoom(r entity.Room, relation entity.RoomRelation) *activeRoom {
 }
 
 type RoomManager struct {
-	roomRepo entity.RoomRepository
-	rooms    map[uint64]*activeRoom
+	roomRelations entity.RoomRelationRepository
+	userRelations entity.UserRelationRepository
+	rooms         map[uint64]*activeRoom
 }
 
 func NewRoomManager(repos entity.Repositories) *RoomManager {
 	return &RoomManager{
-		roomRepo: repos.Rooms(),
-		rooms:    make(map[uint64]*activeRoom),
+		roomRelations: repos.RoomRelations(),
+		userRelations: repos.UserRelations(),
+		rooms:         make(map[uint64]*activeRoom),
 	}
 }
 
@@ -56,17 +58,17 @@ func (rm *RoomManager) roomMemberIDs(roomID uint64) []uint64 {
 }
 
 func (rm *RoomManager) connectClient(ctx context.Context, userID uint64) error {
-	rooms, err := rm.roomRepo.GetUserRooms(ctx, userID)
+	ur, err := rm.userRelations.Find(ctx, userID)
 	if err != nil {
 		return err
 	}
 
 	// increase active member count for active rooms.
 	// or activate room if inactive.
-	for _, r := range rooms {
+	for _, r := range ur.Rooms {
 		activeR, ok := rm.rooms[r.ID]
 		if !ok {
-			_, relation, err := rm.roomRepo.FindWithRelation(ctx, r.ID)
+			relation, err := rm.roomRelations.Find(ctx, r.ID)
 			if err != nil {
 				return err
 			}
@@ -79,14 +81,14 @@ func (rm *RoomManager) connectClient(ctx context.Context, userID uint64) error {
 }
 
 func (rm *RoomManager) disconnectClient(ctx context.Context, userID uint64) error {
-	rooms, err := rm.roomRepo.GetUserRooms(ctx, userID)
+	ur, err := rm.userRelations.Find(ctx, userID)
 	if err != nil {
 		return err
 	}
 
 	// decrease active member count for active rooms.
 	// and expires if no member exist
-	for _, r := range rooms {
+	for _, r := range ur.Rooms {
 		activeR, ok := rm.rooms[r.ID]
 		if !ok {
 			continue
