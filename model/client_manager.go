@@ -55,7 +55,7 @@ func NewClientManager(repos entity.Repositories) *ClientManager {
 func (cm *ClientManager) broadcastsFriends(ac *activeClient, m action.ActionMessage) {
 	for friendID, _ := range ac.friends {
 		if activeFriend, ok := cm.clients[friendID]; ok {
-			go func(ac *activeClient) { ac.Send(m) }(activeFriend)
+			activeFriend.Send(m)
 		}
 	}
 }
@@ -63,7 +63,7 @@ func (cm *ClientManager) broadcastsFriends(ac *activeClient, m action.ActionMess
 func (cm *ClientManager) broadcastsUsers(userIDs []uint64, m action.ActionMessage) {
 	for _, userID := range userIDs {
 		if activeUser, ok := cm.clients[userID]; ok {
-			go func(ac *activeClient) { ac.Send(m) }(activeUser)
+			activeUser.Send(m)
 		}
 	}
 }
