@@ -1,6 +1,9 @@
 package stub
 
 import (
+	"context"
+	"database/sql"
+
 	"github.com/shirasudon/go-chat/entity"
 )
 
@@ -27,5 +30,14 @@ func (r repositories) Messages() entity.MessageRepository {
 func (r repositories) Rooms() entity.RoomRepository {
 	return &RoomRepository{}
 }
+
+func (r repositories) BeginTx(ctx context.Context, opt *sql.TxOptions) (entity.Tx, error) {
+	return txStub{}, nil
+}
+
+type txStub struct{}
+
+func (txStub) Commit() error   { return nil }
+func (txStub) Rollback() error { return nil }
 
 func (repositories) Close() error { return nil }

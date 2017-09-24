@@ -36,7 +36,7 @@ var (
 	}
 )
 
-func (repo UserRepository) FindByNameAndPassword(name string, password string) (entity.User, error) {
+func (repo UserRepository) FindByNameAndPassword(ctx context.Context, name, password string) (entity.User, error) {
 	for _, u := range userMap {
 		if name == u.Name && password == u.Password {
 			return u, nil
@@ -45,17 +45,16 @@ func (repo UserRepository) FindByNameAndPassword(name string, password string) (
 	return entity.User{}, ErrNotFound
 }
 
-func (repo UserRepository) Save(u entity.User) (uint64, error) {
+func (repo UserRepository) Save(ctx context.Context, u entity.User) (uint64, error) {
 	panic("not implement")
-	return 0, nil
 }
 
-func (repo UserRepository) ExistByNameAndPassword(name string, password string) bool {
-	_, err := repo.FindByNameAndPassword(name, password)
+func (repo UserRepository) ExistByNameAndPassword(ctx context.Context, name, password string) bool {
+	_, err := repo.FindByNameAndPassword(ctx, name, password)
 	return err == nil
 }
 
-func (repo UserRepository) Find(id uint64) (entity.User, error) {
+func (repo UserRepository) Find(ctx context.Context, id uint64) (entity.User, error) {
 	u, ok := userMap[id]
 	if ok {
 		return u, nil
@@ -63,7 +62,7 @@ func (repo UserRepository) Find(id uint64) (entity.User, error) {
 	return DummyUser, ErrNotFound
 }
 
-func (repo UserRepository) FindAllRelatedUsers(user_id uint64) ([]entity.User, error) {
+func (repo UserRepository) FindAllRelatedUsers(ctx context.Context, user_id uint64) ([]entity.User, error) {
 	panic("TODO")
 }
 

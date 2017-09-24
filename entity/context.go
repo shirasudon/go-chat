@@ -4,18 +4,27 @@ import (
 	"context"
 )
 
-// TxContext is the extension for context.Context,
-// which holds current transaction state.
-type TxContext interface {
-	context.Context
+const txObjectKey = "_TRANSACTION_"
 
-	// Tx returns the transaction object which executes consistent operations
-	// to handle some entity object.
-	//
-	// Because the transaction object depends on the external
-	// infrastructures such as Sql-like DB,
-	// it returns interface{} value which is used with type assertion.
-	//
-	// If the transaction is not started, Tx() should return nil.
-	Tx() interface{}
+// Get Tx object from context.
+func GetTx(ctx context.Context) (tx Tx, exists bool) {
+	tx, exists = ctx.Value(txObjectKey).(Tx)
+	return
+}
+
+// set transaction to the new clild context and return it.
+func WithTx(ctx context.Context, tx Tx) context.Context {
+	return context.WithValue(ctx, txObjectKey, tx)
+}
+
+// Tx is a interface for the transaction context.
+// the transaction must end by calling Commit() or Rollback().
+//
+// Because the transaction object depends on the external
+// infrastructures such as Sql-like DB,
+// it can be used with type assertion to use full features
+// for the implementation-specfic transaction object.
+type Tx interface {
+	Commit() error
+	Rollback() error
 }

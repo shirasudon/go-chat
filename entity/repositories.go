@@ -1,6 +1,8 @@
 package entity
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 )
 
@@ -11,7 +13,13 @@ type Repositories interface {
 	Messages() MessageRepository
 	Rooms() RoomRepository
 
-	// finalize database connection
+	// starts transaction with context object.
+	// TxOptions are typically used to specify
+	// the transaction level.
+	// A nil TxOptions means to use default transaction level.
+	BeginTx(context.Context, *sql.TxOptions) (Tx, error)
+
+	// finalize database connection.
 	Close() error
 }
 

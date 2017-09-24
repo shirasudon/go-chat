@@ -40,7 +40,6 @@ func NewServer(repos entity.Repositories, conf *Config) *Server {
 	s := &Server{
 		loginHandler: NewLoginHandler(repos.Users()),
 		chatHub:      model.NewChatHub(repos),
-		ctx:          context.Background(),
 		repos:        repos,
 		conf:         *conf,
 	}
@@ -54,10 +53,11 @@ func (s *Server) serveChatWebsocket(c echo.Context) error {
 	if !ok {
 		return errors.New("needs logged in, but access without logged in state")
 	}
-	user, err := s.repos.Users().Find(userID)
+	user, err := s.repos.Users().Find(c.Request().Context(), userID)
 	if err != nil {
 		return err
 	}
+
 	websocket.Handler(func(wsConn *websocket.Conn) {
 		log.Println("Server.acceptWSConn: ")
 		defer wsConn.Close()
@@ -89,7 +89,6 @@ func (s *Server) ListenAndServe() error {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	s.ctx = ctx // override context to propagate done signal from the server.
 	defer cancel()
 
 	// start chat process

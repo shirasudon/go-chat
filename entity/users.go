@@ -14,14 +14,14 @@ type UserRelation struct {
 }
 
 type UserRepository interface {
-	FindByNameAndPassword(name string, password string) (User, error)
-	ExistByNameAndPassword(name string, password string) bool
+	FindByNameAndPassword(ctx context.Context, name, password string) (User, error)
+	ExistByNameAndPassword(ctx context.Context, name, password string) bool
 
-	Save(User) (uint64, error)
+	Save(context.Context, User) (uint64, error)
 
-	Find(id uint64) (User, error)
+	Find(ctx context.Context, id uint64) (User, error)
 
-	FindAllRelatedUsers(user_id uint64) ([]User, error)
+	FindAllRelatedUsers(ctx context.Context, user_id uint64) ([]User, error)
 
 	Relation(ctx context.Context, userID uint64) (UserRelation, error)
 }

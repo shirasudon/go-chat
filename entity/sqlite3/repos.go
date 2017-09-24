@@ -57,6 +57,10 @@ func (r Repositories) Rooms() entity.RoomRepository {
 	return r.RoomRepository
 }
 
+func (r Repositories) BeginTx(ctx context.Context) (entity.Tx, error) {
+	return r.DB.BeginTxx(ctx, nil)
+}
+
 func (r Repositories) Close() error {
 	r.UserRepository.close()
 	return r.DB.Close()

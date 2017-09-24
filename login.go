@@ -71,7 +71,7 @@ func (lh *LoginHandler) Login(c echo.Context) error {
 		return err
 	}
 
-	user, err := lh.userRepo.FindByNameAndPassword(u.Name, u.Password)
+	user, err := lh.userRepo.FindByNameAndPassword(c.Request().Context(), u.Name, u.Password)
 	if err != nil {
 		return c.JSON(http.StatusOK, LoginState{ErrorMsg: err.Error()})
 	}
