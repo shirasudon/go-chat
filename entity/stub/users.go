@@ -32,7 +32,7 @@ func (repo UserRepository) FindByNameAndPassword(ctx context.Context, name, pass
 	return entity.User{}, ErrNotFound
 }
 
-func (repo UserRepository) Save(ctx context.Context, u entity.User) (uint64, error) {
+func (repo UserRepository) Store(ctx context.Context, u entity.User) (uint64, error) {
 	panic("not implement")
 }
 

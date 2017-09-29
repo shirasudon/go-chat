@@ -27,15 +27,15 @@ var (
 	}
 )
 
-func (repo *RoomRepository) GetUserRooms(ctx context.Context, userID uint64) ([]entity.Room, error) {
+func (repo *RoomRepository) FindAllByUserID(ctx context.Context, userID uint64) ([]entity.Room, error) {
 	return DummyRooms, nil
 }
 
-func (repo *RoomRepository) Add(ctx context.Context, r entity.Room) (uint64, error) {
+func (repo *RoomRepository) Store(ctx context.Context, r entity.Room) (uint64, error) {
 	return 1, nil
 }
 
-func (repo *RoomRepository) Remove(ctx context.Context, r entity.Room) error {
+func (repo *RoomRepository) Remove(ctx context.Context, roomID uint64) error {
 	return nil
 }
 

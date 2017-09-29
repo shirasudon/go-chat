@@ -13,18 +13,18 @@ type Room struct {
 }
 
 type RoomRepository interface {
+	// get one room.
+	Find(ctx context.Context, roomID uint64) (Room, error)
 
-	// get rooms which user has, from repository.
-	GetUserRooms(ctx context.Context, userID uint64) ([]Room, error)
+	// get all the rooms which user has, from repository.
+	FindAllByUserID(ctx context.Context, userID uint64) ([]Room, error)
 
 	// store new room to repository and return
 	// stored room id.
-	Add(ctx context.Context, r Room) (uint64, error)
+	Store(ctx context.Context, r Room) (uint64, error)
 
 	// remove room from repository.
-	Remove(ctx context.Context, r Room) error
-
-	Find(ctx context.Context, roomID uint64) (Room, error)
+	Remove(ctx context.Context, roomID uint64) error
 }
 
 type RoomRelation struct {
