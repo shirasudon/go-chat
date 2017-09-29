@@ -3,7 +3,6 @@ package model
 import (
 	"context"
 
-	"github.com/shirasudon/go-chat/entity"
 	"github.com/shirasudon/go-chat/model/action"
 )
 
@@ -11,14 +10,14 @@ type messageHandler struct {
 	rooms   *RoomManager
 	clients *ClientManager
 
-	msgRepo entity.MessageRepository
+	chatService *ChatService
 }
 
-func newMessageHandler(repos entity.Repositories) *messageHandler {
+func newMessageHandler(service *ChatService) *messageHandler {
 	return &messageHandler{
-		rooms:   NewRoomManager(repos),
-		clients: NewClientManager(repos),
-		msgRepo: repos.Messages(),
+		rooms:       NewRoomManager(service),
+		clients:     NewClientManager(service),
+		chatService: service,
 	}
 }
 
@@ -69,18 +68,14 @@ func (handler *messageHandler) handleChatActionMessage(ctx context.Context, conn
 	switch m := m.(type) {
 	case action.ChatMessage:
 		var err error
-		m.ID, err = handler.msgRepo.Add(ctx, entity.Message{
-			Content: m.Content,
-			UserID:  m.SenderID,
-			RoomID:  m.RoomID,
-		})
+		m.ID, err = handler.chatService.PostRoomMessage(ctx, m)
 		if err != nil {
 			return err
 		}
 		handler.broadcastsRoomMembers(m.RoomID, m)
 
 	case action.ReadMessage:
-		if err := handler.msgRepo.ReadMessage(ctx, m.RoomID, m.SenderID, m.MessageIDs); err != nil {
+		if err := handler.chatService.ReadRoomMessage(ctx, m); err != nil {
 			return err
 		}
 

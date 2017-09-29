@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/shirasudon/go-chat/entity"
 	"github.com/shirasudon/go-chat/model/action"
 )
 
@@ -41,14 +40,14 @@ func (ac *activeClient) Send(m action.ActionMessage) {
 
 // ClientManager manages active clients.
 type ClientManager struct {
-	userRelations entity.UserRelationRepository
-	clients       map[uint64]*activeClient
+	chatService *ChatService
+	clients     map[uint64]*activeClient
 }
 
-func NewClientManager(repos entity.Repositories) *ClientManager {
+func NewClientManager(service *ChatService) *ClientManager {
 	return &ClientManager{
-		userRelations: repos.UserRelations(),
-		clients:       make(map[uint64]*activeClient),
+		chatService: service,
+		clients:     make(map[uint64]*activeClient),
 	}
 }
 
@@ -79,7 +78,7 @@ func (cm *ClientManager) connectClient(ctx context.Context, c Conn) error {
 	// and broadcasts user connect event to all active friends
 	activeC := newActiveClient(c)
 	// set friends and rooms to new active user.
-	relation, err := cm.userRelations.Find(ctx, c.UserID())
+	relation, err := cm.chatService.FindUserRelation(ctx, c.UserID())
 	if err != nil {
 		return err
 	}

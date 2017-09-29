@@ -31,16 +31,14 @@ func newActiveRoom(r entity.Room, relation entity.RoomRelation) *activeRoom {
 }
 
 type RoomManager struct {
-	roomRelations entity.RoomRelationRepository
-	userRelations entity.UserRelationRepository
-	rooms         map[uint64]*activeRoom
+	chatService *ChatService
+	rooms       map[uint64]*activeRoom
 }
 
-func NewRoomManager(repos entity.Repositories) *RoomManager {
+func NewRoomManager(service *ChatService) *RoomManager {
 	return &RoomManager{
-		roomRelations: repos.RoomRelations(),
-		userRelations: repos.UserRelations(),
-		rooms:         make(map[uint64]*activeRoom),
+		chatService: service,
+		rooms:       make(map[uint64]*activeRoom),
 	}
 }
 
@@ -58,7 +56,7 @@ func (rm *RoomManager) roomMemberIDs(roomID uint64) []uint64 {
 }
 
 func (rm *RoomManager) connectClient(ctx context.Context, userID uint64) error {
-	ur, err := rm.userRelations.Find(ctx, userID)
+	ur, err := rm.chatService.FindUserRelation(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -68,7 +66,7 @@ func (rm *RoomManager) connectClient(ctx context.Context, userID uint64) error {
 	for _, r := range ur.Rooms {
 		activeR, ok := rm.rooms[r.ID]
 		if !ok {
-			relation, err := rm.roomRelations.Find(ctx, r.ID)
+			relation, err := rm.chatService.FindRoomRelation(ctx, r.ID)
 			if err != nil {
 				return err
 			}
@@ -81,7 +79,7 @@ func (rm *RoomManager) connectClient(ctx context.Context, userID uint64) error {
 }
 
 func (rm *RoomManager) disconnectClient(ctx context.Context, userID uint64) error {
-	ur, err := rm.userRelations.Find(ctx, userID)
+	ur, err := rm.chatService.FindUserRelation(ctx, userID)
 	if err != nil {
 		return err
 	}

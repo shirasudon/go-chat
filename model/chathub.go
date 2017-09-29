@@ -18,7 +18,7 @@ type ChatHub struct {
 	messages    chan actionMessageRequest
 	errors      chan error
 
-	repos          entity.Repositories
+	chatService    *ChatService
 	messageHandler *messageHandler
 }
 
@@ -31,13 +31,14 @@ type actionMessageRequest struct {
 }
 
 func NewChatHub(repos entity.Repositories) *ChatHub {
+	chat := NewChatService(repos)
 	return &ChatHub{
 		connects:       make(chan Conn, 1),
 		disconnects:    make(chan Conn, 1),
 		messages:       make(chan actionMessageRequest, 1),
 		errors:         make(chan error, 1),
-		repos:          repos,
-		messageHandler: newMessageHandler(repos),
+		chatService:    chat,
+		messageHandler: newMessageHandler(chat),
 	}
 }
 
