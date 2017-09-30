@@ -21,6 +21,10 @@ var (
 		2: DummyUser2,
 		3: DummyUser3,
 	}
+
+	userToUsersMap = map[uint64][]entity.User{
+		2: {DummyUser3},
+	}
 )
 
 func (repo UserRepository) FindByNameAndPassword(ctx context.Context, name, password string) (entity.User, error) {
@@ -49,24 +53,10 @@ func (repo UserRepository) Find(ctx context.Context, id uint64) (entity.User, er
 	return DummyUser, ErrNotFound
 }
 
-type UserRelationRepository struct{}
-
-var (
-	DummyUser2Relation = entity.UserRelation{
-		User:    DummyUser2,
-		Friends: []entity.User{DummyUser3},
-		Rooms:   []entity.Room{DummyRoom2, DummyRoom3},
-	}
-
-	userRelationMap = map[uint64]entity.UserRelation{
-		2: DummyUser2Relation,
-	}
-)
-
-func (repo UserRelationRepository) Find(ctx context.Context, userID uint64) (entity.UserRelation, error) {
-	r, ok := userRelationMap[userID]
+func (repo UserRepository) FindAllByUserID(ctx context.Context, id uint64) ([]entity.User, error) {
+	us, ok := userToUsersMap[id]
 	if ok {
-		return r, nil
+		return us, nil
 	}
-	return DummyUser2Relation, ErrNotFound
+	return nil, ErrNotFound
 }

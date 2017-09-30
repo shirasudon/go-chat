@@ -88,9 +88,12 @@ func (cm *ClientManager) connectClient(ctx context.Context, c Conn) error {
 	for _, r := range relation.Rooms {
 		activeC.rooms[r.ID] = true
 	}
+
 	cm.clients[c.UserID()] = activeC
 
+	// TODO replace by publishing domain event
 	cm.broadcastsFriends(activeC, action.NewUserConnect(c.UserID()))
+
 	return nil
 }
 

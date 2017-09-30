@@ -29,8 +29,39 @@ func (s ChatService) FindRoomRelation(ctx context.Context, roomID uint64) (entit
 	return s.repos.RoomRelations().Find(ctx, roomID)
 }
 
-func (s ChatService) FindUserRelation(ctx context.Context, userID uint64) (entity.UserRelation, error) {
-	return s.repos.UserRelations().Find(ctx, userID)
+// Find friend users related with specified user id.
+// It returns error if not found.
+func (s ChatService) FindUserFriends(ctx context.Context, userID uint64) ([]entity.User, error) {
+	return s.users.FindAllByUserID(ctx, userID)
+}
+
+// Find rooms related with specified user id.
+// It returns error if not found.
+func (s ChatService) FindUserRooms(ctx context.Context, userID uint64) ([]entity.Room, error) {
+	return s.rooms.FindAllByUserID(ctx, userID)
+}
+
+// UserRelation is the relationship owned by specified UserID.
+type UserRelation struct {
+	UserID  uint64
+	Friends []entity.User
+	Rooms   []entity.Room
+}
+
+// Find both of friends and rooms related with specified user id.
+// It returns error if not found.
+func (s ChatService) FindUserRelation(ctx context.Context, userID uint64) (UserRelation, error) {
+	users, err1 := s.users.FindAllByUserID(ctx, userID)
+	if err1 != nil {
+		return UserRelation{}, err1
+	}
+	rooms, err := s.rooms.FindAllByUserID(ctx, userID)
+
+	return UserRelation{
+		UserID:  userID,
+		Friends: users,
+		Rooms:   rooms,
+	}, err
 }
 
 // Post the message to the specified room.
