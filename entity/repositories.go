@@ -12,7 +12,7 @@ type Repositories interface {
 	Users() UserRepository
 	Messages() MessageRepository
 	Rooms() RoomRepository
-	RoomRelations() RoomRelationRepository
+	// RoomRelations() RoomRelationRepository
 
 	// starts transaction with context object.
 	// TxOptions are typically used to specify
@@ -89,11 +89,4 @@ func Messages() MessageRepository {
 func Rooms() RoomRepository {
 	mustRepositories()
 	return repositories.Rooms()
-}
-
-// return RoomRelationRepository from initialized Repositories.
-// Be sure to call OpenRepositories() before use this.
-func RoomRelations() RoomRelationRepository {
-	mustRepositories()
-	return repositories.RoomRelations()
 }

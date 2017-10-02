@@ -25,10 +25,6 @@ func NewChatService(repos entity.Repositories) *ChatService {
 	}
 }
 
-func (s ChatService) FindRoomRelation(ctx context.Context, roomID uint64) (entity.RoomRelation, error) {
-	return s.repos.RoomRelations().Find(ctx, roomID)
-}
-
 // Find friend users related with specified user id.
 // It returns error if not found.
 func (s ChatService) FindUserFriends(ctx context.Context, userID uint64) ([]entity.User, error) {

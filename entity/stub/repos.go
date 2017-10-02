@@ -31,10 +31,6 @@ func (r repositories) Rooms() entity.RoomRepository {
 	return &RoomRepository{}
 }
 
-func (r repositories) RoomRelations() entity.RoomRelationRepository {
-	return &RoomRelationRepository{}
-}
-
 func (r repositories) BeginTx(ctx context.Context, opt *sql.TxOptions) (entity.Tx, error) {
 	return txStub{}, nil
 }

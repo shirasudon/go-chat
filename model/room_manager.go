@@ -18,10 +18,12 @@ type activeRoom struct {
 	nActiveMembers int
 }
 
-func newActiveRoom(r entity.Room, relation entity.RoomRelation) *activeRoom {
-	members := make(map[uint64]bool, len(relation.Members))
-	for _, m := range relation.Members {
-		members[m.ID] = true
+func newActiveRoom(r entity.Room) *activeRoom {
+	members := make(map[uint64]bool, len(r.MemberIDs))
+	for id, exist := range r.MemberIDs {
+		if exist {
+			members[id] = true
+		}
 	}
 	return &activeRoom{
 		Room:           r,
@@ -66,11 +68,7 @@ func (rm *RoomManager) connectClient(ctx context.Context, userID uint64) error {
 	for _, r := range ur.Rooms {
 		activeR, ok := rm.rooms[r.ID]
 		if !ok {
-			relation, err := rm.chatService.FindRoomRelation(ctx, r.ID)
-			if err != nil {
-				return err
-			}
-			activeR = newActiveRoom(r, relation)
+			activeR = newActiveRoom(r)
 			rm.rooms[r.ID] = activeR
 		}
 		activeR.nActiveMembers += 1

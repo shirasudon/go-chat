@@ -9,48 +9,79 @@ import (
 type RoomRepository struct{}
 
 var (
-	DummyRoom  = entity.Room{ID: 0, Name: "title"}
-	DummyRoom2 = entity.Room{ID: 2, Name: "title2"}
-	DummyRoom3 = entity.Room{ID: 3, Name: "title3"}
+	DummyRoom1 = entity.Room{
+		ID:   1,
+		Name: "title1",
+	}
 
-	DummyRoomRelation = entity.RoomRelation{
-		Room: DummyRoom2,
-		Members: map[uint64]entity.User{
-			2: DummyUser2,
-			3: DummyUser3,
-		},
+	DummyRoom2 = entity.Room{
+		ID:        2,
+		Name:      "title2",
+		MemberIDs: map[uint64]bool{2: true, 3: true},
+	}
+
+	DummyRoom3 = entity.Room{
+		ID:        3,
+		Name:      "title3",
+		MemberIDs: map[uint64]bool{2: true},
+	}
+
+	roomMap = map[uint64]entity.Room{
+		1: DummyRoom1,
+		2: DummyRoom2,
+		3: DummyRoom3,
 	}
 
 	DummyRooms = []entity.Room{
+		DummyRoom1,
 		DummyRoom2,
 		DummyRoom3,
 	}
+
+	// Many-to-many mapping for Room-to-User.
+	roomToUsersMap = map[uint64]map[uint64]bool{
+		// room id = 2 has,
+		2: {
+			// user id = 2 and id = 3.
+			2: true,
+			3: true,
+		},
+
+		// room id = 3 has,
+		3: {
+			// user id = 2.
+			2: true,
+		},
+	}
 )
 
+var roomCounter uint64 = uint64(len(roomMap))
+
 func (repo *RoomRepository) FindAllByUserID(ctx context.Context, userID uint64) ([]entity.Room, error) {
-	return DummyRooms, nil
+	rooms := make([]entity.Room, 0, 4)
+	for roomID, userIDs := range roomToUsersMap {
+		if userIDs[userID] {
+			rooms = append(rooms, roomMap[roomID])
+		}
+	}
+	return rooms, nil
 }
 
 func (repo *RoomRepository) Store(ctx context.Context, r entity.Room) (uint64, error) {
-	return 1, nil
+	roomCounter += 1
+	r.ID = roomCounter
+	roomMap[r.ID] = r
+	return r.ID, nil
 }
 
 func (repo *RoomRepository) Remove(ctx context.Context, roomID uint64) error {
+	delete(roomMap, roomID)
 	return nil
 }
 
 func (repo *RoomRepository) Find(ctx context.Context, roomID uint64) (entity.Room, error) {
-	return DummyRoom, nil
-}
-
-type RoomRelationRepository struct{}
-
-func (repo *RoomRelationRepository) Find(ctx context.Context, roomID uint64) (entity.RoomRelation, error) {
-	relation := DummyRoomRelation
-	relation.ID = roomID
-	return relation, nil
-}
-
-func (repo *RoomRelationRepository) ExistRoomMember(ctx context.Context, roomID uint64, userID uint64) bool {
-	return true
+	if room, ok := roomMap[roomID]; ok {
+		return room, nil
+	}
+	return entity.Room{}, ErrNotFound
 }

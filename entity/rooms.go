@@ -2,7 +2,6 @@ package entity
 
 import (
 	"context"
-	"errors"
 	"fmt"
 )
 
@@ -10,6 +9,48 @@ type Room struct {
 	ID         uint64
 	Name       string
 	IsTalkRoom bool
+
+	MemberIDs map[uint64]bool
+
+	MessageIDs []uint64 // TODO cache to avoid a large allocation.
+}
+
+func (r *Room) getMemberIDs() map[uint64]bool {
+	if r.MemberIDs == nil {
+		r.MemberIDs = make(map[uint64]bool, 4)
+	}
+	return r.MemberIDs
+}
+
+func (r *Room) AddMessage(ctx context.Context, msgRepo MessageRepository, userID uint64, content string) error {
+	// non room member's message is invalid.
+	if _, ok := r.getMemberIDs()[userID]; !ok {
+		return fmt.Errorf("user(id=%d) is not a member in the room(id=%d)", userID, r.ID)
+	}
+	msg := Message{}
+	msg.RoomID = r.ID
+	msg.UserID = userID
+	msg.Content = content
+
+	msgID, err := msgRepo.Add(ctx, msg)
+	if err != nil {
+		return err
+	}
+	r.MessageIDs = append(r.MessageIDs, msgID)
+	return nil
+}
+
+func (r *Room) AddMember(ctx context.Context, userRepo UserRepository, userID uint64) error {
+	// the user not shown in the datastore is invalid.
+	if _, err := userRepo.Find(ctx, userID); err != nil {
+		return fmt.Errorf("user(id=%d) does not exist in the datastore", userID)
+	}
+	// the user already exist in the room is invalid
+	if _, ok := r.getMemberIDs()[userID]; ok {
+		return fmt.Errorf("user(id=%d) is already member in the room(id=%d)", userID, r.ID)
+	}
+	r.MemberIDs[userID] = true
+	return nil
 }
 
 type RoomRepository interface {
@@ -25,45 +66,4 @@ type RoomRepository interface {
 
 	// remove room from repository.
 	Remove(ctx context.Context, roomID uint64) error
-}
-
-type RoomRelation struct {
-	Room
-	Members  map[uint64]User
-	Messages []Message // TODO cache to avoid a large allocation.
-}
-
-func (rr *RoomRelation) AddMessage(userID uint64, content string) error {
-	// non room member's message is invalid.
-	if _, ok := rr.Members[userID]; !ok {
-		return fmt.Errorf("user(id=%d) is not a member in the room(id=%d)", userID, rr.ID)
-	}
-	msg := Message{}
-	msg.RoomID = rr.ID
-	msg.UserID = userID
-	msg.Content = content
-	rr.Messages = append(rr.Messages, msg)
-	return nil
-}
-
-func (rr *RoomRelation) AddMember(u User) error {
-	// the user not in the datastore is invalid.
-	if u.ID < 1 {
-		return errors.New("invalid user")
-	}
-	// the user already exist in the room is invalid
-	if _, ok := rr.Members[u.ID]; ok {
-		return fmt.Errorf("user(id=%d) is already member in the room(id=%d)", u.ID, rr.ID)
-	}
-	rr.Members[u.ID] = u
-	return nil
-}
-
-type RoomRelationRepository interface {
-	Find(ctx context.Context, roomID uint64) (RoomRelation, error)
-
-	// check whether the room specified by roomID has
-	// member specified by userID.
-	// return true if the room has the member.
-	ExistRoomMember(ctx context.Context, roomID, userID uint64) bool
 }
