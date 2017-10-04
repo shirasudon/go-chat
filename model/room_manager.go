@@ -19,11 +19,10 @@ type activeRoom struct {
 }
 
 func newActiveRoom(r entity.Room) *activeRoom {
-	members := make(map[uint64]bool, len(r.MemberIDs))
-	for id, exist := range r.MemberIDs {
-		if exist {
-			members[id] = true
-		}
+	memberIDs := r.MemberIDs()
+	members := make(map[uint64]bool, len(memberIDs))
+	for _, id := range memberIDs {
+		members[id] = true
 	}
 	return &activeRoom{
 		Room:           r,

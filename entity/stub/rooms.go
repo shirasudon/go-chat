@@ -15,27 +15,19 @@ var (
 	}
 
 	DummyRoom2 = entity.Room{
-		ID:        2,
-		Name:      "title2",
-		MemberIDs: map[uint64]bool{2: true, 3: true},
+		ID:   2,
+		Name: "title2",
 	}
 
 	DummyRoom3 = entity.Room{
-		ID:        3,
-		Name:      "title3",
-		MemberIDs: map[uint64]bool{2: true},
+		ID:   3,
+		Name: "title3",
 	}
 
-	roomMap = map[uint64]entity.Room{
-		1: DummyRoom1,
-		2: DummyRoom2,
-		3: DummyRoom3,
-	}
-
-	DummyRooms = []entity.Room{
-		DummyRoom1,
-		DummyRoom2,
-		DummyRoom3,
+	roomMap = map[uint64]*entity.Room{
+		1: &DummyRoom1,
+		2: &DummyRoom2,
+		3: &DummyRoom3,
 	}
 
 	// Many-to-many mapping for Room-to-User.
@@ -55,13 +47,24 @@ var (
 	}
 )
 
+func init() {
+	// initialize room-to-member relation.
+	for _, room := range roomMap {
+		for memberID, _ := range roomToUsersMap[room.ID] {
+			if err := room.AddMember(memberID); err != nil {
+				panic(err)
+			}
+		}
+	}
+}
+
 var roomCounter uint64 = uint64(len(roomMap))
 
 func (repo *RoomRepository) FindAllByUserID(ctx context.Context, userID uint64) ([]entity.Room, error) {
 	rooms := make([]entity.Room, 0, 4)
 	for roomID, userIDs := range roomToUsersMap {
 		if userIDs[userID] {
-			rooms = append(rooms, roomMap[roomID])
+			rooms = append(rooms, *roomMap[roomID])
 		}
 	}
 	return rooms, nil
@@ -70,7 +73,7 @@ func (repo *RoomRepository) FindAllByUserID(ctx context.Context, userID uint64) 
 func (repo *RoomRepository) Store(ctx context.Context, r entity.Room) (uint64, error) {
 	roomCounter += 1
 	r.ID = roomCounter
-	roomMap[r.ID] = r
+	roomMap[r.ID] = &r
 	return r.ID, nil
 }
 
@@ -81,7 +84,7 @@ func (repo *RoomRepository) Remove(ctx context.Context, roomID uint64) error {
 
 func (repo *RoomRepository) Find(ctx context.Context, roomID uint64) (entity.Room, error) {
 	if room, ok := roomMap[roomID]; ok {
-		return room, nil
+		return *room, nil
 	}
 	return entity.Room{}, ErrNotFound
 }
