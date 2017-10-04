@@ -6,7 +6,9 @@ import (
 	"github.com/shirasudon/go-chat/entity"
 )
 
-type RoomRepository struct{}
+type RoomRepository struct {
+	entity.EmptyTxBeginner
+}
 
 var (
 	DummyRoom1 = entity.Room{

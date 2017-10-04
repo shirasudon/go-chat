@@ -17,6 +17,8 @@ type Message struct {
 }
 
 type MessageRepository interface {
+	TxBeginner
+
 	// LatestRoomMessages returns latest n-messages from the room having room id.
 	LatestRoomMessages(ctx context.Context, roomID uint64, n int) ([]Message, error)
 	// PreviousRoomMessages returns n-messages before offset message.

@@ -76,6 +76,8 @@ func (r *Room) AddMessage(ctx context.Context, msgRepo MessageRepository, userID
 }
 
 type RoomRepository interface {
+	TxBeginner
+
 	// get one room.
 	Find(ctx context.Context, roomID uint64) (Room, error)
 

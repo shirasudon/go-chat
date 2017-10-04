@@ -9,6 +9,8 @@ import (
 )
 
 type MessageRepository struct {
+	entity.EmptyTxBeginner
+
 	messages []entity.Message
 }
 

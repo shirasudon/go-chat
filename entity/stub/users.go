@@ -7,7 +7,9 @@ import (
 	"github.com/shirasudon/go-chat/entity"
 )
 
-type UserRepository struct{}
+type UserRepository struct {
+	entity.EmptyTxBeginner
+}
 
 var ErrNotFound = errors.New("user not found")
 

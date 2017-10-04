@@ -9,6 +9,8 @@ type User struct {
 }
 
 type UserRepository interface {
+	TxBeginner
+
 	FindByNameAndPassword(ctx context.Context, name, password string) (User, error)
 	ExistByNameAndPassword(ctx context.Context, name, password string) bool
 
