@@ -18,6 +18,16 @@ type Room struct {
 	messageIDs []uint64
 }
 
+func NewRoom(id uint64, name string, memberIDs map[uint64]bool) Room {
+	return Room{
+		ID:         id,
+		Name:       name,
+		IsTalkRoom: false,
+		memberIDs:  memberIDs,
+		messageIDs: make([]uint64, 0, 4),
+	}
+}
+
 // It returns a deep copy of the room member's IDs.
 func (r *Room) MemberIDs() []uint64 {
 	memberMap := r.getMemberIDs()
@@ -35,44 +45,41 @@ func (r *Room) getMemberIDs() map[uint64]bool {
 	return r.memberIDs
 }
 
-// It adds the member specified by userID to the room.
-// It returns error when the user already exist in the room.
-func (r *Room) AddMember(userID uint64) error {
-	if r.HasMember(userID) {
-		return fmt.Errorf("user(id=%d) is already member of the room(id=%d)", userID, r.ID)
+// It adds the member to the room.
+// It returns action event and error when the user already exist in the room.
+func (r *Room) AddMember(user User) (RoomAddedMember, error) {
+	if r.HasMember(user) {
+		return RoomAddedMember{}, fmt.Errorf("user(id=%d) is already member of the room(id=%d)", user.ID, r.ID)
 	}
-	r.getMemberIDs()[userID] = true
-	return nil
+
+	r.getMemberIDs()[user.ID] = true
+
+	return RoomAddedMember{
+		RoomID:      r.ID,
+		AddedUserID: user.ID,
+	}, nil
 }
 
-// It returns true when the room member specified by userID exist
+// It returns true when the room member exists
 // in the room, otherwise returns false.
-func (r *Room) HasMember(userID uint64) bool {
-	_, exist := r.getMemberIDs()[userID]
+func (r *Room) HasMember(member User) bool {
+	_, exist := r.getMemberIDs()[member.ID]
 	return exist
 }
 
 // It adds the chat message to the room.
-// It returns error when the userID which send the message is not found
-// in the room, or something happened as store new message to the repository.
-//
-// TODO make msgRepo is independent?
-func (r *Room) AddMessage(ctx context.Context, msgRepo MessageRepository, userID uint64, content string) error {
+// It returns action event and error when the user which send the message is not found
+// in the room.
+func (r *Room) PostMessage(user User, content string) (RoomPostedMessage, error) {
 	// non room member's message is invalid.
-	if !r.HasMember(userID) {
-		return fmt.Errorf("user(id=%d) is not a member in the room(id=%d)", userID, r.ID)
+	if !r.HasMember(user) {
+		return RoomPostedMessage{}, fmt.Errorf("user(id=%d) is not a member in the room(id=%d)", user.ID, r.ID)
 	}
-	msg := Message{}
-	msg.RoomID = r.ID
-	msg.UserID = userID
-	msg.Content = content
-
-	msgID, err := msgRepo.Add(ctx, msg)
-	if err != nil {
-		return err
-	}
-	r.messageIDs = append(r.messageIDs, msgID)
-	return nil
+	return RoomPostedMessage{
+		PostUserID:   user.ID,
+		PostedRoomID: r.ID,
+		Content:      content,
+	}, nil
 }
 
 type RoomRepository interface {
