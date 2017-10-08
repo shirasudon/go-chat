@@ -3,13 +3,13 @@ package model
 import (
 	"context"
 
-	"github.com/shirasudon/go-chat/entity"
+	"github.com/shirasudon/go-chat/domain"
 )
 
-// activeRoom is a wrapper for entity.Room which has
+// activeRoom is a wrapper for domain.Room which has
 // a number of active members.
 type activeRoom struct {
-	entity.Room
+	domain.Room
 
 	// room members in the Repository, including both active and inactive client.
 	members map[uint64]bool
@@ -18,7 +18,7 @@ type activeRoom struct {
 	nActiveMembers int
 }
 
-func newActiveRoom(r entity.Room) *activeRoom {
+func newActiveRoom(r domain.Room) *activeRoom {
 	memberIDs := r.MemberIDs()
 	members := make(map[uint64]bool, len(memberIDs))
 	for _, id := range memberIDs {

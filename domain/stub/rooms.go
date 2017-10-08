@@ -3,19 +3,19 @@ package stub
 import (
 	"context"
 
-	"github.com/shirasudon/go-chat/entity"
+	"github.com/shirasudon/go-chat/domain"
 )
 
 type RoomRepository struct {
-	entity.EmptyTxBeginner
+	domain.EmptyTxBeginner
 }
 
 var (
-	DummyRoom1 = entity.Room{ID: 1, Name: "title1", MemberIDSet: entity.NewUserIDSet()}
-	DummyRoom2 = entity.Room{ID: 2, Name: "title2", MemberIDSet: entity.NewUserIDSet(2, 3)}
-	DummyRoom3 = entity.Room{ID: 3, Name: "title3", MemberIDSet: entity.NewUserIDSet(2)}
+	DummyRoom1 = domain.Room{ID: 1, Name: "title1", MemberIDSet: domain.NewUserIDSet()}
+	DummyRoom2 = domain.Room{ID: 2, Name: "title2", MemberIDSet: domain.NewUserIDSet(2, 3)}
+	DummyRoom3 = domain.Room{ID: 3, Name: "title3", MemberIDSet: domain.NewUserIDSet(2)}
 
-	roomMap = map[uint64]*entity.Room{
+	roomMap = map[uint64]*domain.Room{
 		1: &DummyRoom1,
 		2: &DummyRoom2,
 		3: &DummyRoom3,
@@ -40,8 +40,8 @@ var (
 
 var roomCounter uint64 = uint64(len(roomMap))
 
-func (repo *RoomRepository) FindAllByUserID(ctx context.Context, userID uint64) ([]entity.Room, error) {
-	rooms := make([]entity.Room, 0, 4)
+func (repo *RoomRepository) FindAllByUserID(ctx context.Context, userID uint64) ([]domain.Room, error) {
+	rooms := make([]domain.Room, 0, 4)
 	for roomID, userIDs := range roomToUsersMap {
 		if userIDs[userID] {
 			rooms = append(rooms, *roomMap[roomID])
@@ -50,7 +50,7 @@ func (repo *RoomRepository) FindAllByUserID(ctx context.Context, userID uint64) 
 	return rooms, nil
 }
 
-func (repo *RoomRepository) Store(ctx context.Context, r entity.Room) (uint64, error) {
+func (repo *RoomRepository) Store(ctx context.Context, r domain.Room) (uint64, error) {
 	roomCounter += 1
 	r.ID = roomCounter
 	roomMap[r.ID] = &r
@@ -62,9 +62,9 @@ func (repo *RoomRepository) Remove(ctx context.Context, roomID uint64) error {
 	return nil
 }
 
-func (repo *RoomRepository) Find(ctx context.Context, roomID uint64) (entity.Room, error) {
+func (repo *RoomRepository) Find(ctx context.Context, roomID uint64) (domain.Room, error) {
 	if room, ok := roomMap[roomID]; ok {
 		return *room, nil
 	}
-	return entity.Room{}, ErrNotFound
+	return domain.Room{}, ErrNotFound
 }

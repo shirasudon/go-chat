@@ -6,7 +6,7 @@ import (
 
 	"github.com/ipfans/echo-session"
 	"github.com/labstack/echo"
-	"github.com/shirasudon/go-chat/entity"
+	"github.com/shirasudon/go-chat/domain"
 )
 
 func init() {
@@ -46,11 +46,11 @@ var DefaultOptions = session.Options{
 // it holds logged-in users, so that each request can reference
 // any logged-in user.
 type LoginHandler struct {
-	userRepo entity.UserRepository
+	userRepo domain.UserRepository
 	store    session.Store
 }
 
-func NewLoginHandler(uRepo entity.UserRepository, secretKeyPairs ...[]byte) *LoginHandler {
+func NewLoginHandler(uRepo domain.UserRepository, secretKeyPairs ...[]byte) *LoginHandler {
 	if len(secretKeyPairs) == 0 {
 		secretKeyPairs = [][]byte{
 			[]byte("sercret-key"),

@@ -5,22 +5,22 @@ import (
 	"errors"
 	"time"
 
-	"github.com/shirasudon/go-chat/entity"
+	"github.com/shirasudon/go-chat/domain"
 )
 
 type MessageRepository struct {
-	entity.EmptyTxBeginner
+	domain.EmptyTxBeginner
 
-	messages []entity.Message
+	messages []domain.Message
 }
 
 func newMessageRepository() *MessageRepository {
 	return &MessageRepository{
-		messages: make([]entity.Message, 0, 100),
+		messages: make([]domain.Message, 0, 100),
 	}
 }
 
-func (repo *MessageRepository) LatestRoomMessages(ctx context.Context, roomID uint64, n int) ([]entity.Message, error) {
+func (repo *MessageRepository) LatestRoomMessages(ctx context.Context, roomID uint64, n int) ([]domain.Message, error) {
 	l := len(repo.messages)
 	if offset := l - n; offset > 0 {
 		return repo.messages[offset : offset+n], nil
@@ -28,7 +28,7 @@ func (repo *MessageRepository) LatestRoomMessages(ctx context.Context, roomID ui
 	return repo.messages[:], nil
 }
 
-func (repo *MessageRepository) PreviousRoomMessages(ctx context.Context, offset entity.Message, n int) ([]entity.Message, error) {
+func (repo *MessageRepository) PreviousRoomMessages(ctx context.Context, offset domain.Message, n int) ([]domain.Message, error) {
 	var offsetIdx int
 	for i, m := range repo.messages {
 		if m.ID > offset.ID {
@@ -45,7 +45,7 @@ func (repo *MessageRepository) PreviousRoomMessages(ctx context.Context, offset 
 	return repo.messages[offsetIdx-n : offsetIdx], nil
 }
 
-func (repo *MessageRepository) Add(ctx context.Context, m entity.Message) (uint64, error) {
+func (repo *MessageRepository) Add(ctx context.Context, m domain.Message) (uint64, error) {
 	m.ID = uint64(len(repo.messages))
 	m.CreatedAt = time.Now()
 	repo.messages = append(repo.messages)

@@ -10,7 +10,7 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
-	"github.com/shirasudon/go-chat/entity"
+	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/model"
 	"github.com/shirasudon/go-chat/model/action"
 	"github.com/shirasudon/go-chat/ws"
@@ -25,14 +25,14 @@ type Server struct {
 
 	ctx context.Context
 
-	repos entity.Repositories
+	repos domain.Repositories
 
 	conf Config
 }
 
 // it returns new constructed server with config.
 // nil config is ok and use DefaultConfig insteadly.
-func NewServer(repos entity.Repositories, conf *Config) *Server {
+func NewServer(repos domain.Repositories, conf *Config) *Server {
 	if conf == nil {
 		conf = &DefaultConfig
 	}
@@ -138,7 +138,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 // A nil config is OK and use DefaultConfig insteadly.
 // It blocks until the process occurs any error and
 // return the error.
-func ListenAndServe(repos entity.Repositories, conf *Config) error {
+func ListenAndServe(repos domain.Repositories, conf *Config) error {
 	if conf == nil {
 		conf = &DefaultConfig
 	}

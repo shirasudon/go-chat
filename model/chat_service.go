@@ -3,20 +3,20 @@ package model
 import (
 	"context"
 
-	"github.com/shirasudon/go-chat/entity"
+	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/model/action"
 )
 
 // ChatService provides the usecases for
 // chat messaging application.
 type ChatService struct {
-	repos entity.Repositories
-	msgs  entity.MessageRepository
-	users entity.UserRepository
-	rooms entity.RoomRepository
+	repos domain.Repositories
+	msgs  domain.MessageRepository
+	users domain.UserRepository
+	rooms domain.RoomRepository
 }
 
-func NewChatService(repos entity.Repositories) *ChatService {
+func NewChatService(repos domain.Repositories) *ChatService {
 	return &ChatService{
 		repos: repos,
 		msgs:  repos.Messages(),
@@ -27,21 +27,21 @@ func NewChatService(repos entity.Repositories) *ChatService {
 
 // Find friend users related with specified user id.
 // It returns error if not found.
-func (s ChatService) FindUserFriends(ctx context.Context, userID uint64) ([]entity.User, error) {
+func (s ChatService) FindUserFriends(ctx context.Context, userID uint64) ([]domain.User, error) {
 	return s.users.FindAllByUserID(ctx, userID)
 }
 
 // Find rooms related with specified user id.
 // It returns error if not found.
-func (s ChatService) FindUserRooms(ctx context.Context, userID uint64) ([]entity.Room, error) {
+func (s ChatService) FindUserRooms(ctx context.Context, userID uint64) ([]domain.Room, error) {
 	return s.rooms.FindAllByUserID(ctx, userID)
 }
 
 // UserRelation is the relationship owned by specified UserID.
 type UserRelation struct {
 	UserID  uint64
-	Friends []entity.User
-	Rooms   []entity.Room
+	Friends []domain.User
+	Rooms   []domain.Room
 }
 
 // Find both of friends and rooms related with specified user id.
@@ -64,7 +64,7 @@ func (s ChatService) FindUserRelation(ctx context.Context, userID uint64) (UserR
 // It returns posted message id and nil or error
 // which indicates the message can not be posted.
 func (s ChatService) PostRoomMessage(ctx context.Context, m action.ChatMessage) (msgID uint64, err error) {
-	msgID, err = s.msgs.Add(ctx, entity.Message{
+	msgID, err = s.msgs.Add(ctx, domain.Message{
 		Content: m.Content,
 		UserID:  m.SenderID,
 		RoomID:  m.RoomID,

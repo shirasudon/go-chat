@@ -10,14 +10,14 @@ import (
 	"golang.org/x/net/websocket"
 
 	"github.com/labstack/echo"
-	"github.com/shirasudon/go-chat/entity"
-	_ "github.com/shirasudon/go-chat/entity/stub"
+	"github.com/shirasudon/go-chat/domain"
+	_ "github.com/shirasudon/go-chat/domain/stub"
 	"github.com/shirasudon/go-chat/model/action"
 	"github.com/shirasudon/go-chat/ws/wstest"
 )
 
 var (
-	repository entity.Repositories
+	repository domain.Repositories
 	server     *Server
 )
 
@@ -26,7 +26,7 @@ const (
 )
 
 func init() {
-	repository, _ = entity.OpenRepositories("stub")
+	repository, _ = domain.OpenRepositories("stub")
 	server = NewServer(repository, nil)
 }
 

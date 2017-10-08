@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	"github.com/shirasudon/go-chat/entity"
+	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/model/action"
 )
 
@@ -30,7 +30,7 @@ type actionMessageRequest struct {
 	Conn Conn
 }
 
-func NewChatHub(repos entity.Repositories) *ChatHub {
+func NewChatHub(repos domain.Repositories) *ChatHub {
 	chat := NewChatService(repos)
 	return &ChatHub{
 		connects:       make(chan Conn, 1),

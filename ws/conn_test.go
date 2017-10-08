@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/shirasudon/go-chat/entity"
+	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/model/action"
 	"github.com/shirasudon/go-chat/ws/wstest"
 
@@ -24,7 +24,7 @@ func TestNewConn(t *testing.T) {
 
 		cm := action.ChatMessage{Content: GreetingMsg}
 		cm.ActionName = action.ActionChatMessage
-		conn := NewConn(ws, entity.User{})
+		conn := NewConn(ws, domain.User{})
 		conn.Send(cm)
 		conn.Listen(ctx)
 		endCh <- true
@@ -108,7 +108,7 @@ func TestConnClose(t *testing.T) {
 	server := wstest.NewServer(websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
 
-		conn := NewConn(ws, entity.User{})
+		conn := NewConn(ws, domain.User{})
 		conn.Close() // to quit Listen() immediately
 		conn.Listen(ctx)
 		endCh <- true

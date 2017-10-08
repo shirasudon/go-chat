@@ -1,4 +1,4 @@
-package entity
+package domain
 
 type Event interface {
 	EventType() EventType

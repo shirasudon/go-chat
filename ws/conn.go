@@ -6,7 +6,7 @@ import (
 	"io"
 	"sync"
 
-	"github.com/shirasudon/go-chat/entity"
+	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/model/action"
 
 	"golang.org/x/net/websocket"
@@ -31,7 +31,7 @@ type Conn struct {
 	onError         func(*Conn, error)
 }
 
-func NewConn(conn *websocket.Conn, user entity.User) *Conn {
+func NewConn(conn *websocket.Conn, user domain.User) *Conn {
 	return &Conn{
 		userID:   user.ID,
 		userName: user.Name,
