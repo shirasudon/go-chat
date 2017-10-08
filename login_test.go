@@ -10,7 +10,7 @@ import (
 	"github.com/ipfans/echo-session"
 	"github.com/labstack/echo"
 	"github.com/shirasudon/go-chat/domain"
-	_ "github.com/shirasudon/go-chat/domain/stub"
+	_ "github.com/shirasudon/go-chat/infra/stub"
 )
 
 var (

@@ -11,7 +11,7 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/shirasudon/go-chat/domain"
-	_ "github.com/shirasudon/go-chat/domain/stub"
+	_ "github.com/shirasudon/go-chat/infra/stub"
 	"github.com/shirasudon/go-chat/model/action"
 	"github.com/shirasudon/go-chat/ws/wstest"
 )

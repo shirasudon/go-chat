@@ -4,17 +4,16 @@ import (
 	"log"
 
 	"github.com/shirasudon/go-chat"
-	"github.com/shirasudon/go-chat/entity"
-	_ "github.com/shirasudon/go-chat/entity/stub"
+	"github.com/shirasudon/go-chat/domain"
+	_ "github.com/shirasudon/go-chat/infra/stub"
 )
 
 func main() {
 	// initilize database
-	repos, err := entity.OpenRepositories("stub")
+	repos, err := domain.OpenRepositories("stub")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer repos.Close()
 
 	log.Fatal(chat.ListenAndServe(repos, nil))
 }
