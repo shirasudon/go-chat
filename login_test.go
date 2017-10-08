@@ -9,8 +9,7 @@ import (
 
 	"github.com/ipfans/echo-session"
 	"github.com/labstack/echo"
-	"github.com/shirasudon/go-chat/domain"
-	_ "github.com/shirasudon/go-chat/infra/stub"
+	"github.com/shirasudon/go-chat/infra/stub"
 )
 
 var (
@@ -19,7 +18,7 @@ var (
 )
 
 func init() {
-	repository, _ := domain.OpenRepositories("stub")
+	repository := stub.OpenRepositories()
 	loginHandler = NewLoginHandler(repository.Users())
 	theEcho = echo.New()
 }

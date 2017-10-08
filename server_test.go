@@ -10,25 +10,19 @@ import (
 	"golang.org/x/net/websocket"
 
 	"github.com/labstack/echo"
-	"github.com/shirasudon/go-chat/domain"
-	_ "github.com/shirasudon/go-chat/infra/stub"
+	"github.com/shirasudon/go-chat/infra/stub"
 	"github.com/shirasudon/go-chat/model/action"
 	"github.com/shirasudon/go-chat/ws/wstest"
 )
 
 var (
-	repository domain.Repositories
-	server     *Server
+	repository         = stub.OpenRepositories()
+	server     *Server = NewServer(repository, nil)
 )
 
 const (
 	LoginUserID = 2
 )
-
-func init() {
-	repository, _ = domain.OpenRepositories("stub")
-	server = NewServer(repository, nil)
-}
 
 func TestServerServeChatWebsocket(t *testing.T) {
 	e := echo.New()
