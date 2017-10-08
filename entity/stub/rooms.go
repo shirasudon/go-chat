@@ -11,9 +11,14 @@ type RoomRepository struct {
 }
 
 var (
-	DummyRoom1 = entity.NewRoom(1, "title1", make(map[uint64]bool))
-	DummyRoom2 = entity.NewRoom(2, "title2", make(map[uint64]bool))
-	DummyRoom3 = entity.NewRoom(3, "title3", make(map[uint64]bool))
+	DummyRoom1 = entity.Room{ID: 1, Name: "title1", MemberIDSet: make(map[uint64]bool)}
+	DummyRoom2 = entity.Room{ID: 2, Name: "title2", MemberIDSet: map[uint64]bool{
+		2: true,
+		3: true,
+	}}
+	DummyRoom3 = entity.Room{ID: 3, Name: "title3", MemberIDSet: map[uint64]bool{
+		2: true,
+	}}
 
 	roomMap = map[uint64]*entity.Room{
 		1: &DummyRoom1,
@@ -37,17 +42,6 @@ var (
 		},
 	}
 )
-
-func init() {
-	// initialize room-to-member relation.
-	for _, room := range roomMap {
-		for memberID, _ := range roomToUsersMap[room.ID] {
-			if _, err := room.AddMember(entity.User{ID: memberID}); err != nil {
-				panic(err)
-			}
-		}
-	}
-}
 
 var roomCounter uint64 = uint64(len(roomMap))
 
