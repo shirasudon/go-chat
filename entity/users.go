@@ -1,12 +1,9 @@
 package entity
 
-import "context"
-
-type User struct {
-	ID       uint64
-	Name     string
-	Password string
-}
+import (
+	"context"
+	"fmt"
+)
 
 type UserRepository interface {
 	TxBeginner
@@ -23,4 +20,109 @@ type UserRepository interface {
 
 	// Find all users related with the specified user id.
 	FindAllByUserID(ctx context.Context, userID uint64) ([]User, error)
+}
+
+// set for user id.
+type UserIDSet struct {
+	idMap map[uint64]bool
+}
+
+func NewUserIDSet(ids ...uint64) UserIDSet {
+	idMap := make(map[uint64]bool, len(ids))
+	for _, id := range ids {
+		idMap[id] = true
+	}
+	return UserIDSet{idMap}
+}
+
+func (set *UserIDSet) getIDMap() map[uint64]bool {
+	if set.idMap == nil {
+		set.idMap = make(map[uint64]bool, 4)
+	}
+	return set.idMap
+}
+
+func (set *UserIDSet) Has(id uint64) bool {
+	_, ok := set.getIDMap()[id]
+	return ok
+}
+
+func (set *UserIDSet) Add(id uint64) {
+	set.getIDMap()[id] = true
+}
+
+func (set *UserIDSet) Remove(id uint64) {
+	delete(set.getIDMap(), id)
+}
+
+// It returns a deep copy of the ID list.
+func (set *UserIDSet) List() []uint64 {
+	idMap := set.getIDMap()
+	ids := make([]uint64, 0, len(idMap))
+	for id, _ := range idMap {
+		ids = append(ids, id)
+	}
+	return ids
+}
+
+// User entity. Its fields are exported
+// due to construct from the datastore.
+// In application side, creating/modifying/deleting the user
+// should be done by the methods which emits the domain event.
+type User struct {
+	EventHolder
+
+	ID       uint64
+	Name     string
+	Password string
+
+	FriendIDs UserIDSet
+}
+
+// create new Room entity. the retruned room holds RoomCreated event
+// which also returns the second result.
+func NewUser(name string, password string, friendIDs UserIDSet) (User, UserCreated) {
+	u := User{
+		EventHolder: NewEventHolder(),
+		ID:          0, // 0 means new entity
+		Name:        name,
+		Password:    password,
+		FriendIDs:   friendIDs,
+	}
+	ev := UserCreated{
+		Name:      name,
+		Password:  password,
+		FriendIDs: friendIDs.List(),
+	}
+	u.AddEvent(ev)
+	return u, ev // TODO event should be returned?
+}
+
+// It adds the friend to the user.
+// It returns the event adding into the user, and error
+// when the friend already exist in the user.
+func (u *User) AddFriend(friend User) (UserAddedFriend, error) {
+	if u.ID == 0 {
+		return UserAddedFriend{}, fmt.Errorf("newly user can not be added friend")
+	}
+	if u.ID == friend.ID {
+		return UserAddedFriend{}, fmt.Errorf("can not add user itself as friend")
+	}
+	if u.HasFriend(friend) {
+		return UserAddedFriend{}, fmt.Errorf("friend(id=%d) already exist in the user(id=%d)", friend.ID, u.ID)
+	}
+
+	u.FriendIDs.Add(friend.ID)
+
+	ev := UserAddedFriend{
+		UserID:        u.ID,
+		AddedFriendID: friend.ID,
+	}
+	u.AddEvent(ev)
+	return ev, nil
+}
+
+// It returns whether the user has specified friend?
+func (u *User) HasFriend(friend User) bool {
+	return u.FriendIDs.Has(friend.ID)
 }

@@ -11,14 +11,9 @@ type RoomRepository struct {
 }
 
 var (
-	DummyRoom1 = entity.Room{ID: 1, Name: "title1", MemberIDSet: make(map[uint64]bool)}
-	DummyRoom2 = entity.Room{ID: 2, Name: "title2", MemberIDSet: map[uint64]bool{
-		2: true,
-		3: true,
-	}}
-	DummyRoom3 = entity.Room{ID: 3, Name: "title3", MemberIDSet: map[uint64]bool{
-		2: true,
-	}}
+	DummyRoom1 = entity.Room{ID: 1, Name: "title1", MemberIDSet: entity.NewUserIDSet()}
+	DummyRoom2 = entity.Room{ID: 2, Name: "title2", MemberIDSet: entity.NewUserIDSet(2, 3)}
+	DummyRoom3 = entity.Room{ID: 3, Name: "title3", MemberIDSet: entity.NewUserIDSet(2)}
 
 	roomMap = map[uint64]*entity.Room{
 		1: &DummyRoom1,

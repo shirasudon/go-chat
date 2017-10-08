@@ -34,17 +34,12 @@ type Room struct {
 	Name       string
 	IsTalkRoom bool
 
-	// user set, order has no meaning
-	MemberIDSet map[uint64]bool
+	MemberIDSet UserIDSet
 }
 
 // create new Room entity. the retruned room holds RoomCreated event
 // which also returns the second result.
-func NewRoom(name string, memberIDs map[uint64]bool) (Room, RoomCreated) {
-	if memberIDs == nil {
-		memberIDs = make(map[uint64]bool, 2)
-	}
-
+func NewRoom(name string, memberIDs UserIDSet) (Room, RoomCreated) {
 	r := Room{
 		EventHolder: NewEventHolder(),
 		ID:          0, // 0 means new entity
@@ -55,7 +50,7 @@ func NewRoom(name string, memberIDs map[uint64]bool) (Room, RoomCreated) {
 	ev := RoomCreated{
 		Name:       name,
 		IsTalkRoom: false,
-		MemberIDs:  r.MemberIDs(),
+		MemberIDs:  memberIDs.List(),
 	}
 	r.AddEvent(ev)
 	return r, ev // TODO event should be returned?
@@ -63,19 +58,7 @@ func NewRoom(name string, memberIDs map[uint64]bool) (Room, RoomCreated) {
 
 // It returns a deep copy of the room member's IDs as list.
 func (r *Room) MemberIDs() []uint64 {
-	memberMap := r.getMemberIDSet()
-	memberIDs := make([]uint64, 0, len(memberMap))
-	for id, _ := range memberMap {
-		memberIDs = append(memberIDs, id)
-	}
-	return memberIDs
-}
-
-func (r *Room) getMemberIDSet() map[uint64]bool {
-	if r.MemberIDSet == nil {
-		r.MemberIDSet = make(map[uint64]bool, 4)
-	}
-	return r.MemberIDSet
+	return r.MemberIDSet.List()
 }
 
 // It adds the member to the room.
@@ -89,7 +72,7 @@ func (r *Room) AddMember(user User) (RoomAddedMember, error) {
 		return RoomAddedMember{}, fmt.Errorf("user(id=%d) is already member of the room(id=%d)", user.ID, r.ID)
 	}
 
-	r.getMemberIDSet()[user.ID] = true
+	r.MemberIDSet.Add(user.ID)
 
 	ev := RoomAddedMember{
 		RoomID:      r.ID,
@@ -102,8 +85,7 @@ func (r *Room) AddMember(user User) (RoomAddedMember, error) {
 // It returns true when the room member exists
 // in the room, otherwise returns false.
 func (r *Room) HasMember(member User) bool {
-	_, exist := r.getMemberIDSet()[member.ID]
-	return exist
+	return r.MemberIDSet.Has(member.ID)
 }
 
 // It adds the chat message to the room.

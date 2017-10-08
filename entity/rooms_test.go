@@ -5,7 +5,7 @@ import (
 )
 
 func TestRoomCreated(t *testing.T) {
-	r, ev := NewRoom("test", map[uint64]bool{1: true})
+	r, ev := NewRoom("test", NewUserIDSet(1))
 	// check whether room has one event,
 	events := r.Events()
 	if got := len(events); got != 1 {
@@ -26,7 +26,7 @@ func TestRoomCreated(t *testing.T) {
 }
 
 func TestRoomAddMember(t *testing.T) {
-	r, _ := NewRoom("test", make(map[uint64]bool))
+	r, _ := NewRoom("test", NewUserIDSet())
 	r.ID = 1 // it may not be allowed at application side.
 	u := User{ID: 1}
 	ev, err := r.AddMember(u)
@@ -55,7 +55,7 @@ func TestRoomAddMember(t *testing.T) {
 
 func TestRoomPostMessage(t *testing.T) {
 	const TestContent = "content"
-	r, _ := NewRoom("test", make(map[uint64]bool))
+	r, _ := NewRoom("test", NewUserIDSet())
 	r.ID = 1 // it may not be allowed at application side
 	u := User{ID: 1}
 	_, _ = r.AddMember(u)
@@ -84,7 +84,7 @@ func TestRoomPostMessage(t *testing.T) {
 	}
 
 	// case fail: post message by non-exist user
-	r, _ = NewRoom("test", make(map[uint64]bool))
+	r, _ = NewRoom("test", NewUserIDSet())
 	r.ID = 1 // it may not be allowed at application side
 	nobody := User{ID: 0}
 	if _, err := r.PostMessage(nobody, TestContent); err == nil {

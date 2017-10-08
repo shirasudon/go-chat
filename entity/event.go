@@ -11,6 +11,7 @@ const (
 
 	EventUserCreated = 10
 	EventUserDeleted
+	EventUserAddedFriend
 
 	EventRoomCreated = 20
 	EventRoomDeleted
@@ -50,6 +51,23 @@ func (holder *EventHolder) AddEvent(ev Event) {
 	}
 	holder.events = append(holder.events, ev)
 }
+
+// Event for User is created.
+type UserCreated struct {
+	Name      string
+	Password  string
+	FriendIDs []uint64
+}
+
+func (UserCreated) EventType() EventType { return EventUserCreated }
+
+// Event for User is created.
+type UserAddedFriend struct {
+	UserID        uint64
+	AddedFriendID uint64
+}
+
+func (UserAddedFriend) EventType() EventType { return EventUserAddedFriend }
 
 // Event for Room is created.
 type RoomCreated struct {
