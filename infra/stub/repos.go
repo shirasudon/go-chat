@@ -4,14 +4,16 @@ import (
 	"github.com/shirasudon/go-chat/domain"
 )
 
-func OpenRepositories() Repositories {
-	return Repositories{
+func OpenRepositories() *Repositories {
+	return &Repositories{
 		MessageRepository: newMessageRepository(),
+		RoomRepository:    NewRoomRepository(),
 	}
 }
 
 type Repositories struct {
 	domain.MessageRepository
+	domain.RoomRepository
 }
 
 func (Repositories) Users() domain.UserRepository {
@@ -26,6 +28,6 @@ func (r Repositories) Rooms() domain.RoomRepository {
 	return &RoomRepository{}
 }
 
-func (r Repositories) Close() error {
+func (r *Repositories) Close() error {
 	return nil
 }

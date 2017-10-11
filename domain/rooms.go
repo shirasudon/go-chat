@@ -19,7 +19,7 @@ type RoomRepository interface {
 	Store(ctx context.Context, r Room) (uint64, error)
 
 	// remove room from repository.
-	Remove(ctx context.Context, roomID uint64) error
+	Remove(ctx context.Context, r Room) error
 }
 
 // Room entity. Its fields are exported
@@ -56,6 +56,11 @@ func NewRoom(name string, memberIDs UserIDSet) (Room, RoomCreated) {
 	return r, ev // TODO event should be returned?
 }
 
+// It returns whether the room is newly.
+func (r *Room) IsNew() bool {
+	return r.ID == 0
+}
+
 // It returns a deep copy of the room member's IDs as list.
 func (r *Room) MemberIDs() []uint64 {
 	return r.MemberIDSet.List()
@@ -67,6 +72,9 @@ func (r *Room) MemberIDs() []uint64 {
 func (r *Room) AddMember(user User) (RoomAddedMember, error) {
 	if r.ID == 0 {
 		return RoomAddedMember{}, fmt.Errorf("newly room can not be added new member")
+	}
+	if user.ID == 0 {
+		return RoomAddedMember{}, fmt.Errorf("the user not in the datastore, can not be a room member")
 	}
 	if r.HasMember(user) {
 		return RoomAddedMember{}, fmt.Errorf("user(id=%d) is already member of the room(id=%d)", user.ID, r.ID)

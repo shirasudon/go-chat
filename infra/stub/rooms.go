@@ -2,12 +2,17 @@ package stub
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/shirasudon/go-chat/domain"
 )
 
 type RoomRepository struct {
 	domain.EmptyTxBeginner
+}
+
+func NewRoomRepository() *RoomRepository {
+	return &RoomRepository{}
 }
 
 var (
@@ -51,14 +56,30 @@ func (repo *RoomRepository) FindAllByUserID(ctx context.Context, userID uint64) 
 }
 
 func (repo *RoomRepository) Store(ctx context.Context, r domain.Room) (uint64, error) {
+	if r.IsNew() {
+		return repo.Create(ctx, r)
+	} else {
+		return repo.Update(ctx, r)
+	}
+}
+
+func (repo *RoomRepository) Create(ctx context.Context, r domain.Room) (uint64, error) {
 	roomCounter += 1
 	r.ID = roomCounter
 	roomMap[r.ID] = &r
 	return r.ID, nil
 }
 
-func (repo *RoomRepository) Remove(ctx context.Context, roomID uint64) error {
-	delete(roomMap, roomID)
+func (repo *RoomRepository) Update(ctx context.Context, r domain.Room) (uint64, error) {
+	if _, ok := roomMap[r.ID]; !ok {
+		return 0, fmt.Errorf("room(id=%d) is not in the datastore")
+	}
+	roomMap[r.ID] = &r
+	return r.ID, nil
+}
+
+func (repo *RoomRepository) Remove(ctx context.Context, r domain.Room) error {
+	delete(roomMap, r.ID)
 	return nil
 }
 

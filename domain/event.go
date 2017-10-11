@@ -1,3 +1,5 @@
+//go:generate stringer -type EventType
+
 package domain
 
 type Event interface {
@@ -8,12 +10,10 @@ type EventType uint
 
 const (
 	EventNone EventType = iota
-
-	EventUserCreated = 10
+	EventUserCreated
 	EventUserDeleted
 	EventUserAddedFriend
-
-	EventRoomCreated = 20
+	EventRoomCreated
 	EventRoomDeleted
 	EventRoomAddedMember
 	EventRoomRemoveMember
@@ -77,6 +77,16 @@ type RoomCreated struct {
 }
 
 func (RoomCreated) EventType() EventType { return EventRoomCreated }
+
+// Event for Room is deleted.
+type RoomDeleted struct {
+	RoomID     uint64
+	Name       string
+	IsTalkRoom bool
+	MemberIDs  []uint64
+}
+
+func (RoomDeleted) EventType() EventType { return EventRoomDeleted }
 
 // Event for Room added new member.
 type RoomAddedMember struct {
