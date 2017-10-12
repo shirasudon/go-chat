@@ -20,6 +20,8 @@ const (
 	EventRoomPostedMessage
 	EventRoomUpdatedMessage
 	EventRoomDeletedMessage
+	EventMessageCreated
+	EventMessageReadByUser
 )
 
 // EventHolder holds event objects.

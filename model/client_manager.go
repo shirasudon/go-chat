@@ -40,14 +40,14 @@ func (ac *activeClient) Send(m action.ActionMessage) {
 
 // ClientManager manages active clients.
 type ClientManager struct {
-	chatService *ChatService
-	clients     map[uint64]*activeClient
+	chatQuery *ChatQueryService
+	clients   map[uint64]*activeClient
 }
 
-func NewClientManager(service *ChatService) *ClientManager {
+func NewClientManager(service *ChatQueryService) *ClientManager {
 	return &ClientManager{
-		chatService: service,
-		clients:     make(map[uint64]*activeClient),
+		chatQuery: service,
+		clients:   make(map[uint64]*activeClient),
 	}
 }
 
@@ -78,7 +78,7 @@ func (cm *ClientManager) connectClient(ctx context.Context, c Conn) error {
 	// and broadcasts user connect event to all active friends
 	activeC := newActiveClient(c)
 	// set friends and rooms to new active user.
-	relation, err := cm.chatService.FindUserRelation(ctx, c.UserID())
+	relation, err := cm.chatQuery.FindUserRelation(ctx, c.UserID())
 	if err != nil {
 		return err
 	}

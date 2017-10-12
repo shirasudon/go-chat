@@ -32,14 +32,14 @@ func newActiveRoom(r domain.Room) *activeRoom {
 }
 
 type RoomManager struct {
-	chatService *ChatService
-	rooms       map[uint64]*activeRoom
+	chatQuery *ChatQueryService
+	rooms     map[uint64]*activeRoom
 }
 
-func NewRoomManager(service *ChatService) *RoomManager {
+func NewRoomManager(service *ChatQueryService) *RoomManager {
 	return &RoomManager{
-		chatService: service,
-		rooms:       make(map[uint64]*activeRoom),
+		chatQuery: service,
+		rooms:     make(map[uint64]*activeRoom),
 	}
 }
 
@@ -57,7 +57,7 @@ func (rm *RoomManager) roomMemberIDs(roomID uint64) []uint64 {
 }
 
 func (rm *RoomManager) connectClient(ctx context.Context, userID uint64) error {
-	ur, err := rm.chatService.FindUserRelation(ctx, userID)
+	ur, err := rm.chatQuery.FindUserRelation(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -76,7 +76,7 @@ func (rm *RoomManager) connectClient(ctx context.Context, userID uint64) error {
 }
 
 func (rm *RoomManager) disconnectClient(ctx context.Context, userID uint64) error {
-	ur, err := rm.chatService.FindUserRelation(ctx, userID)
+	ur, err := rm.chatQuery.FindUserRelation(ctx, userID)
 	if err != nil {
 		return err
 	}

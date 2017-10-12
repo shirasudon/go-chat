@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/infra/pubsub"
 	"github.com/shirasudon/go-chat/model"
 	"github.com/shirasudon/go-chat/model/action"
 	"github.com/shirasudon/go-chat/ws"
@@ -22,6 +23,7 @@ type Server struct {
 	websocketServer *websocket.Server
 	loginHandler    *LoginHandler
 	chatHub         *model.ChatHub
+	pubsub          *pubsub.PubSub
 
 	ctx context.Context
 
@@ -37,9 +39,12 @@ func NewServer(repos domain.Repositories, conf *Config) *Server {
 		conf = &DefaultConfig
 	}
 
+	pubsub := pubsub.New(10)
+
 	s := &Server{
 		loginHandler: NewLoginHandler(repos.Users()),
-		chatHub:      model.NewChatHub(repos),
+		chatHub:      model.NewChatHub(repos, pubsub),
+		pubsub:       pubsub,
 		repos:        repos,
 		conf:         *conf,
 	}
@@ -130,6 +135,7 @@ func (s *Server) ListenAndServe() error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
+	s.pubsub.Shutdown()
 	return s.echo.Shutdown(ctx)
 }
 
@@ -142,5 +148,7 @@ func ListenAndServe(repos domain.Repositories, conf *Config) error {
 	if conf == nil {
 		conf = &DefaultConfig
 	}
-	return NewServer(repos, conf).ListenAndServe()
+	s := NewServer(repos, conf)
+	defer s.Shutdown(context.Background())
+	return s.ListenAndServe()
 }

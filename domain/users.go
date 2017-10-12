@@ -98,6 +98,8 @@ func NewUser(name string, password string, friendIDs UserIDSet) (User, UserCreat
 	return u, ev // TODO event should be returned?
 }
 
+func (u *User) IsNew() bool { return u.ID == 0 }
+
 // It adds the friend to the user.
 // It returns the event adding into the user, and error
 // when the friend already exist in the user.

@@ -6,7 +6,7 @@ import (
 
 func OpenRepositories() *Repositories {
 	return &Repositories{
-		MessageRepository: newMessageRepository(),
+		MessageRepository: NewMessageRepository(),
 		RoomRepository:    NewRoomRepository(),
 	}
 }

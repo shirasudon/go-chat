@@ -10,14 +10,14 @@ type messageHandler struct {
 	rooms   *RoomManager
 	clients *ClientManager
 
-	chatService *ChatService
+	chatCommand *ChatCommandService
 }
 
-func newMessageHandler(service *ChatService) *messageHandler {
+func newMessageHandler(command *ChatCommandService, query *ChatQueryService) *messageHandler {
 	return &messageHandler{
-		rooms:       NewRoomManager(service),
-		clients:     NewClientManager(service),
-		chatService: service,
+		rooms:       NewRoomManager(query),
+		clients:     NewClientManager(query),
+		chatCommand: command,
 	}
 }
 
@@ -68,14 +68,14 @@ func (handler *messageHandler) handleChatActionMessage(ctx context.Context, conn
 	switch m := m.(type) {
 	case action.ChatMessage:
 		var err error
-		m.ID, err = handler.chatService.PostRoomMessage(ctx, m)
+		m.ID, err = handler.chatCommand.PostRoomMessage(ctx, m)
 		if err != nil {
 			return err
 		}
 		handler.broadcastsRoomMembers(m.RoomID, m)
 
 	case action.ReadMessage:
-		if err := handler.chatService.ReadRoomMessage(ctx, m); err != nil {
+		if err := handler.chatCommand.ReadRoomMessage(ctx, m); err != nil {
 			return err
 		}
 

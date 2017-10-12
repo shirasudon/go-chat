@@ -18,7 +18,8 @@ type ChatHub struct {
 	messages    chan actionMessageRequest
 	errors      chan error
 
-	chatService    *ChatService
+	chatCommand    *ChatCommandService
+	chatQuery      *ChatQueryService
 	messageHandler *messageHandler
 }
 
@@ -30,15 +31,17 @@ type actionMessageRequest struct {
 	Conn Conn
 }
 
-func NewChatHub(repos domain.Repositories) *ChatHub {
-	chat := NewChatService(repos)
+func NewChatHub(repos domain.Repositories, pubsub Pubsub) *ChatHub {
+	chatCommand := NewChatCommandService(repos, pubsub)
+	chatQuery := NewChatQueryService(repos)
 	return &ChatHub{
 		connects:       make(chan Conn, 1),
 		disconnects:    make(chan Conn, 1),
 		messages:       make(chan actionMessageRequest, 1),
 		errors:         make(chan error, 1),
-		chatService:    chat,
-		messageHandler: newMessageHandler(chat),
+		chatCommand:    chatCommand,
+		chatQuery:      chatQuery,
+		messageHandler: newMessageHandler(chatCommand, chatQuery),
 	}
 }
 

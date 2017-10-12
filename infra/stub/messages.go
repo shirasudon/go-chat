@@ -14,10 +14,14 @@ type MessageRepository struct {
 	messages []domain.Message
 }
 
-func newMessageRepository() *MessageRepository {
+func NewMessageRepository() *MessageRepository {
 	return &MessageRepository{
 		messages: make([]domain.Message, 0, 100),
 	}
+}
+
+func (repo *MessageRepository) Find(ctx context.Context, msgID uint64) (domain.Message, error) {
+	return repo.messages[0], nil
 }
 
 func (repo *MessageRepository) LatestRoomMessages(ctx context.Context, roomID uint64, n int) ([]domain.Message, error) {
@@ -45,7 +49,7 @@ func (repo *MessageRepository) PreviousRoomMessages(ctx context.Context, offset 
 	return repo.messages[offsetIdx-n : offsetIdx], nil
 }
 
-func (repo *MessageRepository) Add(ctx context.Context, m domain.Message) (uint64, error) {
+func (repo *MessageRepository) Store(ctx context.Context, m domain.Message) (uint64, error) {
 	m.ID = uint64(len(repo.messages))
 	m.CreatedAt = time.Now()
 	repo.messages = append(repo.messages)
