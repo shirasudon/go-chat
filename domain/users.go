@@ -79,9 +79,9 @@ type User struct {
 	FriendIDs UserIDSet
 }
 
-// create new Room entity. the retruned room holds RoomCreated event
-// which also returns the second result.
-func NewUser(name string, password string, friendIDs UserIDSet) (User, UserCreated) {
+// create new Room entity into the repository. It retruns the new user
+// holding event for UserCreated and error if any.
+func NewUser(ctx context.Context, userRepo UserRepository, name string, password string, friendIDs UserIDSet) (User, error) {
 	u := User{
 		EventHolder: NewEventHolder(),
 		ID:          0, // 0 means new entity
@@ -89,13 +89,21 @@ func NewUser(name string, password string, friendIDs UserIDSet) (User, UserCreat
 		Password:    password,
 		FriendIDs:   friendIDs,
 	}
+
+	id, err := userRepo.Store(ctx, u)
+	if err != nil {
+		return u, err
+	}
+	u.ID = id
+
 	ev := UserCreated{
 		Name:      name,
 		Password:  password,
 		FriendIDs: friendIDs.List(),
 	}
 	u.AddEvent(ev)
-	return u, ev // TODO event should be returned?
+
+	return u, nil
 }
 
 func (u *User) IsNew() bool { return u.ID == 0 }

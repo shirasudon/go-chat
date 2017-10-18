@@ -1,17 +1,57 @@
 package domain
 
 import (
+	"context"
+	"database/sql"
 	"testing"
 )
 
+type UserRepositoryStub struct{}
+
+func (u *UserRepositoryStub) BeginTx(context.Context, *sql.TxOptions) (Tx, error) {
+	panic("not implemented")
+}
+
+func (u *UserRepositoryStub) FindByNameAndPassword(ctx context.Context, name string, password string) (User, error) {
+	panic("not implemented")
+}
+
+func (u *UserRepositoryStub) ExistByNameAndPassword(ctx context.Context, name string, password string) bool {
+	panic("not implemented")
+}
+
+func (uu *UserRepositoryStub) Store(ctx context.Context, u User) (uint64, error) {
+	return u.ID + 1, nil
+}
+
+func (u *UserRepositoryStub) Find(ctx context.Context, id uint64) (User, error) {
+	panic("not implemented")
+}
+
+func (u *UserRepositoryStub) FindAllByUserID(ctx context.Context, userID uint64) ([]User, error) {
+	panic("not implemented")
+}
+
+var userRepo = &UserRepositoryStub{}
+
 func TestUserCreated(t *testing.T) {
-	u, ev := NewUser("user", "password", NewUserIDSet(1))
+	ctx := context.Background()
+	u, err := NewUser(ctx, userRepo, "user", "password", NewUserIDSet(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if u.ID == 0 {
+		t.Fatalf("user is created but has invalid ID(%d)", u.ID)
+	}
+
 	// check whether user has one event,
 	events := u.Events()
 	if got := len(events); got != 1 {
 		t.Errorf("user has no event after UserCreated")
 	}
-	if _, ok := events[0].(UserCreated); !ok {
+	ev, ok := events[0].(UserCreated)
+	if !ok {
 		t.Errorf("invalid event state for the user")
 	}
 
@@ -26,7 +66,8 @@ func TestUserCreated(t *testing.T) {
 }
 
 func TestUserAddFriendSuccess(t *testing.T) {
-	u, _ := NewUser("user", "password", NewUserIDSet())
+	ctx := context.Background()
+	u, _ := NewUser(ctx, userRepo, "user", "password", NewUserIDSet())
 	u.ID = 1 // it may not be allowed at application side.
 	friend := User{ID: u.ID + 1}
 	ev, err := u.AddFriend(friend)
@@ -55,7 +96,8 @@ func TestUserAddFriendSuccess(t *testing.T) {
 
 func TestUserAddFriendFail(t *testing.T) {
 	// fail case: Add itself as friend.
-	u, _ := NewUser("user", "password", NewUserIDSet())
+	ctx := context.Background()
+	u, _ := NewUser(ctx, userRepo, "user", "password", NewUserIDSet())
 	u.ID = 1 // it may not be allowed at application side.
 	_, err := u.AddFriend(u)
 	if err == nil {

@@ -37,9 +37,9 @@ type Room struct {
 	MemberIDSet UserIDSet
 }
 
-// create new Room entity. the retruned room holds RoomCreated event
-// which also returns the second result.
-func NewRoom(name string, memberIDs UserIDSet) (Room, RoomCreated) {
+// create new Room entity into the repository. It retruns room holding RoomCreated event
+// and error if any.
+func NewRoom(ctx context.Context, roomRepo RoomRepository, name string, memberIDs UserIDSet) (Room, error) {
 	r := Room{
 		EventHolder: NewEventHolder(),
 		ID:          0, // 0 means new entity
@@ -47,13 +47,21 @@ func NewRoom(name string, memberIDs UserIDSet) (Room, RoomCreated) {
 		IsTalkRoom:  false,
 		MemberIDSet: memberIDs,
 	}
+	id, err := roomRepo.Store(ctx, r)
+	if err != nil {
+		return r, err
+	}
+
+	r.ID = id
+
 	ev := RoomCreated{
 		Name:       name,
 		IsTalkRoom: false,
 		MemberIDs:  memberIDs.List(),
 	}
 	r.AddEvent(ev)
-	return r, ev // TODO event should be returned?
+
+	return r, nil
 }
 
 // It returns whether the room is newly.

@@ -55,13 +55,13 @@ func (s *ChatCommandService) PostRoomMessage(ctx context.Context, m action.ChatM
 	}
 
 	err = withTransaction(ctx, s.msgs, func(ctx context.Context) error {
-		msg, msgCreated, err := domain.NewRoomMessage(ctx, s.msgs, user, room, m.Content)
+		msg, err := domain.NewRoomMessage(ctx, s.msgs, user, room, m.Content)
 		if err != nil {
 			return err
 		}
 		msgID = msg.ID
 
-		s.pubsub.Pub(msgCreated)
+		s.pubsub.Pub(msg.Events()...)
 		return nil
 	})
 	return msgID, err

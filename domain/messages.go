@@ -27,6 +27,8 @@ type MessageRepository interface {
 }
 
 type Message struct {
+	EventHolder
+
 	// ID and CreatedAt are auto set.
 	ID        uint64    `db:"id"`
 	CreatedAt time.Time `db:"created_at"`
@@ -39,43 +41,52 @@ type Message struct {
 
 // NewRoomMessage creates new message for the specified room.
 // The created message is immediately stored into the repository.
-// It returns created message, its event and some error.
+// It returns new message holding event message created and error if any.
 func NewRoomMessage(
 	ctx context.Context,
 	msgs MessageRepository,
 	u User,
 	r Room,
 	content string,
-) (Message, MessageCreated, error) {
+) (Message, error) {
 	if u.IsNew() {
-		return Message{}, MessageCreated{}, errors.New("the user not in the datastore, can not create new message")
+		return Message{}, errors.New("the user not in the datastore, can not create new message")
 	}
 	if r.IsNew() {
-		return Message{}, MessageCreated{}, errors.New("the room not in the datastore, can not create new message")
+		return Message{}, errors.New("the room not in the datastore, can not create new message")
 	}
 	if !r.HasMember(u) {
-		return Message{}, MessageCreated{}, fmt.Errorf("user(id=%d) not a member of the room(id=%d), can not create message", u.ID, r.ID)
+		return Message{}, fmt.Errorf("user(id=%d) not a member of the room(id=%d), can not create message", u.ID, r.ID)
 	}
 
 	m := Message{
-		ID:        0,
-		CreatedAt: time.Now(),
-		Content:   content,
-		UserID:    u.ID,
-		RoomID:    r.ID,
-		Deleted:   false,
+		EventHolder: NewEventHolder(),
+		ID:          0,
+		CreatedAt:   time.Now(),
+		Content:     content,
+		UserID:      u.ID,
+		RoomID:      r.ID,
+		Deleted:     false,
 	}
-
-	var err error
-	m.ID, err = msgs.Store(ctx, m)
+	id, err := msgs.Store(ctx, m)
 	if err != nil {
-		return Message{}, MessageCreated{}, err
+		return Message{}, err
 	}
+	m.ID = id
 
-	ev := MessageCreated{MessageID: m.ID}
-	return m, ev, nil
+	ev := MessageCreated{
+		MessageID:  m.ID,
+		SenderName: u.Name,
+		Content:    content,
+	}
+	m.AddEvent(ev)
+
+	return m, nil
 }
 
+// ReadBy marks the message to read by specified user.
+// It returns such event, which is contained the message,
+// and error if any.
 func (m *Message) ReadBy(u User) (MessageReadByUser, error) {
 	if u.IsNew() {
 		return MessageReadByUser{}, errors.New("the user not in the datastore, can not read any message")
@@ -84,12 +95,15 @@ func (m *Message) ReadBy(u User) (MessageReadByUser, error) {
 		MessageID: m.ID,
 		UserID:    u.ID,
 	}
+	m.AddEvent(ev)
 	return ev, nil
 }
 
 // Event for the message is created.
 type MessageCreated struct {
-	MessageID uint64
+	MessageID  uint64
+	SenderName string
+	Content    string
 }
 
 func (MessageCreated) EventType() EventType { return EventMessageCreated }

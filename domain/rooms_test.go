@@ -1,17 +1,53 @@
 package domain
 
 import (
+	"context"
+	"database/sql"
 	"testing"
 )
 
+type RoomRepositoryStub struct{}
+
+func (r *RoomRepositoryStub) BeginTx(context.Context, *sql.TxOptions) (Tx, error) {
+	panic("not implemented")
+}
+
+func (r *RoomRepositoryStub) Find(ctx context.Context, roomID uint64) (Room, error) {
+	panic("not implemented")
+}
+
+func (r *RoomRepositoryStub) FindAllByUserID(ctx context.Context, userID uint64) ([]Room, error) {
+	panic("not implemented")
+}
+
+func (rr *RoomRepositoryStub) Store(ctx context.Context, r Room) (uint64, error) {
+	return r.ID + 1, nil
+}
+
+func (rr *RoomRepositoryStub) Remove(ctx context.Context, r Room) error {
+	panic("not implemented")
+}
+
+var roomRepo = &RoomRepositoryStub{}
+
 func TestRoomCreated(t *testing.T) {
-	r, ev := NewRoom("test", NewUserIDSet(1))
+	ctx := context.Background()
+	r, err := NewRoom(ctx, roomRepo, "test", NewUserIDSet(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if r.ID == 0 {
+		t.Fatalf("room is created but has invalid ID(%d)", r.ID)
+	}
+
 	// check whether room has one event,
 	events := r.Events()
 	if got := len(events); got != 1 {
 		t.Errorf("room has no event after RoomCreated")
 	}
-	if _, ok := events[0].(RoomCreated); !ok {
+	ev, ok := events[0].(RoomCreated)
+	if !ok {
 		t.Errorf("invalid event state for the room")
 	}
 
@@ -26,7 +62,8 @@ func TestRoomCreated(t *testing.T) {
 }
 
 func TestRoomAddMember(t *testing.T) {
-	r, _ := NewRoom("test", NewUserIDSet())
+	ctx := context.Background()
+	r, _ := NewRoom(ctx, roomRepo, "test", NewUserIDSet())
 	r.ID = 1 // it may not be allowed at application side.
 	u := User{ID: 1}
 	ev, err := r.AddMember(u)
