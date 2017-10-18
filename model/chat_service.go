@@ -55,7 +55,7 @@ func (s *ChatCommandService) PostRoomMessage(ctx context.Context, m action.ChatM
 	}
 
 	err = withTransaction(ctx, s.msgs, func(ctx context.Context) error {
-		msg, msgCreated, err := domain.NewMessage(ctx, s.msgs, user, room, m.Content)
+		msg, msgCreated, err := domain.NewRoomMessage(ctx, s.msgs, user, room, m.Content)
 		if err != nil {
 			return err
 		}

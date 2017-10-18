@@ -95,24 +95,3 @@ func (r *Room) AddMember(user User) (RoomAddedMember, error) {
 func (r *Room) HasMember(member User) bool {
 	return r.MemberIDSet.Has(member.ID)
 }
-
-// It adds the chat message to the room.
-// It returns action event and error when the user which send the message is not found
-// in the room.
-func (r *Room) PostMessage(user User, content string) (RoomPostedMessage, error) {
-	if r.ID == 0 {
-		return RoomPostedMessage{}, fmt.Errorf("newly room can not be posted new message")
-	}
-	// non room member's message is invalid.
-	if !r.HasMember(user) {
-		return RoomPostedMessage{}, fmt.Errorf("user(id=%d) is not a member in the room(id=%d)", user.ID, r.ID)
-	}
-
-	ev := RoomPostedMessage{
-		PostUserID:   user.ID,
-		PostedRoomID: r.ID,
-		Content:      content,
-	}
-	r.AddEvent(ev)
-	return ev, nil
-}

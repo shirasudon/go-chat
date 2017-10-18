@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 )
 
@@ -36,9 +37,10 @@ type Message struct {
 	Deleted bool   `db:"deleted"`
 }
 
-// NewMessage creates new message into the reposiotry.
+// NewRoomMessage creates new message for the specified room.
+// The created message is immediately stored into the repository.
 // It returns created message, its event and some error.
-func NewMessage(
+func NewRoomMessage(
 	ctx context.Context,
 	msgs MessageRepository,
 	u User,
@@ -50,6 +52,9 @@ func NewMessage(
 	}
 	if r.IsNew() {
 		return Message{}, MessageCreated{}, errors.New("the room not in the datastore, can not create new message")
+	}
+	if !r.HasMember(u) {
+		return Message{}, MessageCreated{}, fmt.Errorf("user(id=%d) not a member of the room(id=%d), can not create message", u.ID, r.ID)
 	}
 
 	m := Message{

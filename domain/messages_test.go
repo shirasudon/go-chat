@@ -30,9 +30,14 @@ func (m *MessageRepositoryStub) Store(ctx context.Context, msg Message) (uint64,
 
 var msgRepo MessageRepository = &MessageRepositoryStub{}
 
-func TestMessageCreated(t *testing.T) {
-	ctx := context.Background()
-	m, ev, err := NewMessage(ctx, msgRepo, User{ID: 1}, Room{ID: 1}, "content")
+func TestMessageCreatedSuccess(t *testing.T) {
+	var (
+		ctx  = context.Background()
+		user = User{ID: 1}
+		room = Room{ID: 1}
+	)
+	room.AddMember(user)
+	m, ev, err := NewRoomMessage(ctx, msgRepo, user, room, "content")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -42,9 +47,33 @@ func TestMessageCreated(t *testing.T) {
 	}
 }
 
+func TestMessageCreatedFail(t *testing.T) {
+	var (
+		ctx = context.Background()
+	)
+
+	for _, testcase := range []struct {
+		User
+		Room
+	}{
+		{User{ID: 0}, Room{ID: 1}},
+		{User{ID: 1}, Room{ID: 0}},
+		{User{ID: 0}, Room{ID: 0}},
+	} {
+		user, room := testcase.User, testcase.Room
+		room.AddMember(user)
+		_, _, err := NewRoomMessage(ctx, msgRepo, user, room, "content")
+		if err == nil {
+			t.Errorf("invalid combination of user and room, but no error: user(%d), room(%d)", user.ID, room.ID)
+		}
+	}
+}
+
 func TestMessageReadByUser(t *testing.T) {
 	ctx := context.Background()
-	m, _, err := NewMessage(ctx, msgRepo, User{ID: 1}, Room{ID: 1}, "content")
+	user, room := User{ID: 1}, Room{ID: 1}
+	room.AddMember(user)
+	m, _, err := NewRoomMessage(ctx, msgRepo, user, room, "content")
 	if err != nil {
 		t.Fatal(err)
 	}
