@@ -3,7 +3,7 @@ set -e
 COOKIE="login.cookie"
 
 echo "# login to the server"
-curl http://localhost:8080/login -XPOST -d "email=user&password=password" -c $COOKIE  
+curl http://localhost:8080/login -XPOST -d "name=user&password=password" -c $COOKIE  
 echo ""
 
 echo "# get login status"

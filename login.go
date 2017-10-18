@@ -18,12 +18,12 @@ func init() {
 type UserForm struct {
 	Name       string `json:"name" form:"name" query:"name"`
 	Password   string `json:"password" form:"password" query:"password"`
-	RememberMe bool   `json:"rememberMe" form:"rememberMe" query:"rememberMe"`
+	RememberMe bool   `json:"remember_me" form:"remember_me" query:"remember_me"`
 }
 
 type LoginState struct {
 	LoggedIn   bool   `json:"logged_in"`
-	RememberMe bool   `json:"rememberMe"`
+	RememberMe bool   `json:"remember_me"`
 	UserID     uint64 `json:"user_id"`
 	ErrorMsg   string `json:"error,omitempty"`
 }
