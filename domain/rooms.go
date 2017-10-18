@@ -103,3 +103,34 @@ func (r *Room) AddMember(user User) (RoomAddedMember, error) {
 func (r *Room) HasMember(member User) bool {
 	return r.MemberIDSet.Has(member.ID)
 }
+
+// -----------------------
+// Room events
+// -----------------------
+
+// Event for Room is created.
+type RoomCreated struct {
+	Name       string
+	IsTalkRoom bool
+	MemberIDs  []uint64
+}
+
+func (RoomCreated) EventType() EventType { return EventRoomCreated }
+
+// Event for Room is deleted.
+type RoomDeleted struct {
+	RoomID     uint64
+	Name       string
+	IsTalkRoom bool
+	MemberIDs  []uint64
+}
+
+func (RoomDeleted) EventType() EventType { return EventRoomDeleted }
+
+// Event for Room added new member.
+type RoomAddedMember struct {
+	RoomID      uint64
+	AddedUserID uint64
+}
+
+func (RoomAddedMember) EventType() EventType { return EventRoomAddedMember }

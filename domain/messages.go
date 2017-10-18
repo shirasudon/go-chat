@@ -84,6 +84,10 @@ func NewRoomMessage(
 	return m, nil
 }
 
+func (m *Message) IsNew() bool {
+	return m.ID == 0
+}
+
 // ReadBy marks the message to read by specified user.
 // It returns such event, which is contained the message,
 // and error if any.
@@ -98,6 +102,10 @@ func (m *Message) ReadBy(u User) (MessageReadByUser, error) {
 	m.AddEvent(ev)
 	return ev, nil
 }
+
+// -----------------------
+// Message events
+// -----------------------
 
 // Event for the message is created.
 type MessageCreated struct {

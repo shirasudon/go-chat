@@ -136,3 +136,24 @@ func (u *User) AddFriend(friend User) (UserAddedFriend, error) {
 func (u *User) HasFriend(friend User) bool {
 	return u.FriendIDs.Has(friend.ID)
 }
+
+// -----------------------
+// User events
+// -----------------------
+
+// Event for User is created.
+type UserCreated struct {
+	Name      string
+	Password  string
+	FriendIDs []uint64
+}
+
+func (UserCreated) EventType() EventType { return EventUserCreated }
+
+// Event for User is created.
+type UserAddedFriend struct {
+	UserID        uint64
+	AddedFriendID uint64
+}
+
+func (UserAddedFriend) EventType() EventType { return EventUserAddedFriend }
