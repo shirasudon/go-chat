@@ -39,9 +39,13 @@ func NewServer(repos domain.Repositories, conf *Config) *Server {
 		conf = &DefaultConfig
 	}
 
-	pubsub := pubsub.New(10)
+	e := echo.New()
+	e.HideBanner = true
+
+	pubsub := pubsub.New(context.Background(), 10)
 
 	s := &Server{
+		echo:         e,
 		loginHandler: NewLoginHandler(repos.Users()),
 		chatHub:      model.NewChatHub(repos, pubsub),
 		pubsub:       pubsub,
@@ -100,9 +104,7 @@ func (s *Server) ListenAndServe() error {
 	go s.chatHub.Listen(ctx)
 
 	// initilize router
-	e := echo.New()
-	e.HideBanner = true
-	s.echo = e
+	e := s.echo
 
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
