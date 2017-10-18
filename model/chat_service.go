@@ -26,6 +26,29 @@ func NewChatCommandService(repos domain.Repositories, pubsub Pubsub) *ChatComman
 	}
 }
 
+// Do function on the context of the transaction.
+// It also commits the some domain events returned from txFunc.
+func (s *ChatCommandService) withEventTransaction(
+	ctx context.Context,
+	txBeginner domain.TxBeginner,
+	txFunc func(ctx context.Context) ([]domain.Event, error),
+) error {
+	return withTransaction(ctx, txBeginner, func(ctx context.Context) error {
+		events, err := txFunc(ctx)
+		if err != nil {
+			return err
+		}
+
+		if events != nil {
+			s.pubsub.Pub(events...)
+		}
+		return nil
+	})
+}
+
+// Do function on the context of the transaction.
+// The transaction begins before run the txFunc, then run the txFunc, then commit if txFunc returns nil.
+// The transaction is rollbacked if txFunc returns some error.
 func withTransaction(ctx context.Context, txBeginner domain.TxBeginner, txFunc func(ctx context.Context) error) error {
 	tx, err := txBeginner.BeginTx(ctx, nil)
 	if err != nil {
@@ -54,15 +77,14 @@ func (s *ChatCommandService) PostRoomMessage(ctx context.Context, m action.ChatM
 		return 0, err
 	}
 
-	err = withTransaction(ctx, s.msgs, func(ctx context.Context) error {
+	err = s.withEventTransaction(ctx, s.msgs, func(ctx context.Context) ([]domain.Event, error) {
 		msg, err := domain.NewRoomMessage(ctx, s.msgs, user, room, m.Content)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		msgID = msg.ID
 
-		s.pubsub.Pub(msg.Events()...)
-		return nil
+		return msg.Events(), nil
 	})
 	return msgID, err
 }
@@ -75,25 +97,24 @@ func (s ChatCommandService) ReadRoomMessage(ctx context.Context, m action.ReadMe
 		return err
 	}
 
-	txErr := withTransaction(ctx, s.msgs, func(ctx context.Context) error {
+	txErr := s.withEventTransaction(ctx, s.msgs, func(ctx context.Context) ([]domain.Event, error) {
 		// TODO implement FindAllByMessageIDs.
 		msg, err := s.msgs.Find(ctx, m.MessageIDs[0])
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		readMsg, err := msg.ReadBy(user)
+		_, err = msg.ReadBy(user)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		_, err = s.msgs.Store(ctx, msg)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		s.pubsub.Pub(readMsg)
-		return nil
+		return msg.Events(), nil
 	})
 	return txErr
 }
