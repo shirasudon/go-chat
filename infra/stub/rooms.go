@@ -67,19 +67,52 @@ func (repo *RoomRepository) Create(ctx context.Context, r domain.Room) (uint64, 
 	roomCounter += 1
 	r.ID = roomCounter
 	roomMap[r.ID] = &r
+
+	memberIDs := r.MemberIDs()
+	userIDs := make(map[uint64]bool, len(memberIDs))
+	for _, memberID := range memberIDs {
+		userIDs[memberID] = true
+	}
+	roomToUsersMap[r.ID] = userIDs
+
 	return r.ID, nil
 }
 
 func (repo *RoomRepository) Update(ctx context.Context, r domain.Room) (uint64, error) {
 	if _, ok := roomMap[r.ID]; !ok {
-		return 0, fmt.Errorf("room(id=%d) is not in the datastore")
+		return 0, fmt.Errorf("room(id=%d) is not in the datastore", r.ID)
 	}
+
+	// update room
 	roomMap[r.ID] = &r
+
+	userIDs := roomToUsersMap[r.ID]
+	if userIDs == nil {
+		userIDs = make(map[uint64]bool)
+		roomToUsersMap[r.ID] = userIDs
+	}
+
+	// prepare user existance to off.
+	for uid, _ := range userIDs {
+		userIDs[uid] = false
+	}
+	// set user existance to on.
+	for _, memberID := range r.MemberIDs() {
+		userIDs[memberID] = true
+	}
+	// remove users deleteted from the room.
+	for uid, exist := range userIDs {
+		if !exist {
+			delete(userIDs, uid)
+		}
+	}
+
 	return r.ID, nil
 }
 
 func (repo *RoomRepository) Remove(ctx context.Context, r domain.Room) error {
 	delete(roomMap, r.ID)
+	delete(roomToUsersMap, r.ID)
 	return nil
 }
 
