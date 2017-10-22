@@ -5,6 +5,8 @@ import (
 	"fmt"
 )
 
+//go:generate mockgen -destination=../mocks/mock_rooms.go -package=mocks github.com/shirasudon/go-chat/domain RoomRepository
+
 type RoomRepository interface {
 	TxBeginner
 
@@ -64,6 +66,32 @@ func NewRoom(ctx context.Context, roomRepo RoomRepository, name string, memberID
 	return r, nil
 }
 
+// It deletes the room from repository.
+// After successing that, the room holds RoomDeleted event.
+func (r *Room) Delete(ctx context.Context, repo RoomRepository) error {
+	if r.IsNew() {
+		return fmt.Errorf("the room not in the datastore, can not be deleted")
+	}
+
+	err := repo.Remove(ctx, *r)
+	if err != nil {
+		return err
+	}
+
+	removedID := r.ID
+	r.ID = 0 // means not in the repository.
+
+	ev := RoomDeleted{
+		RoomID:     removedID,
+		Name:       r.Name,
+		IsTalkRoom: r.IsTalkRoom,
+		MemberIDs:  r.MemberIDs(),
+	}
+	r.AddEvent(ev)
+
+	return nil
+}
+
 // It returns whether the room is newly.
 func (r *Room) IsNew() bool {
 	return r.ID == 0
@@ -78,10 +106,10 @@ func (r *Room) MemberIDs() []uint64 {
 // It returns the event adding to the room, and error
 // when the user already exist in the room.
 func (r *Room) AddMember(user User) (RoomAddedMember, error) {
-	if r.ID == 0 {
+	if r.IsNew() {
 		return RoomAddedMember{}, fmt.Errorf("newly room can not be added new member")
 	}
-	if user.ID == 0 {
+	if user.IsNew() {
 		return RoomAddedMember{}, fmt.Errorf("the user not in the datastore, can not be a room member")
 	}
 	if r.HasMember(user) {

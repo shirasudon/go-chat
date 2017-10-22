@@ -25,7 +25,7 @@ func (rr *RoomRepositoryStub) Store(ctx context.Context, r Room) (uint64, error)
 }
 
 func (rr *RoomRepositoryStub) Remove(ctx context.Context, r Room) error {
-	panic("not implemented")
+	return nil
 }
 
 var roomRepo = &RoomRepositoryStub{}
@@ -58,7 +58,54 @@ func TestRoomCreated(t *testing.T) {
 	if got := len(ev.MemberIDs); got != 1 {
 		t.Errorf("RoomCreated has dieffrent room members size, expect: %d, got: %d", 1, got)
 	}
+}
 
+func TestRoomDeletedSuccess(t *testing.T) {
+	ctx := context.Background()
+	r, err := NewRoom(ctx, roomRepo, "test", NewUserIDSet(1))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var deletedID = r.ID
+	err = r.Delete(ctx, roomRepo)
+	if err != nil {
+		t.Fatalf("can not be deleted the room")
+	}
+
+	if !r.IsNew() {
+		t.Fatalf("room is deleted but has invalid ID(%d)", r.ID)
+	}
+
+	// check whether room has deleted event,
+	// currently two events: created and deleted.
+	events := r.Events()
+	if got := len(events); got != 2 {
+		t.Errorf("room has invalid event after RoomCreated and RoomDeleted")
+	}
+	ev, ok := events[1].(RoomDeleted)
+	if !ok {
+		t.Errorf("invalid event state for the room")
+	}
+
+	// check whether room deleted event is valid.
+	if got := ev.RoomID; got != deletedID {
+		t.Errorf("RoomDeleted has different room id, expect: %s, got: %s", deletedID, got)
+	}
+	if got := ev.Name; got != r.Name {
+		t.Errorf("RoomDeleted has different room name, expect: %s, got: %s", r.Name, got)
+	}
+	if got, expect := len(ev.MemberIDs), len(r.MemberIDs()); got != expect {
+		t.Errorf("RoomDeleted has dieffrent room members size, expect: %d, got: %d", expect, got)
+	}
+}
+
+func TestRoomDeletedFail(t *testing.T) {
+	ctx := context.Background()
+	err := (&Room{}).Delete(ctx, roomRepo)
+	if err == nil {
+		t.Fatalf("the room not in the datastore is deleted")
+	}
 }
 
 func TestRoomAddMember(t *testing.T) {

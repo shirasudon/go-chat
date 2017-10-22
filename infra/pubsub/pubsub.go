@@ -1,8 +1,6 @@
 package pubsub
 
 import (
-	"context"
-
 	"github.com/cskr/pubsub"
 
 	"github.com/shirasudon/go-chat/domain"
@@ -10,16 +8,12 @@ import (
 
 type PubSub struct {
 	pubsub *pubsub.PubSub
-	ctx    context.Context
 }
 
-func New(ctx context.Context, capacity int) *PubSub {
-	pubsub := &PubSub{pubsub: pubsub.New(capacity), ctx: ctx}
-	// TODO cancelation using context
+func New(capacity int) *PubSub {
+	pubsub := &PubSub{pubsub: pubsub.New(capacity)}
 	return pubsub
 }
-
-func (ps *PubSub) Context() context.Context { return ps.ctx }
 
 // subscribes specified EventType and return message channel.
 func (ps *PubSub) Sub(typ domain.EventType) chan interface{} {

@@ -11,19 +11,46 @@ import (
 // creating/updating/editing/deleting the application
 // data.
 type ChatCommandService struct {
-	msgs   domain.MessageRepository
-	users  domain.UserRepository
-	rooms  domain.RoomRepository
-	pubsub Pubsub
+	msgs         domain.MessageRepository
+	users        domain.UserRepository
+	rooms        domain.RoomRepository
+	pubsub       Pubsub
+	updateCancel chan struct{}
 }
 
 func NewChatCommandService(repos domain.Repositories, pubsub Pubsub) *ChatCommandService {
 	return &ChatCommandService{
-		msgs:   repos.Messages(),
-		users:  repos.Users(),
-		rooms:  repos.Rooms(),
-		pubsub: pubsub,
+		msgs:         repos.Messages(),
+		users:        repos.Users(),
+		rooms:        repos.Rooms(),
+		pubsub:       pubsub,
+		updateCancel: make(chan struct{}),
 	}
+}
+
+// Run updating service for the domain events.
+// It blocks until calling CancelUpdate() or context is done.
+func (s *ChatCommandService) RunUpdateService(ctx context.Context) {
+	roomDeleted := s.pubsub.Sub(domain.EventRoomDeleted)
+	for {
+		select {
+		case ev := <-roomDeleted:
+			deleted := ev.(domain.RoomDeleted)
+			err := s.msgs.RemoveAllByRoomID(ctx, deleted.RoomID)
+			// TODO error handling, create ErrorEvent? or just log?
+			_ = err
+		case <-ctx.Done():
+			return
+		case <-s.updateCancel:
+			return
+		}
+	}
+}
+
+// Stop RunUpdateService(). Multiple calling will
+// occurs panic.
+func (s *ChatCommandService) CancelUpdateService() {
+	close(s.updateCancel)
 }
 
 // Do function on the context of the transaction.

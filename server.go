@@ -42,7 +42,7 @@ func NewServer(repos domain.Repositories, conf *Config) *Server {
 	e := echo.New()
 	e.HideBanner = true
 
-	pubsub := pubsub.New(context.Background(), 10)
+	pubsub := pubsub.New(10)
 
 	s := &Server{
 		echo:         e,

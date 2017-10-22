@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+//go:generate mockgen -destination=../mocks/mock_messages.go -package=mocks github.com/shirasudon/go-chat/domain MessageRepository
+
 type MessageRepository interface {
 	TxBeginner
 
