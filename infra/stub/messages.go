@@ -2,61 +2,87 @@ package stub
 
 import (
 	"context"
-	"errors"
+	"sort"
 	"time"
 
 	"github.com/shirasudon/go-chat/domain"
 )
 
+var (
+	messageMap = map[uint64]domain.Message{}
+
+	messageCounter uint64 = uint64(len(messageMap))
+)
+
 type MessageRepository struct {
 	domain.EmptyTxBeginner
-
-	messages []domain.Message
 }
 
 func NewMessageRepository() *MessageRepository {
-	return &MessageRepository{
-		messages: make([]domain.Message, 0, 100),
-	}
+	return &MessageRepository{}
 }
 
 func (repo *MessageRepository) Find(ctx context.Context, msgID uint64) (domain.Message, error) {
-	return repo.messages[0], nil
-}
-
-func (repo *MessageRepository) LatestRoomMessages(ctx context.Context, roomID uint64, n int) ([]domain.Message, error) {
-	l := len(repo.messages)
-	if offset := l - n; offset > 0 {
-		return repo.messages[offset : offset+n], nil
+	m, ok := messageMap[msgID]
+	if ok {
+		return m, nil
 	}
-	return repo.messages[:], nil
+	return domain.Message{}, ErrNotFound
 }
 
-func (repo *MessageRepository) PreviousRoomMessages(ctx context.Context, offset domain.Message, n int) ([]domain.Message, error) {
-	var offsetIdx int
-	for i, m := range repo.messages {
-		if m.ID > offset.ID {
-			offsetIdx = i
-			break
+func (repo *MessageRepository) FindAllByRoomIDOrderByLatest(ctx context.Context, roomID uint64, n int) ([]domain.Message, error) {
+	if n <= 0 {
+		return []domain.Message{}, nil
+	}
+
+	msgs := make([]domain.Message, 0, n)
+	for _, m := range messageMap {
+		if m.RoomID == roomID {
+			msgs = append(msgs, m)
+			if len(msgs) == n {
+				break
+			}
 		}
 	}
-	if offsetIdx == 0 {
-		return nil, errors.New("not found")
+
+	sort.Slice(msgs, func(i, j int) bool { return msgs[i].CreatedAt.After(msgs[j].CreatedAt) })
+	return msgs, nil
+}
+
+func (repo *MessageRepository) FindPreviousMessagesOrderByLatest(ctx context.Context, offset domain.Message, n int) ([]domain.Message, error) {
+	if n <= 0 {
+		return []domain.Message{}, nil
 	}
-	if offsetIdx < n {
-		return repo.messages[:offsetIdx], nil
+
+	msgs := make([]domain.Message, 0, n)
+	for _, m := range messageMap {
+		if m.CreatedAt.Before(offset.CreatedAt) {
+			msgs = append(msgs, m)
+			if len(msgs) == n {
+				break
+			}
+		}
 	}
-	return repo.messages[offsetIdx-n : offsetIdx], nil
+
+	sort.Slice(msgs, func(i, j int) bool { return msgs[i].CreatedAt.After(msgs[j].CreatedAt) })
+	return msgs, nil
 }
 
 func (repo *MessageRepository) Store(ctx context.Context, m domain.Message) (uint64, error) {
-	m.ID = uint64(len(repo.messages))
+	// TODO create or update
+	messageCounter += 1
+	m.ID = messageCounter
 	m.CreatedAt = time.Now()
-	repo.messages = append(repo.messages)
+	messageMap[m.ID] = m
+
 	return m.ID, nil
 }
 
-func (repo *MessageRepository) ReadMessage(ctx context.Context, roomID, userID uint64, messageIDs []uint64) error {
-	// No-op
+func (repo *MessageRepository) RemoveAllByRoomID(ctx context.Context, roomID uint64) error {
+	for id, m := range messageMap {
+		if m.RoomID == roomID {
+			delete(messageMap, id)
+		}
+	}
 	return nil
 }

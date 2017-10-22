@@ -12,18 +12,24 @@ type MessageRepository interface {
 
 	Find(ctx context.Context, msgID uint64) (Message, error)
 
-	// LatestRoomMessages returns latest n-messages from the room having room id.
-	LatestRoomMessages(ctx context.Context, roomID uint64, n int) ([]Message, error)
-	// PreviousRoomMessages returns n-messages before offset message.
-	// offset message is excluded from result.
-	// Typically offset message is got by first of the result of LatestRoomMessages().
-	PreviousRoomMessages(ctx context.Context, offset Message, n int) ([]Message, error)
+	// FindAllByRoomIDOrderByLatest returns n-messages having the room id,
+	// ordering latest message is first.
+	// The number of the returned messages may be less than n when the number of found messages
+	// is less than n.
+	FindAllByRoomIDOrderByLatest(ctx context.Context, roomID uint64, n int) ([]Message, error)
+	// FindPreviousMessagesOrderByLatest returns n-messages after the offset message,
+	// ordering latest message is first.
+	// The offset message is excluded from result.
+	FindPreviousMessagesOrderByLatest(ctx context.Context, offset Message, n int) ([]Message, error)
 
 	// Store stores given message to the repository.
 	// user need not to set ID for message since it is auto set
 	// when message is newly.
 	// It returns stored Message ID and error.
 	Store(ctx context.Context, m Message) (uint64, error)
+
+	// RemoveAllByRoomID removes all messages related with roomID.
+	RemoveAllByRoomID(ctx context.Context, roomID uint64) error
 }
 
 type Message struct {

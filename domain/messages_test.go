@@ -16,16 +16,20 @@ func (m *MessageRepositoryStub) Find(ctx context.Context, msgID uint64) (Message
 	panic("not implemented")
 }
 
-func (m *MessageRepositoryStub) LatestRoomMessages(ctx context.Context, roomID uint64, n int) ([]Message, error) {
+func (m *MessageRepositoryStub) FindAllByRoomIDOrderByLatest(ctx context.Context, roomID uint64, n int) ([]Message, error) {
 	panic("not implemented")
 }
 
-func (m *MessageRepositoryStub) PreviousRoomMessages(ctx context.Context, offset Message, n int) ([]Message, error) {
+func (m *MessageRepositoryStub) FindPreviousMessagesOrderByLatest(ctx context.Context, offset Message, n int) ([]Message, error) {
 	panic("not implemented")
 }
 
 func (m *MessageRepositoryStub) Store(ctx context.Context, msg Message) (uint64, error) {
 	return msg.ID + 1, nil
+}
+
+func (m *MessageRepositoryStub) RemoveAllByRoomID(ctx context.Context, roomID uint64) error {
+	panic("not implemented")
 }
 
 var msgRepo MessageRepository = &MessageRepositoryStub{}
