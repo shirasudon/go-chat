@@ -1,4 +1,4 @@
-package stub
+package inmemory
 
 import (
 	"github.com/shirasudon/go-chat/domain"
