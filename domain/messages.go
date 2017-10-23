@@ -57,10 +57,10 @@ func NewRoomMessage(
 	r Room,
 	content string,
 ) (Message, error) {
-	if u.IsNew() {
+	if u.NotExist() {
 		return Message{}, errors.New("the user not in the datastore, can not create new message")
 	}
-	if r.IsNew() {
+	if r.NotExist() {
 		return Message{}, errors.New("the room not in the datastore, can not create new message")
 	}
 	if !r.HasMember(u) {
@@ -92,15 +92,15 @@ func NewRoomMessage(
 	return m, nil
 }
 
-func (m *Message) IsNew() bool {
-	return m.ID == 0
+func (m *Message) NotExist() bool {
+	return m == nil || m.ID == 0
 }
 
 // ReadBy marks the message to read by specified user.
 // It returns such event, which is contained the message,
 // and error if any.
 func (m *Message) ReadBy(u User) (MessageReadByUser, error) {
-	if u.IsNew() {
+	if u.NotExist() {
 		return MessageReadByUser{}, errors.New("the user not in the datastore, can not read any message")
 	}
 	ev := MessageReadByUser{

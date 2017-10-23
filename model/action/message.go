@@ -47,6 +47,17 @@ func (a AnyMessage) Array(key string) []interface{} {
 	return n
 }
 
+func (a AnyMessage) UInt64s(key string) []uint64 {
+	anys := a.Array(key)
+	uint64s := make([]uint64, 0, len(anys))
+	for _, v := range anys {
+		if n, ok := v.(float64); ok {
+			uint64s = append(uint64s, uint64(n))
+		}
+	}
+	return uint64s
+}
+
 func (a AnyMessage) Object(key string) map[string]interface{} {
 	n, _ := a[key].(map[string]interface{})
 	return n
@@ -239,14 +250,7 @@ func ParseReadMessage(m AnyMessage, action Action) (ReadMessage, error) {
 	rm := ReadMessage{}
 	rm.ActionName = action
 	rm.ChatActionFields.ParseFields(m)
-	anys := m.Array("message_ids")
-	msg_ids := make([]uint64, 0, len(anys))
-	for _, v := range anys {
-		if n, ok := v.(float64); ok {
-			msg_ids = append(msg_ids, uint64(n))
-		}
-	}
-	rm.MessageIDs = msg_ids
+	rm.MessageIDs = m.UInt64s("message_ids")
 	return rm, nil
 }
 
@@ -288,4 +292,46 @@ func ParseTypeEnd(m AnyMessage, action Action) (TypeEnd, error) {
 	te.ActionName = action
 	te.ChatActionFields.ParseFields(m)
 	return te, nil
+}
+
+// CreateRoom indicates action for a request for creating room.
+// it implements ActionMessage interface.
+type CreateRoom struct {
+	EmbdFields
+
+	SenderID      uint64   `json:"sender_id"`
+	RoomName      string   `json:"room_name"`
+	RoomMemberIDs []uint64 `json:"room_member_ids"`
+}
+
+func ParseCreateRoom(m AnyMessage, action Action) (CreateRoom, error) {
+	if action != ActionCreateRoom {
+		return CreateRoom{}, errors.New("CreateRoom: invalid action")
+	}
+	cr := CreateRoom{}
+	cr.ActionName = action
+	cr.SenderID = uint64(m.Number("sender_id"))
+	cr.RoomName = m.String("room_name")
+	cr.RoomMemberIDs = m.UInt64s("room_member_ids")
+	return cr, nil
+}
+
+// DeleteRoom indicates action for a request for deleting room.
+// it implements ActionMessage interface.
+type DeleteRoom struct {
+	EmbdFields
+
+	SenderID uint64 `json:"sender_id"`
+	RoomID   uint64 `json:"room_id"`
+}
+
+func ParseDeleteRoom(m AnyMessage, action Action) (DeleteRoom, error) {
+	if action != ActionDeleteRoom {
+		return DeleteRoom{}, errors.New("DeleteRoom: invalid action")
+	}
+	dr := DeleteRoom{}
+	dr.ActionName = action
+	dr.SenderID = uint64(m.Number("sender_id"))
+	dr.RoomID = uint64(m.Number("room_id"))
+	return dr, nil
 }

@@ -32,13 +32,17 @@ var roomRepo = &RoomRepositoryStub{}
 
 func TestRoomCreated(t *testing.T) {
 	ctx := context.Background()
-	r, err := NewRoom(ctx, roomRepo, "test", NewUserIDSet(1))
+	owner := &User{ID: 3}
+	r, err := NewRoom(ctx, roomRepo, "test", owner, NewUserIDSet(1))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	if r.ID == 0 {
 		t.Fatalf("room is created but has invalid ID(%d)", r.ID)
+	}
+	if !r.MemberIDSet.Has(owner.ID) {
+		t.Fatalf("created room does not have owner id as room member, expect id: %d", owner.ID)
 	}
 
 	// check whether room has one event,
@@ -55,25 +59,26 @@ func TestRoomCreated(t *testing.T) {
 	if got := ev.Name; got != "test" {
 		t.Errorf("RoomCreated has different room name, expect: %s, got: %s", "test", got)
 	}
-	if got := len(ev.MemberIDs); got != 1 {
-		t.Errorf("RoomCreated has dieffrent room members size, expect: %d, got: %d", 1, got)
+	if got, expect := len(ev.MemberIDs), len(r.MemberIDs()); got != expect {
+		t.Errorf("RoomCreated has dieffrent room members size, expect: %d, got: %d", expect, got)
 	}
 }
 
 func TestRoomDeletedSuccess(t *testing.T) {
 	ctx := context.Background()
-	r, err := NewRoom(ctx, roomRepo, "test", NewUserIDSet(1))
+	owner := &User{ID: 3}
+	r, err := NewRoom(ctx, roomRepo, "test", owner, NewUserIDSet(1))
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	var deletedID = r.ID
-	err = r.Delete(ctx, roomRepo)
+	err = r.Delete(ctx, roomRepo, owner)
 	if err != nil {
 		t.Fatalf("can not be deleted the room")
 	}
 
-	if !r.IsNew() {
+	if !r.NotExist() {
 		t.Fatalf("room is deleted but has invalid ID(%d)", r.ID)
 	}
 
@@ -102,7 +107,7 @@ func TestRoomDeletedSuccess(t *testing.T) {
 
 func TestRoomDeletedFail(t *testing.T) {
 	ctx := context.Background()
-	err := (&Room{}).Delete(ctx, roomRepo)
+	err := (&Room{}).Delete(ctx, roomRepo, &User{})
 	if err == nil {
 		t.Fatalf("the room not in the datastore is deleted")
 	}
@@ -110,7 +115,8 @@ func TestRoomDeletedFail(t *testing.T) {
 
 func TestRoomAddMember(t *testing.T) {
 	ctx := context.Background()
-	r, _ := NewRoom(ctx, roomRepo, "test", NewUserIDSet())
+	owner := &User{ID: 3}
+	r, _ := NewRoom(ctx, roomRepo, "test", owner, NewUserIDSet())
 	r.ID = 1 // it may not be allowed at application side.
 	u := User{ID: 1}
 	ev, err := r.AddMember(u)

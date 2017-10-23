@@ -57,8 +57,8 @@ func NewServer(repos domain.Repositories, conf *Config) *Server {
 }
 
 func (s *Server) serveChatWebsocket(c echo.Context) error {
-	// KeyLoggedInUserID is set at middleware layer, loginHandler.Filter.
-	userID, ok := c.Get(KeyLoggedInUserID).(uint64)
+	// LoggedInUserID is valid at middleware layer, loginHandler.Filter.
+	userID, ok := s.loginHandler.LoggedInUserID(c)
 	if !ok {
 		return errors.New("needs logged in, but access without logged in state")
 	}
@@ -115,15 +115,15 @@ func (s *Server) ListenAndServe() error {
 	e.GET("/login", s.loginHandler.GetLoginState)
 	e.POST("/logout", s.loginHandler.Logout)
 
-	// set websocket handler
-	{
-		chatPath := strings.TrimSuffix(s.conf.ChatPath, "/")
-		chatGroup := e.Group(chatPath, s.loginHandler.Filter())
-		wsRoute := chatGroup.GET("/ws", s.serveChatWebsocket)
+	chatPath := strings.TrimSuffix(s.conf.ChatPath, "/")
+	chatGroup := e.Group(chatPath, s.loginHandler.Filter())
+	log.Println("chat API listen at " + chatPath)
 
-		log.Println("chat API listen at " + chatPath)
-		log.Println("chat API accepts websocket connection at " + wsRoute.Path)
-	}
+	// TODO set restHandler
+
+	// set websocket handler
+	wsRoute := chatGroup.GET("/ws", s.serveChatWebsocket)
+	log.Println("chat API accepts websocket connection at " + wsRoute.Path)
 
 	// serve static content
 	e.Static("/", "")

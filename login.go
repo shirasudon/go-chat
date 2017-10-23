@@ -2,6 +2,7 @@ package chat
 
 import (
 	"encoding/gob"
+	"errors"
 	"net/http"
 
 	"github.com/ipfans/echo-session"
@@ -150,3 +151,13 @@ func (lh *LoginHandler) Filter() echo.MiddlewareFunc {
 		}
 	}
 }
+
+// get logged in user id which is valid after LoginHandler.Filter.
+// the second returned value is false if logged in
+// user id is not found.
+func (lh *LoginHandler) LoggedInUserID(c echo.Context) (uint64, bool) {
+	userID, ok := c.Get(KeyLoggedInUserID).(uint64)
+	return userID, ok
+}
+
+var ErrRequireLoginFirst = errors.New("require login first")

@@ -108,7 +108,8 @@ func NewUser(ctx context.Context, userRepo UserRepository, name string, password
 	return u, nil
 }
 
-func (u *User) IsNew() bool { return u.ID == 0 }
+// return whether user is not in the datastore.
+func (u *User) NotExist() bool { return u == nil || u.ID == 0 }
 
 // It adds the friend to the user.
 // It returns the event adding into the user, and error

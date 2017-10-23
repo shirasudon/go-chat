@@ -43,7 +43,7 @@ func (repo UserRepository) FindByNameAndPassword(ctx context.Context, name, pass
 }
 
 func (repo UserRepository) Store(ctx context.Context, u domain.User) (uint64, error) {
-	if u.IsNew() {
+	if u.NotExist() {
 		return repo.Create(ctx, u)
 	} else {
 		return repo.Update(ctx, u)

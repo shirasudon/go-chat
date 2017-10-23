@@ -90,6 +90,55 @@ func withTransaction(ctx context.Context, txBeginner domain.TxBeginner, txFunc f
 	return tx.Commit()
 }
 
+// It creates room specified by given actiom message.
+// It returns created Room's ID and error if any.
+func (s *ChatCommandService) CreateRoom(ctx context.Context, m action.CreateRoom) (roomID uint64, err error) {
+	user, err := s.users.Find(ctx, m.SenderID)
+	if err != nil {
+		return 0, err
+	}
+
+	err = s.withEventTransaction(ctx, s.rooms, func(ctx context.Context) ([]domain.Event, error) {
+		room, err := domain.NewRoom(
+			ctx, s.rooms, m.RoomName,
+			&user, domain.NewUserIDSet(m.RoomMemberIDs...),
+		)
+		if err != nil {
+			return nil, err
+		}
+		roomID = room.ID
+
+		return room.Events(), nil
+	})
+	return roomID, err
+}
+
+// It deletes room specified by given actiom message. It returns deleted Room's ID and
+// error if any.
+func (s *ChatCommandService) DeleteRoom(ctx context.Context, m action.DeleteRoom) (roomID uint64, err error) {
+	user, err := s.users.Find(ctx, m.SenderID)
+	if err != nil {
+		return 0, err
+	}
+
+	err = s.withEventTransaction(ctx, s.rooms, func(ctx context.Context) ([]domain.Event, error) {
+		room, err := s.rooms.Find(ctx, m.RoomID)
+		if err != nil {
+			return nil, err
+		}
+		// room ID to delete
+		roomID = room.ID
+
+		err = room.Delete(ctx, s.rooms, &user)
+		if err != nil {
+			return nil, err
+		}
+
+		return room.Events(), nil
+	})
+	return roomID, err
+}
+
 // Post the message to the specified room.
 // It returns posted message id and nil or error
 // which indicates the message can not be posted.

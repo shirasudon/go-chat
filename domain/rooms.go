@@ -36,27 +36,39 @@ type Room struct {
 	Name       string
 	IsTalkRoom bool
 
+	OwnerID     uint64
 	MemberIDSet UserIDSet
 }
 
 // create new Room entity into the repository. It retruns room holding RoomCreated event
 // and error if any.
-func NewRoom(ctx context.Context, roomRepo RoomRepository, name string, memberIDs UserIDSet) (Room, error) {
-	r := Room{
+func NewRoom(ctx context.Context, roomRepo RoomRepository, name string, user *User, memberIDs UserIDSet) (*Room, error) {
+	if user.NotExist() {
+		return nil, fmt.Errorf("the user not in the datastore, can not create room")
+	}
+
+	// room owner should be contain in the MemberIDSet.
+	if !memberIDs.Has(user.ID) {
+		memberIDs.Add(user.ID)
+	}
+
+	r := &Room{
 		EventHolder: NewEventHolder(),
 		ID:          0, // 0 means new entity
 		Name:        name,
 		IsTalkRoom:  false,
+		OwnerID:     user.ID,
 		MemberIDSet: memberIDs,
 	}
-	id, err := roomRepo.Store(ctx, r)
+	id, err := roomRepo.Store(ctx, *r)
 	if err != nil {
-		return r, err
+		return nil, err
 	}
 
 	r.ID = id
 
 	ev := RoomCreated{
+		OwnerID:    user.ID,
 		Name:       name,
 		IsTalkRoom: false,
 		MemberIDs:  memberIDs.List(),
@@ -68,9 +80,15 @@ func NewRoom(ctx context.Context, roomRepo RoomRepository, name string, memberID
 
 // It deletes the room from repository.
 // After successing that, the room holds RoomDeleted event.
-func (r *Room) Delete(ctx context.Context, repo RoomRepository) error {
-	if r.IsNew() {
+func (r *Room) Delete(ctx context.Context, repo RoomRepository, user *User) error {
+	if r.NotExist() {
 		return fmt.Errorf("the room not in the datastore, can not be deleted")
+	}
+	if user.NotExist() {
+		return fmt.Errorf("the user not in the datastore, can not delete the room")
+	}
+	if r.OwnerID != user.ID {
+		return fmt.Errorf("the user not be owner for the room, can not delete the room")
 	}
 
 	err := repo.Remove(ctx, *r)
@@ -83,6 +101,7 @@ func (r *Room) Delete(ctx context.Context, repo RoomRepository) error {
 
 	ev := RoomDeleted{
 		RoomID:     removedID,
+		OwnerID:    user.ID,
 		Name:       r.Name,
 		IsTalkRoom: r.IsTalkRoom,
 		MemberIDs:  r.MemberIDs(),
@@ -93,8 +112,8 @@ func (r *Room) Delete(ctx context.Context, repo RoomRepository) error {
 }
 
 // It returns whether the room is newly.
-func (r *Room) IsNew() bool {
-	return r.ID == 0
+func (r *Room) NotExist() bool {
+	return r == nil || r.ID == 0
 }
 
 // It returns a deep copy of the room member's IDs as list.
@@ -106,10 +125,10 @@ func (r *Room) MemberIDs() []uint64 {
 // It returns the event adding to the room, and error
 // when the user already exist in the room.
 func (r *Room) AddMember(user User) (RoomAddedMember, error) {
-	if r.IsNew() {
+	if r.NotExist() {
 		return RoomAddedMember{}, fmt.Errorf("newly room can not be added new member")
 	}
-	if user.IsNew() {
+	if user.NotExist() {
 		return RoomAddedMember{}, fmt.Errorf("the user not in the datastore, can not be a room member")
 	}
 	if r.HasMember(user) {
@@ -138,6 +157,7 @@ func (r *Room) HasMember(member User) bool {
 
 // Event for Room is created.
 type RoomCreated struct {
+	OwnerID    uint64
 	Name       string
 	IsTalkRoom bool
 	MemberIDs  []uint64
@@ -147,6 +167,7 @@ func (RoomCreated) EventType() EventType { return EventRoomCreated }
 
 // Event for Room is deleted.
 type RoomDeleted struct {
+	OwnerID    uint64
 	RoomID     uint64
 	Name       string
 	IsTalkRoom bool
