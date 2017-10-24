@@ -7,17 +7,17 @@ import (
 
 	"github.com/labstack/echo"
 
-	"github.com/shirasudon/go-chat/model"
-	"github.com/shirasudon/go-chat/model/action"
+	"github.com/shirasudon/go-chat/chat"
+	"github.com/shirasudon/go-chat/chat/action"
 )
 
 type RESTHandler struct {
 	loginHandler *LoginHandler
-	cmdService   *model.ChatCommandService
-	queryService *model.ChatQueryService
+	cmdService   *chat.CommandService
+	queryService *chat.QueryService
 }
 
-func NewRESTHandler(loginHandler *LoginHandler, cmdService *model.ChatCommandService, queryService *model.ChatQueryService) *RESTHandler {
+func NewRESTHandler(loginHandler *LoginHandler, cmdService *chat.CommandService, queryService *chat.QueryService) *RESTHandler {
 	return &RESTHandler{
 		loginHandler: loginHandler,
 		cmdService:   cmdService,

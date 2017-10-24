@@ -1,10 +1,10 @@
-package model
+package chat
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/shirasudon/go-chat/model/action"
+	"github.com/shirasudon/go-chat/chat/action"
 )
 
 // connection specified infomation.
@@ -40,11 +40,11 @@ func (ac *activeClient) Send(m action.ActionMessage) {
 
 // ClientManager manages active clients.
 type ClientManager struct {
-	chatQuery *ChatQueryService
+	chatQuery *QueryService
 	clients   map[uint64]*activeClient
 }
 
-func NewClientManager(service *ChatQueryService) *ClientManager {
+func NewClientManager(service *QueryService) *ClientManager {
 	return &ClientManager{
 		chatQuery: service,
 		clients:   make(map[uint64]*activeClient),

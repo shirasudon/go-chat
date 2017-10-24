@@ -1,6 +1,6 @@
-package model
+package chat
 
-import "github.com/shirasudon/go-chat/model/action"
+import "github.com/shirasudon/go-chat/chat/action"
 
 // Conn is a interface for the end-point connection for
 // sending messages.

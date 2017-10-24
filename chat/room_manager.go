@@ -1,4 +1,4 @@
-package model
+package chat
 
 import (
 	"context"
@@ -32,11 +32,11 @@ func newActiveRoom(r domain.Room) *activeRoom {
 }
 
 type RoomManager struct {
-	chatQuery *ChatQueryService
+	chatQuery *QueryService
 	rooms     map[uint64]*activeRoom
 }
 
-func NewRoomManager(service *ChatQueryService) *RoomManager {
+func NewRoomManager(service *QueryService) *RoomManager {
 	return &RoomManager{
 		chatQuery: service,
 		rooms:     make(map[uint64]*activeRoom),

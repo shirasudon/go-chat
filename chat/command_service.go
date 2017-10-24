@@ -1,16 +1,16 @@
-package model
+package chat
 
 import (
 	"context"
 
+	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/domain"
-	"github.com/shirasudon/go-chat/model/action"
 )
 
-// ChatCommandService provides the usecases for
+// CommandService provides the usecases for
 // creating/updating/editing/deleting the application
 // data.
-type ChatCommandService struct {
+type CommandService struct {
 	msgs         domain.MessageRepository
 	users        domain.UserRepository
 	rooms        domain.RoomRepository
@@ -18,8 +18,8 @@ type ChatCommandService struct {
 	updateCancel chan struct{}
 }
 
-func NewChatCommandService(repos domain.Repositories, pubsub Pubsub) *ChatCommandService {
-	return &ChatCommandService{
+func NewCommandService(repos domain.Repositories, pubsub Pubsub) *CommandService {
+	return &CommandService{
 		msgs:         repos.Messages(),
 		users:        repos.Users(),
 		rooms:        repos.Rooms(),
@@ -30,7 +30,7 @@ func NewChatCommandService(repos domain.Repositories, pubsub Pubsub) *ChatComman
 
 // Run updating service for the domain events.
 // It blocks until calling CancelUpdate() or context is done.
-func (s *ChatCommandService) RunUpdateService(ctx context.Context) {
+func (s *CommandService) RunUpdateService(ctx context.Context) {
 	roomDeleted := s.pubsub.Sub(domain.EventRoomDeleted)
 	for {
 		select {
@@ -49,13 +49,13 @@ func (s *ChatCommandService) RunUpdateService(ctx context.Context) {
 
 // Stop RunUpdateService(). Multiple calling will
 // occurs panic.
-func (s *ChatCommandService) CancelUpdateService() {
+func (s *CommandService) CancelUpdateService() {
 	close(s.updateCancel)
 }
 
 // Do function on the context of the transaction.
 // It also commits the some domain events returned from txFunc.
-func (s *ChatCommandService) withEventTransaction(
+func (s *CommandService) withEventTransaction(
 	ctx context.Context,
 	txBeginner domain.TxBeginner,
 	txFunc func(ctx context.Context) ([]domain.Event, error),
@@ -92,7 +92,7 @@ func withTransaction(ctx context.Context, txBeginner domain.TxBeginner, txFunc f
 
 // It creates room specified by given actiom message.
 // It returns created Room's ID and error if any.
-func (s *ChatCommandService) CreateRoom(ctx context.Context, m action.CreateRoom) (roomID uint64, err error) {
+func (s *CommandService) CreateRoom(ctx context.Context, m action.CreateRoom) (roomID uint64, err error) {
 	user, err := s.users.Find(ctx, m.SenderID)
 	if err != nil {
 		return 0, err
@@ -115,7 +115,7 @@ func (s *ChatCommandService) CreateRoom(ctx context.Context, m action.CreateRoom
 
 // It deletes room specified by given actiom message. It returns deleted Room's ID and
 // error if any.
-func (s *ChatCommandService) DeleteRoom(ctx context.Context, m action.DeleteRoom) (roomID uint64, err error) {
+func (s *CommandService) DeleteRoom(ctx context.Context, m action.DeleteRoom) (roomID uint64, err error) {
 	user, err := s.users.Find(ctx, m.SenderID)
 	if err != nil {
 		return 0, err
@@ -142,7 +142,7 @@ func (s *ChatCommandService) DeleteRoom(ctx context.Context, m action.DeleteRoom
 // Post the message to the specified room.
 // It returns posted message id and nil or error
 // which indicates the message can not be posted.
-func (s *ChatCommandService) PostRoomMessage(ctx context.Context, m action.ChatMessage) (msgID uint64, err error) {
+func (s *CommandService) PostRoomMessage(ctx context.Context, m action.ChatMessage) (msgID uint64, err error) {
 	room, err := s.rooms.Find(ctx, m.RoomID)
 	if err != nil {
 		return 0, err
@@ -167,7 +167,7 @@ func (s *ChatCommandService) PostRoomMessage(ctx context.Context, m action.ChatM
 
 // Mark the message is read by the specified user.
 // It returns error when the message can not be marked to read.
-func (s ChatCommandService) ReadRoomMessage(ctx context.Context, m action.ReadMessage) error {
+func (s CommandService) ReadRoomMessage(ctx context.Context, m action.ReadMessage) error {
 	user, err := s.users.Find(ctx, m.SenderID)
 	if err != nil {
 		return err
@@ -195,15 +195,15 @@ func (s ChatCommandService) ReadRoomMessage(ctx context.Context, m action.ReadMe
 	return txErr
 }
 
-// ChatQueryService queries the action message data
+// QueryService queries the action message data
 // from the datastores.
-type ChatQueryService struct {
+type QueryService struct {
 	users domain.UserRepository
 	rooms domain.RoomRepository
 }
 
-func NewChatQueryService(repos domain.Repositories) *ChatQueryService {
-	return &ChatQueryService{
+func NewQueryService(repos domain.Repositories) *QueryService {
+	return &QueryService{
 		users: repos.Users(),
 		rooms: repos.Rooms(),
 	}
@@ -211,13 +211,13 @@ func NewChatQueryService(repos domain.Repositories) *ChatQueryService {
 
 // Find friend users related with specified user id.
 // It returns error if not found.
-func (s *ChatQueryService) FindUserFriends(ctx context.Context, userID uint64) ([]domain.User, error) {
+func (s *QueryService) FindUserFriends(ctx context.Context, userID uint64) ([]domain.User, error) {
 	return s.users.FindAllByUserID(ctx, userID)
 }
 
 // Find rooms related with specified user id.
 // It returns error if not found.
-func (s *ChatQueryService) FindUserRooms(ctx context.Context, userID uint64) ([]domain.Room, error) {
+func (s *QueryService) FindUserRooms(ctx context.Context, userID uint64) ([]domain.Room, error) {
 	return s.rooms.FindAllByUserID(ctx, userID)
 }
 
@@ -230,7 +230,7 @@ type UserRelation struct {
 
 // Find both of friends and rooms related with specified user id.
 // It returns error if not found.
-func (s ChatQueryService) FindUserRelation(ctx context.Context, userID uint64) (UserRelation, error) {
+func (s QueryService) FindUserRelation(ctx context.Context, userID uint64) (UserRelation, error) {
 	users, err1 := s.users.FindAllByUserID(ctx, userID)
 	if err1 != nil {
 		return UserRelation{}, err1

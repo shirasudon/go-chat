@@ -1,25 +1,25 @@
-package model
+package chat
 
 import (
 	"context"
 	"log"
 
+	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/domain"
-	"github.com/shirasudon/go-chat/model/action"
 )
 
-// ChatHub is the hub which accepts any websocket connections to
+// Hub is the hub which accepts any websocket connections to
 // serve chat messages for the other connections.
 // any websocket connections connect this hub firstly, then the
-// connections are managed by ChatHub.
-type ChatHub struct {
+// connections are managed by Hub.
+type Hub struct {
 	connects    chan Conn
 	disconnects chan Conn
 	messages    chan actionMessageRequest
 	errors      chan error
 
-	chatCommand    *ChatCommandService
-	chatQuery      *ChatQueryService
+	chatCommand    *CommandService
+	chatQuery      *QueryService
 	messageHandler *messageHandler
 }
 
@@ -31,10 +31,10 @@ type actionMessageRequest struct {
 	Conn Conn
 }
 
-func NewChatHub(repos domain.Repositories, pubsub Pubsub) *ChatHub {
-	chatCommand := NewChatCommandService(repos, pubsub)
-	chatQuery := NewChatQueryService(repos)
-	return &ChatHub{
+func NewHub(repos domain.Repositories, pubsub Pubsub) *Hub {
+	chatCommand := NewCommandService(repos, pubsub)
+	chatQuery := NewQueryService(repos)
+	return &Hub{
 		connects:       make(chan Conn, 1),
 		disconnects:    make(chan Conn, 1),
 		messages:       make(chan actionMessageRequest, 1),
@@ -45,7 +45,7 @@ func NewChatHub(repos domain.Repositories, pubsub Pubsub) *ChatHub {
 	}
 }
 
-func (hub *ChatHub) Listen(ctx context.Context) {
+func (hub *Hub) Listen(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -96,28 +96,28 @@ func (hub *ChatHub) Listen(ctx context.Context) {
 }
 
 // Connect new websocket connection to the hub.
-func (hub *ChatHub) Connect(conn Conn) {
+func (hub *Hub) Connect(conn Conn) {
 	hub.connects <- conn
 }
 
 // Disconnect the given websocket connection from the hub.
 // it will no-operation when non-connected connection is given.
-func (hub *ChatHub) Disconnect(conn Conn) {
+func (hub *Hub) Disconnect(conn Conn) {
 	hub.connects <- conn
 }
 
 // Send ActionMessage with the connection which sent the message.
 // the connection is used to verify that the message is exactlly
 // sent by the connected connection.
-func (hub *ChatHub) Send(conn Conn, message action.ActionMessage) {
+func (hub *Hub) Send(conn Conn, message action.ActionMessage) {
 	hub.messages <- actionMessageRequest{message, conn}
 }
 
-func (hub *ChatHub) connectClient(ctx context.Context, c Conn) error {
+func (hub *Hub) connectClient(ctx context.Context, c Conn) error {
 	return hub.messageHandler.connectClient(ctx, c)
 }
 
-func (hub *ChatHub) disconnectClient(ctx context.Context, c Conn) error {
+func (hub *Hub) disconnectClient(ctx context.Context, c Conn) error {
 	return hub.messageHandler.disconnectClient(ctx, c)
 }
 

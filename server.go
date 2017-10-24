@@ -10,10 +10,10 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
+	"github.com/shirasudon/go-chat/chat"
+	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/infra/pubsub"
-	"github.com/shirasudon/go-chat/model"
-	"github.com/shirasudon/go-chat/model/action"
 	"github.com/shirasudon/go-chat/ws"
 )
 
@@ -22,7 +22,7 @@ type Server struct {
 	echo            *echo.Echo
 	websocketServer *websocket.Server
 	loginHandler    *LoginHandler
-	chatHub         *model.ChatHub
+	chatHub         *chat.Hub
 	pubsub          *pubsub.PubSub
 
 	ctx context.Context
@@ -47,7 +47,7 @@ func NewServer(repos domain.Repositories, conf *Config) *Server {
 	s := &Server{
 		echo:         e,
 		loginHandler: NewLoginHandler(repos.Users()),
-		chatHub:      model.NewChatHub(repos, pubsub),
+		chatHub:      chat.NewHub(repos, pubsub),
 		pubsub:       pubsub,
 		repos:        repos,
 		conf:         *conf,

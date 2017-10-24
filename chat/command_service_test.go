@@ -1,4 +1,4 @@
-package model
+package chat
 
 import (
 	"context"
@@ -47,7 +47,7 @@ func TestChatUpdateServiceAtRoomDeleted(t *testing.T) {
 			doneCh <- struct{}{}
 		})
 
-	commandService := NewChatCommandService(domain.SimpleRepositories{
+	commandService := NewCommandService(domain.SimpleRepositories{
 		MessageRepository: messages,
 	}, pubsub)
 

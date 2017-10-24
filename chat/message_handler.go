@@ -1,19 +1,19 @@
-package model
+package chat
 
 import (
 	"context"
 
-	"github.com/shirasudon/go-chat/model/action"
+	"github.com/shirasudon/go-chat/chat/action"
 )
 
 type messageHandler struct {
 	rooms   *RoomManager
 	clients *ClientManager
 
-	chatCommand *ChatCommandService
+	chatCommand *CommandService
 }
 
-func newMessageHandler(command *ChatCommandService, query *ChatQueryService) *messageHandler {
+func newMessageHandler(command *CommandService, query *QueryService) *messageHandler {
 	return &messageHandler{
 		rooms:       NewRoomManager(query),
 		clients:     NewClientManager(query),

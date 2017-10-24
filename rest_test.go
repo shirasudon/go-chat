@@ -10,9 +10,9 @@ import (
 
 	"github.com/labstack/echo"
 
+	"github.com/shirasudon/go-chat/chat"
+	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/infra/pubsub"
-	"github.com/shirasudon/go-chat/model"
-	"github.com/shirasudon/go-chat/model/action"
 )
 
 func createRESTHandler() (rest *RESTHandler, doneFunc func()) {
@@ -22,8 +22,8 @@ func createRESTHandler() (rest *RESTHandler, doneFunc func()) {
 	}
 	return NewRESTHandler(
 		NewLoginHandler(repository.Users()),
-		model.NewChatCommandService(repository, ps),
-		model.NewChatQueryService(repository),
+		chat.NewCommandService(repository, ps),
+		chat.NewQueryService(repository),
 	), doneFunc
 }
 

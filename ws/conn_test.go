@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/shirasudon/go-chat/domain"
-	"github.com/shirasudon/go-chat/model/action"
+	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/ws/wstest"
 
 	"golang.org/x/net/websocket"

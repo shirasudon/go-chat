@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/shirasudon/go-chat/domain"
-	"github.com/shirasudon/go-chat/model/action"
+	"github.com/shirasudon/go-chat/chat/action"
 
 	"golang.org/x/net/websocket"
 )
