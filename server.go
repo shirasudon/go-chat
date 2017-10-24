@@ -22,10 +22,12 @@ type Server struct {
 	echo            *echo.Echo
 	websocketServer *websocket.Server
 	loginHandler    *LoginHandler
-	chatHub         *chat.Hub
-	pubsub          *pubsub.PubSub
+	restHandler     *RESTHandler
 
-	ctx context.Context
+	chatHub   *chat.Hub
+	chatCmd   *chat.CommandService
+	chatQuery *chat.QueryService
+	pubsub    *pubsub.PubSub
 
 	repos domain.Repositories
 
@@ -43,14 +45,20 @@ func NewServer(repos domain.Repositories, conf *Config) *Server {
 	e.HideBanner = true
 
 	pubsub := pubsub.New(10)
+	chatCmd := chat.NewCommandService(repos, pubsub)
+	chatQuery := chat.NewQueryService(repos)
 
 	s := &Server{
 		echo:         e,
 		loginHandler: NewLoginHandler(repos.Users()),
-		chatHub:      chat.NewHub(repos, pubsub),
+		restHandler:  NewRESTHandler(chatCmd, chatQuery),
+		chatHub:      chat.NewHub(chatCmd, chatQuery),
+		chatCmd:      chatCmd,
+		chatQuery:    chatQuery,
 		pubsub:       pubsub,
-		repos:        repos,
-		conf:         *conf,
+
+		repos: repos,
+		conf:  *conf,
 	}
 	s.websocketServer = &websocket.Server{} // TODO it is needed?
 	return s
@@ -58,7 +66,7 @@ func NewServer(repos domain.Repositories, conf *Config) *Server {
 
 func (s *Server) serveChatWebsocket(c echo.Context) error {
 	// LoggedInUserID is valid at middleware layer, loginHandler.Filter.
-	userID, ok := s.loginHandler.LoggedInUserID(c)
+	userID, ok := LoggedInUserID(c)
 	if !ok {
 		return errors.New("needs logged in, but access without logged in state")
 	}
@@ -111,22 +119,38 @@ func (s *Server) ListenAndServe() error {
 
 	// set login handler
 	e.Use(s.loginHandler.Middleware())
-	e.POST("/login", s.loginHandler.Login)
-	e.GET("/login", s.loginHandler.GetLoginState)
-	e.POST("/logout", s.loginHandler.Logout)
+	e.POST("/login", s.loginHandler.Login).
+		Name = "doLogin"
+	e.GET("/login", s.loginHandler.GetLoginState).
+		Name = "getLoginInfo"
+	e.POST("/logout", s.loginHandler.Logout).
+		Name = "doLogout"
 
 	chatPath := strings.TrimSuffix(s.conf.ChatPath, "/")
 	chatGroup := e.Group(chatPath, s.loginHandler.Filter())
-	log.Println("chat API listen at " + chatPath)
 
-	// TODO set restHandler
+	// set restHandler
+	chatGroup.POST("/users/:id/rooms", s.restHandler.CreateRoom).
+		Name = "chat.createUserRoom"
+	chatGroup.DELETE("/users/:id/rooms", s.restHandler.DeleteRoom).
+		Name = "chat.deleteUserRoom"
 
 	// set websocket handler
-	wsRoute := chatGroup.GET("/ws", s.serveChatWebsocket)
-	log.Println("chat API accepts websocket connection at " + wsRoute.Path)
+	chatGroup.GET("/ws", s.serveChatWebsocket).
+		Name = "chat.connentWebsocket"
 
 	// serve static content
-	e.Static("/", "")
+	e.Static("/", "").
+		Name = "staticContents"
+
+	// show registered URLs
+	for _, url := range e.Routes() {
+		// built-in routes are ignored
+		if strings.Contains(url.Name, "github.com/labstack/echo") {
+			continue
+		}
+		log.Printf("%8s : %-35s (%v)\n", url.Method, url.Path, url.Name)
+	}
 
 	// start server
 	serverURL := s.conf.HTTP

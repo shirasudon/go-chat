@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"github.com/shirasudon/go-chat/chat/action"
-	"github.com/shirasudon/go-chat/domain"
 )
 
 // Hub is the hub which accepts any websocket connections to
@@ -31,17 +30,19 @@ type actionMessageRequest struct {
 	Conn Conn
 }
 
-func NewHub(repos domain.Repositories, pubsub Pubsub) *Hub {
-	chatCommand := NewCommandService(repos, pubsub)
-	chatQuery := NewQueryService(repos)
+func NewHub(cmdService *CommandService, queryService *QueryService) *Hub {
+	if cmdService == nil || queryService == nil {
+		panic("passed either nil services")
+	}
+
 	return &Hub{
 		connects:       make(chan Conn, 1),
 		disconnects:    make(chan Conn, 1),
 		messages:       make(chan actionMessageRequest, 1),
 		errors:         make(chan error, 1),
-		chatCommand:    chatCommand,
-		chatQuery:      chatQuery,
-		messageHandler: newMessageHandler(chatCommand, chatQuery),
+		chatCommand:    cmdService,
+		chatQuery:      queryService,
+		messageHandler: newMessageHandler(cmdService, queryService),
 	}
 }
 

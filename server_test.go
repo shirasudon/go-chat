@@ -10,14 +10,13 @@ import (
 	"golang.org/x/net/websocket"
 
 	"github.com/labstack/echo"
-	"github.com/shirasudon/go-chat/infra/inmemory"
 	"github.com/shirasudon/go-chat/chat/action"
+	"github.com/shirasudon/go-chat/infra/inmemory"
 	"github.com/shirasudon/go-chat/ws/wstest"
 )
 
 var (
-	repository         = inmemory.OpenRepositories()
-	server     *Server = NewServer(repository, nil)
+	repository = inmemory.OpenRepositories()
 )
 
 const (
@@ -25,6 +24,9 @@ const (
 )
 
 func TestServerServeChatWebsocket(t *testing.T) {
+	server := NewServer(repository, nil)
+	defer server.Shutdown(context.Background())
+
 	e := echo.New()
 	serverErrCh := make(chan error, 1)
 	ts := httptest.NewServer(
@@ -52,7 +54,6 @@ func TestServerServeChatWebsocket(t *testing.T) {
 	go func() {
 		server.ListenAndServe()
 	}()
-	defer server.Shutdown(context.Background())
 
 	requestPath := ts.URL + "/chat/ws"
 	origin := ts.URL[0:strings.LastIndex(ts.URL, ":")]

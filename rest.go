@@ -12,26 +12,19 @@ import (
 )
 
 type RESTHandler struct {
-	loginHandler *LoginHandler
-	cmdService   *chat.CommandService
-	queryService *chat.QueryService
+	chatCmd   *chat.CommandService
+	chatQuery *chat.QueryService
 }
 
-func NewRESTHandler(loginHandler *LoginHandler, cmdService *chat.CommandService, queryService *chat.QueryService) *RESTHandler {
+func NewRESTHandler(chatCmd *chat.CommandService, chatQuery *chat.QueryService) *RESTHandler {
 	return &RESTHandler{
-		loginHandler: loginHandler,
-		cmdService:   cmdService,
-		queryService: queryService,
+		chatCmd:   chatCmd,
+		chatQuery: chatQuery,
 	}
 }
 
-func (rest *RESTHandler) RegisterPath(g *echo.Group) {
-	g.POST("/users/:id/rooms", rest.CreateRoom)
-	g.DELETE("/users/:id/rooms", rest.DeleteRoom)
-}
-
 func (rest *RESTHandler) validateUserID(e echo.Context) (uint64, error) {
-	userID, ok := rest.loginHandler.LoggedInUserID(e)
+	userID, ok := LoggedInUserID(e)
 	if !ok {
 		return 0, echo.NewHTTPError(http.StatusUnauthorized, ErrRequireLoginFirst)
 	}
@@ -57,7 +50,7 @@ func (rest *RESTHandler) CreateRoom(e echo.Context) error {
 	}
 	createRoom.SenderID = userID
 
-	createdID, err := rest.cmdService.CreateRoom(e.Request().Context(), createRoom)
+	createdID, err := rest.chatCmd.CreateRoom(e.Request().Context(), createRoom)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
@@ -85,7 +78,7 @@ func (rest *RESTHandler) DeleteRoom(e echo.Context) error {
 	}
 	deleteRoom.SenderID = userID
 
-	deletedID, err := rest.cmdService.DeleteRoom(e.Request().Context(), deleteRoom)
+	deletedID, err := rest.chatCmd.DeleteRoom(e.Request().Context(), deleteRoom)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
@@ -101,12 +94,12 @@ func (rest *RESTHandler) DeleteRoom(e echo.Context) error {
 }
 
 func (rest *RESTHandler) GetUserRooms(e echo.Context) error {
-	userID, ok := rest.loginHandler.LoggedInUserID(e)
+	userID, ok := LoggedInUserID(e)
 	if !ok {
 		return ErrRequireLoginFirst
 	}
 
-	rooms, err := rest.queryService.FindUserRooms(e.Request().Context(), userID)
+	rooms, err := rest.chatQuery.FindUserRooms(e.Request().Context(), userID)
 	if err != nil {
 		return err
 	}

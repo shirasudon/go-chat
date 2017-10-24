@@ -21,7 +21,6 @@ func createRESTHandler() (rest *RESTHandler, doneFunc func()) {
 		ps.Shutdown()
 	}
 	return NewRESTHandler(
-		NewLoginHandler(repository.Users()),
 		chat.NewCommandService(repository, ps),
 		chat.NewQueryService(repository),
 	), doneFunc
