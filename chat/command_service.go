@@ -167,7 +167,7 @@ func (s *CommandService) PostRoomMessage(ctx context.Context, m action.ChatMessa
 
 // Mark the message is read by the specified user.
 // It returns error when the message can not be marked to read.
-func (s CommandService) ReadRoomMessage(ctx context.Context, m action.ReadMessage) error {
+func (s *CommandService) ReadRoomMessage(ctx context.Context, m action.ReadMessage) error {
 	user, err := s.users.Find(ctx, m.SenderID)
 	if err != nil {
 		return err

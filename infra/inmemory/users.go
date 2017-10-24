@@ -3,8 +3,8 @@ package inmemory
 import (
 	"context"
 	"errors"
-	"fmt"
 
+	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/domain"
 )
 
@@ -67,7 +67,7 @@ func (repo *UserRepository) Create(ctx context.Context, u domain.User) (uint64, 
 
 func (repo *UserRepository) Update(ctx context.Context, u domain.User) (uint64, error) {
 	if _, ok := userMap[u.ID]; !ok {
-		return 0, fmt.Errorf("user(id=%d) is not in the datastore", u.ID)
+		return 0, chat.NewInfraError("user(id=%d) is not in the datastore", u.ID)
 	}
 
 	// update user

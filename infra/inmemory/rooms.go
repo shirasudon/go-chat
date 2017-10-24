@@ -2,8 +2,8 @@ package inmemory
 
 import (
 	"context"
-	"fmt"
 
+	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/domain"
 )
 
@@ -80,7 +80,7 @@ func (repo *RoomRepository) Create(ctx context.Context, r domain.Room) (uint64, 
 
 func (repo *RoomRepository) Update(ctx context.Context, r domain.Room) (uint64, error) {
 	if _, ok := roomMap[r.ID]; !ok {
-		return 0, fmt.Errorf("room(id=%d) is not in the datastore", r.ID)
+		return 0, chat.NewInfraError("room(id=%d) is not in the datastore", r.ID)
 	}
 
 	// update room
