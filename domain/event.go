@@ -22,6 +22,8 @@ const (
 	EventRoomDeletedMessage
 	EventMessageCreated
 	EventMessageReadByUser
+	EventActiveClientActivated
+	EventActiveClientInactivated
 )
 
 // EventHolder holds event objects.
