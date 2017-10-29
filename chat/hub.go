@@ -65,7 +65,7 @@ func (hub *Hub) Listen(ctx context.Context) {
 	defer cancel()
 
 	// run service for sending event to connections.
-	go hub.sendEventService(ctx)
+	go hub.eventSendingService(ctx)
 
 	for {
 		select {
@@ -85,13 +85,40 @@ func (hub *Hub) Listen(ctx context.Context) {
 	}
 }
 
-func (hub *Hub) sendEventService(ctx context.Context) {
+const (
+	EncNameMessageCreated = "message_created"
+	EncNameUnkown         = "unknown"
+)
+
+var eventEncodeNames = map[domain.EventType]string{
+	domain.EventMessageCreated: EncNameMessageCreated,
+}
+
+type EncodedEvent map[string]interface{}
+
+func (EncodedEvent) EventType() domain.EventType { return domain.EventNone }
+
+func NewEncodedEvent(ev domain.Event) EncodedEvent {
+	eventName, ok := eventEncodeNames[ev.EventType()]
+	if !ok {
+		eventName = EncNameUnkown
+	}
+	return EncodedEvent{
+		eventName: ev,
+	}
+}
+
+func (hub *Hub) eventSendingService(ctx context.Context) {
 	pubsub := hub.pubsub
 	msgCreated := pubsub.Sub(domain.EventMessageCreated)
 
 	for {
 		select {
-		case v := <-msgCreated:
+		case v, chAlived := <-msgCreated:
+			if !chAlived {
+				return
+			}
+
 			created := v.(domain.MessageCreated)
 			room, err := hub.chatQuery.rooms.Find(ctx, created.RoomID)
 			if err != nil {
@@ -107,8 +134,9 @@ func (hub *Hub) sendEventService(ctx context.Context) {
 				continue
 			}
 
+			toSend := NewEncodedEvent(created)
 			for _, ac := range acs {
-				ac.Send(created)
+				ac.Send(toSend)
 			}
 
 		case <-hub.shutdown:
@@ -144,7 +172,11 @@ func (hub *Hub) handleMessage(ctx context.Context, req actionMessageRequest) err
 // the connection is used to verify that the message is exactlly
 // sent by the connected user.
 func (hub *Hub) Send(conn domain.Conn, message action.ActionMessage) {
-	hub.messages <- actionMessageRequest{message, conn}
+	select {
+	// case <-hub.shutdown:
+	//return
+	case hub.messages <- actionMessageRequest{message, conn}:
+	}
 }
 
 // Connect new websocket connection to the hub.

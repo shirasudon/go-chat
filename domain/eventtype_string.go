@@ -4,9 +4,9 @@ package domain
 
 import "fmt"
 
-const _EventType_name = "EventNoneEventUserCreatedEventUserDeletedEventUserAddedFriendEventRoomCreatedEventRoomDeletedEventRoomAddedMemberEventRoomRemoveMemberEventRoomPostedMessageEventRoomUpdatedMessageEventRoomDeletedMessageEventMessageCreatedEventMessageReadByUserEventActiveClientActivatedEventActiveClientInactivated"
+const _EventType_name = "EventNoneEventErrorRaisedEventUserCreatedEventUserDeletedEventUserAddedFriendEventRoomCreatedEventRoomDeletedEventRoomAddedMemberEventRoomRemoveMemberEventRoomPostedMessageEventRoomUpdatedMessageEventRoomDeletedMessageEventMessageCreatedEventMessageReadByUserEventActiveClientActivatedEventActiveClientInactivated"
 
-var _EventType_index = [...]uint16{0, 9, 25, 41, 61, 77, 93, 113, 134, 156, 179, 202, 221, 243, 269, 297}
+var _EventType_index = [...]uint16{0, 9, 25, 41, 57, 77, 93, 109, 129, 150, 172, 195, 218, 237, 259, 285, 313}
 
 func (i EventType) String() string {
 	if i >= EventType(len(_EventType_index)-1) {

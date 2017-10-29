@@ -6,10 +6,18 @@ type Event interface {
 	EventType() EventType
 }
 
+// domain event for the error is raised.
+type ErrorRaised struct {
+	Message string `json:"message"`
+}
+
+func (ErrorRaised) EventType() EventType { return EventErrorRaised }
+
 type EventType uint
 
 const (
-	EventNone EventType = iota
+	EventNone        EventType = iota
+	EventErrorRaised EventType = iota
 	EventUserCreated
 	EventUserDeleted
 	EventUserAddedFriend

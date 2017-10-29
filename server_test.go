@@ -10,6 +10,7 @@ import (
 	"golang.org/x/net/websocket"
 
 	"github.com/labstack/echo"
+	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/infra/inmemory"
 	"github.com/shirasudon/go-chat/ws/wstest"
@@ -74,20 +75,17 @@ func TestServerServeChatWebsocket(t *testing.T) {
 	}
 
 	// read message from server
-	var readAny action.AnyMessage
+	var readAny map[string]interface{}
 	if err := websocket.JSON.Receive(conn, &readAny); err != nil {
 		t.Fatal(err)
 	}
-	if readAny.Action() != action.ActionChatMessage {
-		t.Fatalf("%#v", readAny)
-	}
-	readCM, err := action.ParseChatMessage(readAny, readAny.Action())
-	if err != nil {
-		t.Errorf("can not parse ChatMessage: %v", err)
+	created, ok := readAny[chat.EncNameMessageCreated].(map[string]interface{})
+	if !ok {
+		t.Fatalf("invalid data is recieved: %#v", readAny)
 	}
 
 	// check same message
-	if readCM.Content != writeCM.Content {
-		t.Errorf("different chat message, got: %#v, expect: %#v", readCM, writeCM)
+	if created["content"].(string) != writeCM.Content {
+		t.Errorf("different chat message fields, recieved: %#v, send: %#v", created, writeCM)
 	}
 }

@@ -173,7 +173,7 @@ func (c *Conn) receiveAnyMessage() (action.AnyMessage, error) {
 			c.onError(c, err)
 		}
 		// and return error message to client
-		c.Send(action.NewErrorMessage(errors.New("JSON structure must be a HashMap type")))
+		c.Send(domain.ErrorRaised{Message: "JSON structure must be a HashMap type"})
 		return nil, err
 	}
 	return message, nil
@@ -186,7 +186,7 @@ func (c *Conn) handleAnyMessage(m action.AnyMessage) {
 		if c.onError != nil {
 			c.onError(c, err)
 		}
-		c.Send(action.NewErrorMessage(err, m))
+		c.Send(domain.ErrorRaised{Message: err.Error()})
 		return
 	}
 	if c.onActionMessage != nil {

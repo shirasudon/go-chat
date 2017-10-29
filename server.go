@@ -70,7 +70,13 @@ func (s *Server) serveChatWebsocket(c echo.Context) error {
 	if !ok {
 		return errors.New("needs logged in, but access without logged in state")
 	}
-	user, err := s.repos.Users().Find(c.Request().Context(), userID)
+
+	var ctx = c.Request().Context()
+	if ctx == nil {
+		log.Println("nil context on websocket handler")
+		ctx = context.Background()
+	}
+	user, err := s.repos.Users().Find(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -84,15 +90,15 @@ func (s *Server) serveChatWebsocket(c echo.Context) error {
 			s.chatHub.Send(conn, m)
 		})
 		conn.OnError(func(conn *ws.Conn, err error) {
-			conn.Send(action.NewErrorMessage(err))
+			conn.Send(domain.ErrorRaised{Message: err.Error()})
 		})
 		conn.OnClosed(func(conn *ws.Conn) {
 			s.chatHub.Disconnect(conn)
 		})
-		s.chatHub.Connect(conn)
+		s.chatHub.Connect(ctx, conn)
 
 		// blocking to avoid connection closed
-		conn.Listen(c.Request().Context())
+		conn.Listen(ctx)
 	}).ServeHTTP(c.Response(), c.Request())
 	return nil
 }
@@ -161,6 +167,7 @@ func (s *Server) ListenAndServe() error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
+	s.chatHub.Shutdown()
 	s.pubsub.Shutdown()
 	return s.echo.Shutdown(ctx)
 }
