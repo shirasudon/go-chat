@@ -9,10 +9,8 @@ import (
 	"github.com/shirasudon/go-chat/domain"
 )
 
-// Hub is the hub which accepts any websocket connections to
-// serve chat messages for the other connections.
-// any websocket connections connect this hub firstly, then the
-// connections are managed by Hub.
+// Hub accepts any user connections to
+// propagates domain events for those connections.
 type Hub struct {
 	messages chan actionMessageRequest
 	events   chan domain.Event
@@ -173,8 +171,8 @@ func (hub *Hub) handleMessage(ctx context.Context, req actionMessageRequest) err
 // sent by the connected user.
 func (hub *Hub) Send(conn domain.Conn, message action.ActionMessage) {
 	select {
-	// case <-hub.shutdown:
-	//return
+	case <-hub.shutdown:
+		return
 	case hub.messages <- actionMessageRequest{message, conn}:
 	}
 }

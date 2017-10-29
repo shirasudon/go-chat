@@ -34,7 +34,10 @@ func (s *CommandService) RunUpdateService(ctx context.Context) {
 	roomDeleted := s.pubsub.Sub(domain.EventRoomDeleted)
 	for {
 		select {
-		case ev := <-roomDeleted:
+		case ev, chAlived := <-roomDeleted:
+			if !chAlived {
+				return
+			}
 			deleted := ev.(domain.RoomDeleted)
 			err := s.msgs.RemoveAllByRoomID(ctx, deleted.RoomID)
 			// TODO error handling, create ErrorEvent? or just log?
