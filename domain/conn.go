@@ -1,5 +1,7 @@
 package domain
 
+//go:generate mockgen -destination=../mocks/mock_conn.go -package=mocks github.com/shirasudon/go-chat/domain Conn
+
 // Conn is a interface for the end-point connection for
 // sending domain event.
 type Conn interface {
