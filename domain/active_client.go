@@ -48,14 +48,28 @@ func (cm *ActiveClientRepository) FindAllByUserIDs(userIDs []uint64) ([]*ActiveC
 
 // Find ActiveClient by user ID.
 // It returns found AcitiveClient and error if not found.
-func (cm *ActiveClientRepository) Find(userID uint64) (ActiveClient, error) {
+func (cm *ActiveClientRepository) Find(userID uint64) (*ActiveClient, error) {
 	cm.clientsMu.RLock()
 	defer cm.clientsMu.RUnlock()
 
 	if activeC, ok := cm.clients[userID]; ok {
-		return *activeC, nil
+		return activeC, nil
 	}
-	return ActiveClient{}, fmt.Errorf("active user(%d) is not found", userID)
+	return nil, fmt.Errorf("active user(%d) is not found", userID)
+}
+
+// Check whether the specified connection exists in the
+// repository.
+// It returns true if found otherwise returns false.
+func (cm *ActiveClientRepository) ExistByConn(c Conn) bool {
+	cm.clientsMu.RLock()
+	activeC, ok := cm.clients[c.UserID()]
+	cm.clientsMu.RUnlock()
+
+	if ok {
+		return activeC.HasConn(c)
+	}
+	return false
 }
 
 // Store activeClient to the repository. It returns error

@@ -6,8 +6,8 @@ import (
 	"io"
 	"sync"
 
-	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/chat/action"
+	"github.com/shirasudon/go-chat/domain"
 
 	"golang.org/x/net/websocket"
 )
@@ -67,7 +67,7 @@ func (c *Conn) OnError(f func(*Conn, error)) {
 
 // Send ActionMessage to browser-side client.
 // message is ignored when Conn is closed.
-func (c *Conn) Send(m action.ActionMessage) {
+func (c *Conn) Send(m domain.Event) {
 	select {
 	case c.messages <- m:
 	case <-c.done:

@@ -2,9 +2,11 @@ package chat
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/shirasudon/go-chat/chat/action"
+	"github.com/shirasudon/go-chat/domain"
 )
 
 // Hub is the hub which accepts any websocket connections to
@@ -12,14 +14,14 @@ import (
 // any websocket connections connect this hub firstly, then the
 // connections are managed by Hub.
 type Hub struct {
-	connects    chan Conn
-	disconnects chan Conn
-	messages    chan actionMessageRequest
-	errors      chan error
+	messages chan actionMessageRequest
+	events   chan domain.Event
+	shutdown chan struct{}
 
-	chatCommand    *CommandService
-	chatQuery      *QueryService
-	messageHandler *messageHandler
+	chatCommand   *CommandService
+	chatQuery     *QueryService
+	activeClients *domain.ActiveClientRepository
+	pubsub        Pubsub
 }
 
 // actionMessageRequest is a composit struct of
@@ -27,7 +29,7 @@ type Hub struct {
 // It is used to handle ActionMessage by ChatHub.
 type actionMessageRequest struct {
 	action.ActionMessage
-	Conn Conn
+	Conn domain.Conn
 }
 
 func NewHub(cmdService *CommandService, queryService *QueryService) *Hub {
@@ -36,93 +38,171 @@ func NewHub(cmdService *CommandService, queryService *QueryService) *Hub {
 	}
 
 	return &Hub{
-		connects:       make(chan Conn, 1),
-		disconnects:    make(chan Conn, 1),
-		messages:       make(chan actionMessageRequest, 1),
-		errors:         make(chan error, 1),
-		chatCommand:    cmdService,
-		chatQuery:      queryService,
-		messageHandler: newMessageHandler(cmdService, queryService),
+		messages: make(chan actionMessageRequest, 1),
+		events:   make(chan domain.Event, 1),
+		shutdown: make(chan struct{}),
+
+		chatCommand:   cmdService,
+		chatQuery:     queryService,
+		activeClients: domain.NewActiveClientRepository(64),
+		pubsub:        cmdService.pubsub,
 	}
 }
 
+// Stop handling messages from the connections and
+// sending events to connections.
+// Multiple calling will cause panic.
+func (hub *Hub) Shutdown() {
+	close(hub.shutdown)
+}
+
+// Start handling messages from the connections and
+// sending events to connections.
+// It will blocks untill
+// called Shutdown() or context is done.
 func (hub *Hub) Listen(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	// run service for sending event to connections.
+	go hub.sendEventService(ctx)
+
 	for {
-		// disconnect event has priority than others
-		// because disconnected client can not be received any message.
 		select {
-		case c := <-hub.disconnects:
-			if err := hub.disconnectClient(ctx, c); err != nil {
-				// TODO err handling
-				log.Printf("Disonnect Error: %v\n", err)
-			}
-			continue
-		case <-ctx.Done():
-			return
-		default:
-			// fall through if no disconnect events.
-		}
-
-		select {
-		case c := <-hub.connects:
-			if err := hub.connectClient(ctx, c); err != nil {
-				// TODO: error handling
-				log.Printf("Connect Error: %v\n", err)
-			}
-
-		case c := <-hub.disconnects:
-			if err := hub.disconnectClient(ctx, c); err != nil {
-				// TODO err handling
-				log.Printf("Disonnect Error: %v\n", err)
-			}
-
 		case req := <-hub.messages:
-			if err := hub.messageHandler.handleMessage(ctx, req); err != nil {
-				// TODO err handling
-				sendError(req.Conn, err, req.ActionMessage)
-				log.Printf("Message Error: %v\n", err)
+			err := hub.handleMessage(ctx, req)
+			if err != nil {
+				log.Println(err)
+				// TODO send error event to requested connection.
+				// req.Conn.Send()
 			}
 
-		case err := <-hub.errors:
-			// TODO error handling
-			log.Printf("Error: %v\n", err)
-
+		case <-hub.shutdown:
+			return
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-// Connect new websocket connection to the hub.
-func (hub *Hub) Connect(conn Conn) {
-	hub.connects <- conn
+func (hub *Hub) sendEventService(ctx context.Context) {
+	pubsub := hub.pubsub
+	msgCreated := pubsub.Sub(domain.EventMessageCreated)
+
+	for {
+		select {
+		case v := <-msgCreated:
+			created := v.(domain.MessageCreated)
+			room, err := hub.chatQuery.rooms.Find(ctx, created.RoomID)
+			if err != nil {
+				// TODO error handling
+				log.Println(err)
+				continue
+			}
+
+			acs, err := hub.activeClients.FindAllByUserIDs(room.MemberIDs())
+			if err != nil {
+				// TODO error handling
+				log.Println(err)
+				continue
+			}
+
+			for _, ac := range acs {
+				ac.Send(created)
+			}
+
+		case <-hub.shutdown:
+			return
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
-// Disconnect the given websocket connection from the hub.
-// it will no-operation when non-connected connection is given.
-func (hub *Hub) Disconnect(conn Conn) {
-	hub.connects <- conn
+func (hub *Hub) handleMessage(ctx context.Context, req actionMessageRequest) error {
+	var err error = nil
+
+	if !hub.activeClients.ExistByConn(req.Conn) {
+		return fmt.Errorf("not connected to the server")
+	}
+
+	switch m := req.ActionMessage.(type) {
+	case action.ChatMessage:
+		_, err = hub.chatCommand.PostRoomMessage(ctx, m)
+	// TODO case action.EditChatMessage:
+	// TODO case action.DeleteChatMessage:
+	case action.ReadMessage:
+		err = hub.chatCommand.ReadRoomMessage(ctx, m)
+	case action.TypeStart, action.TypeEnd:
+		// TODO convert acitionMessage to event then publish in chatCommand
+	}
+
+	return err
 }
 
 // Send ActionMessage with the connection which sent the message.
 // the connection is used to verify that the message is exactlly
-// sent by the connected connection.
-func (hub *Hub) Send(conn Conn, message action.ActionMessage) {
+// sent by the connected user.
+func (hub *Hub) Send(conn domain.Conn, message action.ActionMessage) {
 	hub.messages <- actionMessageRequest{message, conn}
 }
 
-func (hub *Hub) connectClient(ctx context.Context, c Conn) error {
-	return hub.messageHandler.connectClient(ctx, c)
+// Connect new websocket connection to the hub.
+func (hub *Hub) Connect(ctx context.Context, c domain.Conn) error {
+	userID := c.UserID()
+	user, err := hub.chatQuery.users.Find(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("connected user(%d) is not found", userID)
+	}
+
+	if ac, err := hub.activeClients.Find(userID); err == nil {
+		// the connected user is already activated, so just add connection.
+		_, err := ac.AddConn(c)
+		if err != nil {
+			return err
+		}
+		return hub.activeClients.Store(ac)
+	}
+
+	// the conncected user is inactivate, activate it.
+	_, activated, err := domain.NewActiveClient(hub.activeClients, c, user)
+	if err != nil {
+		return err
+	}
+
+	// publish activated event.
+	hub.pubsub.Pub(activated)
+	return nil
 }
 
-func (hub *Hub) disconnectClient(ctx context.Context, c Conn) error {
-	return hub.messageHandler.disconnectClient(ctx, c)
-}
+// Disconnect the given websocket connection from the hub.
+// it will no-operation when non-connected connection is given.
+func (hub *Hub) Disconnect(conn domain.Conn) {
+	ac, err := hub.activeClients.Find(conn.UserID())
+	if err != nil {
+		// not connected, no operations
+		return
+	}
 
-func sendError(c Conn, err error, cause ...action.ActionMessage) {
-	log.Println(err)
-	go func() { c.Send(action.NewErrorMessage(err, cause...)) }()
+	connN, err := ac.RemoveConn(conn)
+	if err != nil {
+		// conn is not found in active client, no operation
+		return
+	}
+
+	if connN > 0 {
+		// connection still exist in active client, no operation
+		return
+	}
+
+	// any connection does not exist in active client
+	// remove AcitiveClient from the repository.
+	inactivated, err := ac.Delete(hub.activeClients)
+	if err != nil {
+		// TODO error log
+		return
+	}
+
+	// publish inactivated event.
+	hub.pubsub.Pub(inactivated)
 }

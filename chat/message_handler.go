@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/shirasudon/go-chat/chat/action"
+	"github.com/shirasudon/go-chat/domain"
 )
 
 type messageHandler struct {
@@ -55,16 +56,16 @@ func (handler *messageHandler) handleMessage(ctx context.Context, req actionMess
 	// TODO set UserID to req.ActionMessage
 	switch m := req.ActionMessage.(type) {
 	case action.ChatActionMessage:
-		if err := handler.clients.validateClientHasRoom(req.Conn, m.GetSenderID(), m.GetRoomID()); err != nil {
-			return err
-		}
+		// if err := handler.clients.validateClientHasRoom(req.Conn, m.GetSenderID(), m.GetRoomID()); err != nil {
+		// 	return err
+		// }
 		return handler.handleChatActionMessage(ctx, req.Conn, m)
 	}
 
 	return nil
 }
 
-func (handler *messageHandler) handleChatActionMessage(ctx context.Context, conn Conn, m action.ChatActionMessage) error {
+func (handler *messageHandler) handleChatActionMessage(ctx context.Context, conn domain.Conn, m action.ChatActionMessage) error {
 	switch m := m.(type) {
 	case action.ChatMessage:
 		var err error

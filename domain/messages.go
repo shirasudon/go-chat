@@ -84,6 +84,7 @@ func NewRoomMessage(
 
 	ev := MessageCreated{
 		MessageID:  m.ID,
+		RoomID:     m.RoomID,
 		SenderName: u.Name,
 		Content:    content,
 	}
@@ -117,9 +118,10 @@ func (m *Message) ReadBy(u User) (MessageReadByUser, error) {
 
 // Event for the message is created.
 type MessageCreated struct {
-	MessageID  uint64
-	SenderName string
-	Content    string
+	MessageID  uint64 `json:"message_id"`
+	RoomID     uint64 `json:"room_id"`
+	SenderName string `json:"user_id"`
+	Content    string `json:"content"`
 }
 
 func (MessageCreated) EventType() EventType { return EventMessageCreated }
