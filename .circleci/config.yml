@@ -1,0 +1,49 @@
+# CircleCI Go configrations
+#
+# Check https://circleci.com/docs/2.0/language-go/ for more details
+# 
+version: 2
+jobs:
+  build:
+    docker:
+      # CircleCI Go images available at: https://hub.docker.com/r/circleci/golang/
+      - image: circleci/golang:1.8
+
+    working_directory: /go/src/github.com/shirasudon/go-chat
+
+    environment:
+      TEST_RESULTS: /tmp/test-results
+
+    steps:
+      - checkout
+      - run: mkdir -p $TEST_RESULTS
+
+      # Normally, this step would be in a custom primary image;
+      # we've added it here for the sake of explanation.
+      - run: go get github.com/jstemmer/go-junit-report
+
+      - run: go get github.com/haya14busa/goverage
+
+      - run: 
+          name: Run static checkers
+          command: |
+            go vet ./...
+
+      - run:
+          name: Run unit tests
+          command: |
+            trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
+            go test -v -race ./... | tee ${TEST_RESULTS}/go-test.out
+            goverage -v -race -coverprofile=${TEST_RESULTS}/go-test.coverage ./... 
+
+      - run: 
+          name: Build main program
+          command: go build -o ${TEST_RESULTS}/build_bin ./main
+
+      - store_artifacts:
+          path: /tmp/test-results
+          destination: raw-test-output
+
+      - store_test_results:
+          path: /tmp/test-results
+
