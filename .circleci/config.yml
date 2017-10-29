@@ -16,7 +16,6 @@ jobs:
 
     steps:
       - checkout
-      - run: mkdir -p $TEST_RESULTS
 
       - run: 
           name: go get
@@ -34,6 +33,8 @@ jobs:
           command: |
             go vet ./...
 
+      - run: mkdir -p $TEST_RESULTS
+
       - run:
           name: Run unit tests
           command: |
@@ -43,7 +44,7 @@ jobs:
 
       - run: 
           name: Build main program
-          command: go build -o ${TEST_RESULTS}/build_bin ./main
+          command: go build -o ./main/build_bin ./main
 
       - store_artifacts:
           path: /tmp/test-results
