@@ -95,7 +95,7 @@ func TestRoomDeletedSuccess(t *testing.T) {
 
 	// check whether room deleted event is valid.
 	if got := ev.RoomID; got != deletedID {
-		t.Errorf("RoomDeleted has different room id, expect: %s, got: %s", deletedID, got)
+		t.Errorf("RoomDeleted has different room id, expect: %d, got: %d", deletedID, got)
 	}
 	if got := ev.Name; got != r.Name {
 		t.Errorf("RoomDeleted has different room name, expect: %s, got: %s", r.Name, got)
