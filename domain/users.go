@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-//go:generate mockgen -destination=../mocks/mock_users.go -package=mocks github.com/shirasudon/go-chat/domain UserRepository
+//go:generate mockgen -destination=../internal/mocks/mock_users.go -package=mocks github.com/shirasudon/go-chat/domain UserRepository
 
 type UserRepository interface {
 	TxBeginner

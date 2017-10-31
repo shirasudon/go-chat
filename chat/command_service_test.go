@@ -8,7 +8,7 @@ import (
 	"github.com/golang/mock/gomock"
 
 	"github.com/shirasudon/go-chat/domain"
-	"github.com/shirasudon/go-chat/mocks"
+	"github.com/shirasudon/go-chat/internal/mocks"
 )
 
 func TestChatUpdateServiceAtRoomDeleted(t *testing.T) {

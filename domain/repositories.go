@@ -1,6 +1,6 @@
-//go:generate mockgen -destination=../mocks/mock_repos.go -package=mocks github.com/shirasudon/go-chat/domain Repositories
-
 package domain
+
+//go:generate mockgen -destination=../internal/mocks/mock_repos.go -package=mocks github.com/shirasudon/go-chat/domain Repositories
 
 // Repositories holds any XXXRepository.
 // you can get each repository from this.

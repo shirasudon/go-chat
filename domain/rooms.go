@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-//go:generate mockgen -destination=../mocks/mock_rooms.go -package=mocks github.com/shirasudon/go-chat/domain RoomRepository
+//go:generate mockgen -destination=../internal/mocks/mock_rooms.go -package=mocks github.com/shirasudon/go-chat/domain RoomRepository
 
 type RoomRepository interface {
 	TxBeginner
