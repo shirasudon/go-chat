@@ -120,4 +120,9 @@ func TestMessageReadByUser(t *testing.T) {
 	if ev != ev2 {
 		t.Errorf("returned event is not same as the holding event")
 	}
+
+	// fail case: not exist
+	if _, err := m.ReadBy(User{ID: 0}); err == nil {
+		t.Error("the message read by not exist user, but returns no error")
+	}
 }

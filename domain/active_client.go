@@ -11,13 +11,16 @@ import (
 // because ActiveClient has connection interface
 // which can not be serialized.
 type ActiveClientRepository struct {
-	clientsMu *sync.RWMutex
+	clientsMu sync.RWMutex
 	clients   map[uint64]*ActiveClient
+
+	// TODO holds MaxConnsPerClient, use it to create ActiveClient?
+	// This implementation makes more configurable.
 }
 
 func NewActiveClientRepository(capHint int) *ActiveClientRepository {
 	return &ActiveClientRepository{
-		clientsMu: new(sync.RWMutex),
+		clientsMu: sync.RWMutex{},
 		clients:   make(map[uint64]*ActiveClient, capHint),
 	}
 }
@@ -121,11 +124,14 @@ type connectionInfo struct {
 type ActiveClient struct {
 	userID uint64
 
-	mu    *sync.RWMutex
+	mu    sync.RWMutex
 	conns map[Conn]connectionInfo
 }
 
 func NewActiveClient(repo *ActiveClientRepository, c Conn, u User) (*ActiveClient, ActiveClientActivated, error) {
+	if u.NotExist() {
+		return nil, ActiveClientActivated{}, fmt.Errorf("can not create ActiveClient with no-exist user(id=%d)", u.ID)
+	}
 	if u.ID != c.UserID() {
 		return nil, ActiveClientActivated{}, fmt.Errorf("can not create AcitiveClient with different user(%d) and conncetion(userID=%d)", u.ID, c.UserID())
 	}
@@ -135,7 +141,7 @@ func NewActiveClient(repo *ActiveClientRepository, c Conn, u User) (*ActiveClien
 
 	ac := &ActiveClient{
 		userID: c.UserID(),
-		mu:     new(sync.RWMutex),
+		mu:     sync.RWMutex{},
 		conns:  map[Conn]connectionInfo{c: connectionInfo{}},
 	}
 	err := repo.Store(ac)
@@ -145,7 +151,7 @@ func NewActiveClient(repo *ActiveClientRepository, c Conn, u User) (*ActiveClien
 
 	ev := ActiveClientActivated{
 		UserID:   c.UserID(),
-		UserName: "", // TODO
+		UserName: u.Name,
 	}
 	return ac, ev, nil
 }
@@ -200,13 +206,12 @@ var ErrExceedsMaxConns = errors.New("exceed the number of connections")
 // ErrExceedsMaxConns when the number of the connections exceeds
 // the maximum limit.
 func (ac *ActiveClient) AddConn(c Conn) (int, error) {
-	if ac.userID != c.UserID() {
-		return 0, fmt.Errorf("AcitiveClient(%d) can not contain the different user connection (userID=%d)", ac.userID, c.UserID())
-	}
-
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
 
+	if ac.userID != c.UserID() {
+		return len(ac.conns), fmt.Errorf("AcitiveClient(%d) can not contain the different user connection (userID=%d)", ac.userID, c.UserID())
+	}
 	if len(ac.conns) == MaxConns {
 		return MaxConns, ErrExceedsMaxConns
 	}
