@@ -79,7 +79,10 @@ func TestServerServeChatWebsocket(t *testing.T) {
 	if err := websocket.JSON.Receive(conn, &readAny); err != nil {
 		t.Fatal(err)
 	}
-	created, ok := readAny[chat.EncNameMessageCreated].(map[string]interface{})
+	if got, expect := readAny["event"], chat.EventNameMessageCreated; got != expect {
+		t.Errorf("diffrent event names, expect: %s, got: %s", expect, got)
+	}
+	created, ok := readAny["data"].(map[string]interface{})
 	if !ok {
 		t.Fatalf("invalid data is recieved: %#v", readAny)
 	}

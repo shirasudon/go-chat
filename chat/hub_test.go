@@ -68,11 +68,15 @@ func TestHubEventSendingServiceAtMessageCreated(t *testing.T) {
 	conn.EXPECT().
 		Send(gomock.Any()).
 		Do(func(ev domain.Event) {
-			enc, ok := ev.(EncodedEvent)
+			enc, ok := ev.(EventJSON)
 			if !ok {
 				t.Fatalf("invalid data is sent: %#v", ev)
 			}
-			created, ok := enc[EncNameMessageCreated].(domain.MessageCreated)
+			if expect, got := EventNameMessageCreated, enc.EventName; expect != got {
+				t.Fatalf("diffrent event name, expect: %s, got: %s", expect, got)
+			}
+
+			created, ok := enc.Data.(domain.MessageCreated)
 			if !ok {
 				t.Fatalf("invalid data structure: %#v", enc)
 			}

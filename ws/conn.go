@@ -12,6 +12,13 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+// ActionJSON is a data-transfer-object
+// which is sent by json the client connection.
+type ActionJSON struct {
+	ActionName action.Action     `json:"action"`
+	Data       action.AnyMessage `json:"data"`
+}
+
 // Conn is end-point for reading/writing messages from/to websocket.
 // One Conn corresponds to one browser-side client.
 type Conn struct {

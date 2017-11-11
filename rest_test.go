@@ -45,7 +45,7 @@ func TestRESTCreateRoom(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req := httptest.NewRequest(echo.POST, "/users/:id/rooms/new", bytes.NewReader(body))
+	req := httptest.NewRequest(echo.POST, "/users/:user_id/rooms/new", bytes.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 
@@ -90,7 +90,7 @@ func TestRESTDeleteRoom(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	req := httptest.NewRequest(echo.POST, "/rooms/delete", bytes.NewReader(body))
+	req := httptest.NewRequest(echo.POST, "/users/:user_id/rooms/:room_id/delete", bytes.NewReader(body))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 

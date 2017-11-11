@@ -83,29 +83,6 @@ func (hub *Hub) Listen(ctx context.Context) {
 	}
 }
 
-const (
-	EncNameMessageCreated = "message_created"
-	EncNameUnkown         = "unknown"
-)
-
-var eventEncodeNames = map[domain.EventType]string{
-	domain.EventMessageCreated: EncNameMessageCreated,
-}
-
-type EncodedEvent map[string]interface{}
-
-func (EncodedEvent) EventType() domain.EventType { return domain.EventNone }
-
-func NewEncodedEvent(ev domain.Event) EncodedEvent {
-	eventName, ok := eventEncodeNames[ev.EventType()]
-	if !ok {
-		eventName = EncNameUnkown
-	}
-	return EncodedEvent{
-		eventName: ev,
-	}
-}
-
 func (hub *Hub) eventSendingService(ctx context.Context) {
 	pubsub := hub.pubsub
 	msgCreated := pubsub.Sub(domain.EventMessageCreated)
@@ -132,7 +109,7 @@ func (hub *Hub) eventSendingService(ctx context.Context) {
 				continue
 			}
 
-			toSend := NewEncodedEvent(created)
+			toSend := NewEventJSON(created)
 			for _, ac := range acs {
 				ac.Send(toSend)
 			}
@@ -169,6 +146,7 @@ func (hub *Hub) handleMessage(ctx context.Context, req actionMessageRequest) err
 // Send ActionMessage with the connection which sent the message.
 // the connection is used to verify that the message is exactlly
 // sent by the connected user.
+// The error is sent to given conn when the message is invalid.
 func (hub *Hub) Send(conn domain.Conn, message action.ActionMessage) {
 	select {
 	case <-hub.shutdown:
