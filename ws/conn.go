@@ -89,16 +89,19 @@ var ErrAlreadyClosed = errors.New("already closed")
 // already closed otherwise nil.
 func (c *Conn) Close() error {
 	c.mu.Lock()
-	defer c.mu.Unlock()
-	if !c.closed {
-		c.closed = true
-		close(c.done)
-		if c.onClosed != nil {
-			c.onClosed(c)
-		}
-		return nil
+	if c.closed {
+		c.mu.Unlock()
+		return ErrAlreadyClosed
 	}
-	return ErrAlreadyClosed
+
+	c.closed = true
+	close(c.done)
+	c.mu.Unlock() // to avoid dead lock, Unlock before OnClosed.
+
+	if c.onClosed != nil {
+		c.onClosed(c)
+	}
+	return nil
 }
 
 // Listen starts handling reading/writing websocket.
@@ -152,23 +155,25 @@ func (c *Conn) receivePump(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		default:
-			message, err := c.receiveAnyMessage()
+			message, err := c.receiveActionJSON()
 			if err != nil {
 				if err == io.EOF {
 					return
 				}
+				// return error message to client
+				c.Send(domain.ErrorRaised{Message: err.Error()})
 				continue
 			}
 			// Receive success, handling received message
-			c.handleAnyMessage(message)
+			c.handleActionJSON(message)
 		}
 	}
 }
 
 // return fatal error, such as io.EOF with connection closed,
 // otherwise handle itself.
-func (c *Conn) receiveAnyMessage() (action.AnyMessage, error) {
-	var message action.AnyMessage
+func (c *Conn) receiveActionJSON() (*ActionJSON, error) {
+	var message ActionJSON
 	if err := websocket.JSON.Receive(c.conn, &message); err != nil {
 		// io.EOF means connection is closed
 		if err == io.EOF {
@@ -179,16 +184,30 @@ func (c *Conn) receiveAnyMessage() (action.AnyMessage, error) {
 		if c.onError != nil {
 			c.onError(c, err)
 		}
-		// and return error message to client
-		c.Send(domain.ErrorRaised{Message: "JSON structure must be a HashMap type"})
+		return nil, errors.New("JSON structure must be a HashMap type")
+	}
+
+	// validate existance of data.
+	if message.Data == nil {
+		err := errors.New("JSON structure must have data field as HashMap type")
+		// actual error is handled by server.
+		if c.onError != nil {
+			c.onError(c, err)
+		}
 		return nil, err
 	}
-	return message, nil
+	return &message, nil
 }
 
-func (c *Conn) handleAnyMessage(m action.AnyMessage) {
-	m.SetNumber(action.KeySenderID, float64(c.userID))
-	actionMsg, err := action.ConvertAnyMessage(m)
+func (c *Conn) handleActionJSON(m *ActionJSON) {
+	data := m.Data
+	if data == nil {
+		data = make(action.AnyMessage)
+	}
+	data.SetString(action.KeyAction, string(m.ActionName))
+	data.SetNumber(action.KeySenderID, float64(c.userID))
+
+	actionMsg, err := action.ConvertAnyMessage(data)
 	if err != nil {
 		if c.onError != nil {
 			c.onError(c, err)

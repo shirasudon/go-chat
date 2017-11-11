@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/domain"
@@ -13,6 +14,7 @@ import (
 )
 
 const GreetingMsg = "hello!"
+const Timeout = 10 * time.Millisecond
 
 func TestNewConn(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -25,12 +27,29 @@ func TestNewConn(t *testing.T) {
 		cm := domain.MessageCreated{Content: GreetingMsg}
 		conn := NewConn(ws, domain.User{})
 		conn.Send(cm)
+		conn.OnActionMessage(func(conn *Conn, m action.ActionMessage) {
+			cm, ok := m.(action.ChatMessage)
+			if !ok {
+				t.Fatalf("invalid message structure: %#v", m)
+			}
+			if cm.Content != GreetingMsg {
+				t.Errorf("invalid message content, expect: %v, got: %v", GreetingMsg, cm.Content)
+			}
+			endCh <- true // PASS this test.
+		})
+		conn.OnError(func(conn *Conn, err error) {
+			t.Fatalf("server side conn got error: %v", err)
+		})
 		conn.Listen(ctx)
-		endCh <- true
 	}))
 	defer func() {
 		server.Close()
-		<-endCh
+
+		select {
+		case <-endCh:
+		case <-time.After(Timeout):
+			t.Error("Timeouted")
+		}
 	}()
 
 	requestPath := server.URL + "/ws"
@@ -52,11 +71,49 @@ func TestNewConn(t *testing.T) {
 	}
 
 	// Send msg received from above.
-	var cm = action.ChatMessage{Content: created.Content}
-	cm.ActionName = action.ActionChatMessage
-	if err := websocket.JSON.Send(conn, cm); err != nil {
+	var toSend = map[string]interface{}{
+		action.KeyAction: action.ActionChatMessage,
+		"data":           action.ChatMessage{Content: created.Content},
+	}
+	if err := websocket.JSON.Send(conn, toSend); err != nil {
 		t.Fatalf("client send error: %v", err)
 	}
+}
+
+func TestConnGotsInvalidMessages(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	endCh := make(chan bool, 1)
+	server := wstest.NewServer(websocket.Handler(func(ws *websocket.Conn) {
+		defer ws.Close()
+
+		conn := NewConn(ws, domain.User{})
+		conn.OnActionMessage(func(conn *Conn, m action.ActionMessage) {
+			t.Fatalf("In this test, server side conn will never get message, but got: %#v", m)
+		})
+		conn.OnError(func(conn *Conn, err error) {
+			t.Logf("In this test, server side conn will get error: %v", err)
+		})
+		conn.Listen(ctx)
+		endCh <- true
+	}))
+	defer func() {
+		server.Close()
+		select {
+		case <-endCh:
+		case <-time.After(Timeout):
+			t.Error("Timeouted")
+		}
+	}()
+
+	requestPath := server.URL + "/ws"
+	origin := server.URL[0:strings.LastIndex(server.URL, ":")]
+	conn, err := wstest.NewClientConn(requestPath, origin)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
 
 	// Send invalid message and Receive error message
 	if err := websocket.JSON.Send(conn, "aa"); err != nil {
@@ -80,7 +137,7 @@ func TestNewConn(t *testing.T) {
 	t.Logf("LOG: send invalid message, then return: %v", errMsg)
 
 	// Send no action Message
-	cm = action.ChatMessage{}
+	cm := action.ChatMessage{}
 	cm.ActionName = action.ActionEmpty
 	if err := websocket.JSON.Send(conn, cm); err != nil {
 		t.Fatalf("client send error: %v", err)

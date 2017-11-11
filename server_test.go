@@ -67,10 +67,13 @@ func TestServerServeChatWebsocket(t *testing.T) {
 	defer conn.Close()
 
 	// write message to server
-	writeCM := action.ChatMessage{Content: "hello!"}
-	writeCM.RoomID = 3
-	writeCM.ActionName = action.ActionChatMessage
-	if err := websocket.JSON.Send(conn, writeCM); err != nil {
+	cm := action.ChatMessage{Content: "hello!"}
+	cm.RoomID = 3
+	toSend := map[string]interface{}{
+		action.KeyAction: action.ActionChatMessage,
+		"data":           cm,
+	}
+	if err := websocket.JSON.Send(conn, toSend); err != nil {
 		t.Fatal(err)
 	}
 
@@ -80,7 +83,7 @@ func TestServerServeChatWebsocket(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got, expect := readAny["event"], chat.EventNameMessageCreated; got != expect {
-		t.Errorf("diffrent event names, expect: %s, got: %s", expect, got)
+		t.Errorf("diffrent event names, expect: %v, got: %v", expect, got)
 	}
 	created, ok := readAny["data"].(map[string]interface{})
 	if !ok {
@@ -88,7 +91,7 @@ func TestServerServeChatWebsocket(t *testing.T) {
 	}
 
 	// check same message
-	if created["content"].(string) != writeCM.Content {
-		t.Errorf("different chat message fields, recieved: %#v, send: %#v", created, writeCM)
+	if created["content"].(string) != cm.Content {
+		t.Errorf("different chat message fields, recieved: %#v, send: %#v", created, toSend)
 	}
 }
