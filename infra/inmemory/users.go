@@ -3,6 +3,7 @@ package inmemory
 import (
 	"context"
 	"errors"
+	"sort"
 
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/domain"
@@ -126,5 +127,6 @@ func (repo UserRepository) FindAllByUserID(ctx context.Context, id uint64) ([]do
 	if len(us) == 0 {
 		return nil, ErrNotFound
 	}
+	sort.Slice(us, func(i, j int) bool { return us[i].ID < us[j].ID })
 	return us, nil
 }

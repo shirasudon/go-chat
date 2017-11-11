@@ -2,6 +2,7 @@ package inmemory
 
 import (
 	"context"
+	"sort"
 
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/domain"
@@ -52,6 +53,7 @@ func (repo *RoomRepository) FindAllByUserID(ctx context.Context, userID uint64) 
 			rooms = append(rooms, *roomMap[roomID])
 		}
 	}
+	sort.Slice(rooms, func(i, j int) bool { return rooms[i].ID < rooms[j].ID })
 	return rooms, nil
 }
 
