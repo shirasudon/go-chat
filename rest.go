@@ -146,3 +146,23 @@ func (rest *RESTHandler) PostRoomMessage(e echo.Context) error {
 	}
 	return e.JSON(http.StatusCreated, response)
 }
+
+func (rest *RESTHandler) GetRoomMessages(e echo.Context) error {
+	userID, ok := LoggedInUserID(e)
+	if !ok {
+		return ErrRequireLoginFirst
+	}
+
+	qRoomMsg := action.QueryRoomMessages{}
+	if err := e.Bind(&qRoomMsg); err != nil {
+		// TODO return error as JSON format
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+
+	roomMsg, err := rest.chatQuery.FindRoomMessages(e.Request().Context(), userID, qRoomMsg)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	return e.JSON(http.StatusFound, roomMsg)
+}

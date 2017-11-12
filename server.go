@@ -141,6 +141,11 @@ func (s *Server) ListenAndServe() error {
 	chatGroup.DELETE("/users/:id/rooms", s.restHandler.DeleteRoom).
 		Name = "chat.deleteUserRoom"
 
+	chatGroup.POST("/rooms/:room_id/messages", s.restHandler.PostRoomMessage).
+		Name = "chat.postRoomMessage"
+	chatGroup.GET("/rooms/:room_id/messages", s.restHandler.GetRoomMessages).
+		Name = "chat.getRoomMessage"
+
 	// set websocket handler
 	chatGroup.GET("/ws", s.serveChatWebsocket).
 		Name = "chat.connentWebsocket"

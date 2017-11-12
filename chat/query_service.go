@@ -2,6 +2,7 @@ package chat
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/shirasudon/go-chat/chat/action"
@@ -106,7 +107,19 @@ type QueriedMessage struct {
 
 // Find messages from specified room.
 // It returns error if infrastructure raise some errors.
-func (s *QueryService) FindRoomMessages(ctx context.Context, q action.QueryRoomMessages) (*QueriedRoomMessages, error) {
+func (s *QueryService) FindRoomMessages(ctx context.Context, userID uint64, q action.QueryRoomMessages) (*QueriedRoomMessages, error) {
+	r, err := s.rooms.Find(ctx, q.RoomID)
+	if err != nil {
+		return nil, err
+	}
+	u, err := s.users.Find(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !r.HasMember(u) {
+		return nil, fmt.Errorf("can not get the messages from room(id=%d) by not a room member user(id=%d)", q.RoomID, userID)
+	}
+
 	msgs, err := s.msgs.FindRoomMessagesOrderByLatest(ctx, q.RoomID, q.Before, q.Limit)
 	if err != nil {
 		return nil, err

@@ -7,6 +7,8 @@ import (
 	"github.com/shirasudon/go-chat/domain"
 )
 
+//go:generate mockgen -destination=../internal/mocks/mock_queryer.go -package=mocks github.com/shirasudon/go-chat/chat UserQueryer,RoomQueryer,MessageQueryer
+
 // Queryers is just data struct which have
 // some XXXQueryers.
 type Queryers struct {

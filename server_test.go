@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/net/websocket"
 
@@ -83,7 +84,10 @@ func TestServerServeChatWebsocket(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// read message from server
+	// read message from server.
+	// to avoid infinite loops, we set read dead line to 10ms.
+	conn.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+
 	var readAny map[string]interface{}
 	if err := websocket.JSON.Receive(conn, &readAny); err != nil {
 		t.Fatal(err)

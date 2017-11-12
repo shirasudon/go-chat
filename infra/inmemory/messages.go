@@ -9,7 +9,15 @@ import (
 )
 
 var (
-	messageMap = map[uint64]domain.Message{}
+	messageMap = map[uint64]domain.Message{
+		1: {
+			ID:        1,
+			Content:   "hello!",
+			CreatedAt: time.Now().Add(-10 * time.Millisecond),
+			UserID:    2,
+			RoomID:    2,
+		},
+	}
 
 	messageCounter uint64 = uint64(len(messageMap))
 )

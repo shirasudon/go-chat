@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/labstack/echo"
 
@@ -41,6 +42,7 @@ const (
 	createOrDeleteRoomID   = uint64(4)
 	createOrDeleteByUserID = uint64(2)
 	createMsgRoomID        = uint64(3)
+	createMsgContent       = "hello!"
 )
 
 func TestRESTCreateRoom(t *testing.T) {
@@ -134,6 +136,7 @@ func TestRESTGetUserRoom(t *testing.T) {
 	req := httptest.NewRequest(echo.GET, "/users/1/rooms", nil)
 	rec := httptest.NewRecorder()
 	_ = theEcho.NewContext(req, rec)
+	//TODO
 }
 
 func TestRESTPostRoomMessage(t *testing.T) {
@@ -141,7 +144,7 @@ func TestRESTPostRoomMessage(t *testing.T) {
 	defer done()
 
 	chatMsg := action.ChatMessage{}
-	chatMsg.Content = "hello!"
+	chatMsg.Content = createMsgContent
 
 	req, err := newJSONRequest(echo.POST, "/rooms/:room_id/messages", chatMsg)
 	if err != nil {
@@ -178,5 +181,63 @@ func TestRESTPostRoomMessage(t *testing.T) {
 	if ok, assertionOK := response["ok"].(bool); !assertionOK || !ok {
 		t.Errorf("message created but not ok status")
 	}
+	t.Logf("%#v", response)
+}
+
+func TestRESTGetRoomMessages(t *testing.T) {
+	RESTHandler, done := createRESTHandler()
+	defer done()
+
+	query := action.QueryRoomMessages{
+		RoomID: createMsgRoomID,
+		Before: time.Now(),
+		Limit:  1,
+	}
+
+	req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages", query)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+
+	c := theEcho.NewContext(req, rec)
+	c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
+	c.SetParamNames("room_id")
+	c.SetParamValues(fmt.Sprint(createMsgRoomID))
+
+	err = RESTHandler.GetRoomMessages(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expect, got := http.StatusFound, rec.Code; expect != got {
+		t.Errorf("different http status code, expect: %v, got: %v", expect, got)
+	}
+
+	response := make(map[string]interface{})
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	msgs, ok := response["messages"].([]interface{})
+	if !ok {
+		t.Fatalf("response has invalid structure, %#v", response)
+	}
+	if len(msgs) != 1 {
+		t.Fatalf("different messages size, expect: %v, got: %v", 1, len(msgs))
+	}
+	msg, ok := msgs[0].(map[string]interface{})
+	if !ok {
+		t.Fatalf("response.messages has invalid structure, %#v", msgs)
+	}
+	if expect, got := createMsgContent, msg["content"]; expect != got {
+		t.Errorf("different message content, expect: %v, got: %v", expect, got)
+	}
+
+	if roomID := uint64(response["room_id"].(float64)); roomID == 0 {
+		t.Errorf("message created but target room id is invalid")
+	}
+
 	t.Logf("%#v", response)
 }
