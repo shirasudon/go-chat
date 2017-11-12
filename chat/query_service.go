@@ -88,7 +88,7 @@ func (s *QueryService) FindUserRooms(ctx context.Context, userID uint64) ([]Quer
 // }
 
 type QueriedRoomMessages struct {
-	RoomID uint64 `json:"room_id",db:"room_id"`
+	RoomID uint64 `json:"room_id"`
 
 	Msgs []QueriedMessage `json:"messages"`
 
