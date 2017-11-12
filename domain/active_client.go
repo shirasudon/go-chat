@@ -237,16 +237,16 @@ func (ac *ActiveClient) RemoveConn(c Conn) (int, error) {
 
 // domain event for the AcitiveClient is activated.
 type ActiveClientActivated struct {
-	UserID   uint64
-	UserName string
+	UserID   uint64 `json:"user_id"`
+	UserName string `json:"user_name"`
 }
 
 func (ActiveClientActivated) EventType() EventType { return EventActiveClientActivated }
 
 // domain event for the AcitiveClient is inactivated.
 type ActiveClientInactivated struct {
-	UserID   uint64
-	UserName string
+	UserID   uint64 `json:"user_id"`
+	UserName string `json:"user_name"`
 }
 
 func (ActiveClientInactivated) EventType() EventType { return EventActiveClientInactivated }

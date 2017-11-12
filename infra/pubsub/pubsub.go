@@ -16,8 +16,12 @@ func New(capacity int) *PubSub {
 }
 
 // subscribes specified EventType and return message channel.
-func (ps *PubSub) Sub(typ domain.EventType) chan interface{} {
-	return ps.pubsub.Sub(typ.String())
+func (ps *PubSub) Sub(typ ...domain.EventType) chan interface{} {
+	tags := make([]string, 0, len(typ))
+	for _, tp := range typ {
+		tags = append(tags, tp.String())
+	}
+	return ps.pubsub.Sub(tags...)
 }
 
 // unsubscribes specified channel which is gotten by previous Sub().

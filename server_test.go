@@ -35,6 +35,14 @@ func TestServerServeChatWebsocket(t *testing.T) {
 	server := NewServer(repository, queryers, nil)
 	defer server.Shutdown(context.Background())
 
+	// run server process
+	go func() {
+		server.ListenAndServe()
+	}()
+
+	// waiting for the server process stands up.
+	time.Sleep(10 * time.Millisecond)
+
 	e := echo.New()
 	serverErrCh := make(chan error, 1)
 	ts := httptest.NewServer(
@@ -58,11 +66,6 @@ func TestServerServeChatWebsocket(t *testing.T) {
 		}
 	}()
 
-	// run server process
-	go func() {
-		server.ListenAndServe()
-	}()
-
 	requestPath := ts.URL + "/chat/ws"
 	origin := ts.URL[0:strings.LastIndex(ts.URL, ":")]
 
@@ -72,6 +75,28 @@ func TestServerServeChatWebsocket(t *testing.T) {
 		t.Fatalf("can not create websocket connetion, error: %v", err)
 	}
 	defer conn.Close()
+
+	// read connected event from server.
+	// to avoid infinite loops, we set read dead line to 100ms.
+	conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+	{
+		var readAny map[string]interface{}
+		if err := websocket.JSON.Receive(conn, &readAny); err != nil {
+			t.Fatal(err)
+		}
+
+		if got, expect := readAny["event"], chat.EventNameActiveClientActivated; got != expect {
+			t.Errorf("diffrent event names, expect: %v, got: %v", expect, got)
+		}
+
+		activated, ok := readAny["data"].(map[string]interface{})
+		if !ok {
+			t.Fatalf("invalid data is recieved: %#v", readAny)
+		}
+		if got := activated["user_id"].(float64); got != LoginUserID {
+			t.Errorf("diffrent user id, expect: %v, got: %v", LoginUserID, got)
+		}
+	}
 
 	// write message to server
 	cm := action.ChatMessage{Content: "hello!"}
@@ -85,8 +110,8 @@ func TestServerServeChatWebsocket(t *testing.T) {
 	}
 
 	// read message from server.
-	// to avoid infinite loops, we set read dead line to 10ms.
-	conn.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+	// to avoid infinite loops, we set read dead line to 100ms.
+	conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 
 	var readAny map[string]interface{}
 	if err := websocket.JSON.Receive(conn, &readAny); err != nil {

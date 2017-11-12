@@ -13,12 +13,16 @@ type EventJSON struct {
 }
 
 const (
-	EventNameMessageCreated = "message_created"
-	EventNameUnknown        = "unknown"
+	EventNameMessageCreated          = "message_created"
+	EventNameActiveClientActivated   = "client_activated"
+	EventNameActiveClientInactivated = "client_inactivated"
+	EventNameUnknown                 = "unknown"
 )
 
 var eventEncodeNames = map[domain.EventType]string{
-	domain.EventMessageCreated: EventNameMessageCreated,
+	domain.EventMessageCreated:          EventNameMessageCreated,
+	domain.EventActiveClientActivated:   EventNameActiveClientActivated,
+	domain.EventActiveClientInactivated: EventNameActiveClientInactivated,
 }
 
 func (EventJSON) EventType() domain.EventType { return domain.EventNone }

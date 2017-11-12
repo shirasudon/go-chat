@@ -83,43 +83,93 @@ func (hub *Hub) Listen(ctx context.Context) {
 	}
 }
 
+func (hub *Hub) broadcastEvent(ev domain.Event, targetIDs ...uint64) error {
+	if len(targetIDs) == 0 {
+		return nil
+	}
+
+	acs, err := hub.activeClients.FindAllByUserIDs(targetIDs)
+	if err != nil {
+		return err
+	}
+
+	toSend := NewEventJSON(ev)
+	for _, ac := range acs {
+		ac.Send(toSend)
+	}
+	return nil
+}
+
 func (hub *Hub) eventSendingService(ctx context.Context) {
-	pubsub := hub.pubsub
-	msgCreated := pubsub.Sub(domain.EventMessageCreated)
+	events := hub.pubsub.Sub(
+		domain.EventMessageCreated,
+		domain.EventActiveClientActivated,
+		domain.EventActiveClientInactivated,
+	)
 
 	for {
 		select {
-		case v, chAlived := <-msgCreated:
-			if !chAlived {
-				return
-			}
-
-			created := v.(domain.MessageCreated)
-			room, err := hub.chatQuery.rooms.Find(ctx, created.RoomID)
-			if err != nil {
-				// TODO error handling
-				log.Println(err)
-				continue
-			}
-
-			acs, err := hub.activeClients.FindAllByUserIDs(room.MemberIDs())
-			if err != nil {
-				// TODO error handling
-				log.Println(err)
-				continue
-			}
-
-			toSend := NewEventJSON(created)
-			for _, ac := range acs {
-				ac.Send(toSend)
-			}
-
 		case <-hub.shutdown:
 			return
 		case <-ctx.Done():
 			return
+		case ev, chAlived := <-events:
+			if !chAlived {
+				return
+			}
+
+			switch ev := ev.(type) {
+			case domain.MessageCreated:
+				// send activate event for all friends.
+				room, err := hub.chatQuery.rooms.Find(ctx, ev.RoomID)
+				if err != nil {
+					// TODO error handling
+					log.Println(err)
+					continue
+				}
+
+				err = hub.broadcastEvent(ev, room.MemberIDs()...)
+				if err != nil {
+					// TODO error handling
+					log.Println(err)
+					continue
+				}
+
+			case domain.ActiveClientActivated:
+				// send activate event for all friends.
+				user, err := hub.chatQuery.users.Find(ctx, ev.UserID)
+				if err != nil {
+					// TODO error handling
+					log.Println(err)
+					continue
+				}
+
+				targetIDs := append(user.FriendIDs.List(), user.ID) // contains user-self.
+				err = hub.broadcastEvent(ev, targetIDs...)
+				if err != nil {
+					// TODO error handling
+					log.Println(err)
+					continue
+				}
+
+			case domain.ActiveClientInactivated:
+				// send inactivate event for all friends.
+				user, err := hub.chatQuery.users.Find(ctx, ev.UserID)
+				if err != nil {
+					// TODO error handling
+					log.Println(err)
+					continue
+				}
+
+				err = hub.broadcastEvent(ev, user.FriendIDs.List()...)
+				if err != nil {
+					// TODO error handling
+					log.Println(err)
+					continue
+				}
+			}
 		}
-	}
+	} // ... for
 }
 
 func (hub *Hub) handleMessage(ctx context.Context, req actionMessageRequest) error {

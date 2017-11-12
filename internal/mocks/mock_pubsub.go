@@ -48,13 +48,17 @@ func (mr *MockPubsubMockRecorder) Pub(arg0 ...interface{}) *gomock.Call {
 }
 
 // Sub mocks base method
-func (m *MockPubsub) Sub(arg0 domain.EventType) chan interface{} {
-	ret := m.ctrl.Call(m, "Sub", arg0)
+func (m *MockPubsub) Sub(arg0 ...domain.EventType) chan interface{} {
+	varargs := []interface{}{}
+	for _, a := range arg0 {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Sub", varargs...)
 	ret0, _ := ret[0].(chan interface{})
 	return ret0
 }
 
 // Sub indicates an expected call of Sub
-func (mr *MockPubsubMockRecorder) Sub(arg0 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sub", reflect.TypeOf((*MockPubsub)(nil).Sub), arg0)
+func (mr *MockPubsubMockRecorder) Sub(arg0 ...interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Sub", reflect.TypeOf((*MockPubsub)(nil).Sub), arg0...)
 }
