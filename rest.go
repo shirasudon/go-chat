@@ -23,6 +23,16 @@ func NewRESTHandler(chatCmd *chat.CommandService, chatQuery *chat.QueryService) 
 	}
 }
 
+// parse uint parameter with key from echo.Context.
+// it returns parsed uint number, or 0 if can not parsed.
+func uintParam(e echo.Context, key string) uint64 {
+	n, err := strconv.ParseUint(e.Param(key), 10, 64)
+	if err != nil {
+		return 0
+	}
+	return n
+}
+
 func (rest *RESTHandler) validateUserID(e echo.Context) (uint64, error) {
 	userID, ok := LoggedInUserID(e)
 	if !ok {
@@ -125,4 +135,34 @@ func (rest *RESTHandler) GetUserRooms(e echo.Context) error {
 	}
 
 	return e.JSON(http.StatusOK, userRooms)
+}
+
+func (rest *RESTHandler) PostRoomMessage(e echo.Context) error {
+	userID, ok := LoggedInUserID(e)
+	if !ok {
+		return ErrRequireLoginFirst
+	}
+
+	postMsg := action.ChatMessage{}
+	if err := e.Bind(&postMsg); err != nil {
+		// TODO return error as JSON format
+		return echo.NewHTTPError(http.StatusBadRequest, err)
+	}
+	postMsg.SenderID = userID
+	postMsg.RoomID = uintParam(e, "room_id") // TODO use const variable for "room_id"
+	msgID, err := rest.chatCmd.PostRoomMessage(e.Request().Context(), postMsg)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	response := struct {
+		MsgID  uint64 `json:"message_id"`
+		RoomID uint64 `json:"room_id"`
+		OK     bool   `json:"ok"`
+	}{
+		MsgID:  msgID,
+		RoomID: postMsg.RoomID,
+		OK:     true,
+	}
+	return e.JSON(http.StatusCreated, response)
 }

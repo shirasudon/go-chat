@@ -26,9 +26,21 @@ func createRESTHandler() (rest *RESTHandler, doneFunc func()) {
 	), doneFunc
 }
 
+func newJSONRequest(method, url string, data interface{}) (*http.Request, error) {
+	body, err := json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+
+	req := httptest.NewRequest(method, url, bytes.NewReader(body))
+	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
+	return req, nil
+}
+
 const (
 	createOrDeleteRoomID   = uint64(4)
 	createOrDeleteByUserID = uint64(2)
+	createMsgRoomID        = uint64(3)
 )
 
 func TestRESTCreateRoom(t *testing.T) {
@@ -40,13 +52,11 @@ func TestRESTCreateRoom(t *testing.T) {
 	createRoom.RoomName = "room1"
 	createRoom.RoomMemberIDs = []uint64{2, 3}
 
-	body, err := json.Marshal(createRoom)
+	req, err := newJSONRequest(echo.POST, "/users/:user_id/rooms/new", createRoom)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	req := httptest.NewRequest(echo.POST, "/users/:user_id/rooms/new", bytes.NewReader(body))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 
 	c := theEcho.NewContext(req, rec)
@@ -85,13 +95,11 @@ func TestRESTDeleteRoom(t *testing.T) {
 	deleteRoom.ActionName = action.ActionDeleteRoom
 	deleteRoom.RoomID = createOrDeleteRoomID
 
-	body, err := json.Marshal(deleteRoom)
+	req, err := newJSONRequest(echo.POST, "/users/:user_id/rooms/:room_id/delete", deleteRoom)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	req := httptest.NewRequest(echo.POST, "/users/:user_id/rooms/:room_id/delete", bytes.NewReader(body))
-	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 	rec := httptest.NewRecorder()
 
 	c := theEcho.NewContext(req, rec)
@@ -126,4 +134,49 @@ func TestRESTGetUserRoom(t *testing.T) {
 	req := httptest.NewRequest(echo.GET, "/users/1/rooms", nil)
 	rec := httptest.NewRecorder()
 	_ = theEcho.NewContext(req, rec)
+}
+
+func TestRESTPostRoomMessage(t *testing.T) {
+	RESTHandler, done := createRESTHandler()
+	defer done()
+
+	chatMsg := action.ChatMessage{}
+	chatMsg.Content = "hello!"
+
+	req, err := newJSONRequest(echo.POST, "/rooms/:room_id/messages", chatMsg)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+
+	c := theEcho.NewContext(req, rec)
+	c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
+	c.SetParamNames("room_id")
+	c.SetParamValues(fmt.Sprint(createMsgRoomID))
+
+	err = RESTHandler.PostRoomMessage(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expect, got := http.StatusCreated, rec.Code; expect != got {
+		t.Errorf("different http status code, expect: %v, got: %v", expect, got)
+	}
+
+	response := make(map[string]interface{})
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if msgID := uint64(response["message_id"].(float64)); msgID == 0 {
+		t.Errorf("message created but created message id is invalid")
+	}
+	if roomID := uint64(response["room_id"].(float64)); roomID == 0 {
+		t.Errorf("message created but target room id is invalid")
+	}
+	if ok, assertionOK := response["ok"].(bool); !assertionOK || !ok {
+		t.Errorf("message created but not ok status")
+	}
+	t.Logf("%#v", response)
 }
