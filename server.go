@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"sort"
 	"strings"
 
 	"golang.org/x/net/websocket"
@@ -144,7 +145,7 @@ func (s *Server) ListenAndServe() error {
 	chatGroup.POST("/rooms/:room_id/messages", s.restHandler.PostRoomMessage).
 		Name = "chat.postRoomMessage"
 	chatGroup.GET("/rooms/:room_id/messages", s.restHandler.GetRoomMessages).
-		Name = "chat.getRoomMessage"
+		Name = "chat.getRoomMessages"
 
 	// set websocket handler
 	chatGroup.GET("/ws", s.serveChatWebsocket).
@@ -155,7 +156,12 @@ func (s *Server) ListenAndServe() error {
 		Name = "staticContents"
 
 	// show registered URLs
-	for _, url := range e.Routes() {
+	routes := e.Routes()
+	sort.Slice(routes, func(i, j int) bool {
+		ri, rj := routes[i], routes[j]
+		return len(ri.Path) < len(rj.Path)
+	})
+	for _, url := range routes {
 		// built-in routes are ignored
 		if strings.Contains(url.Name, "github.com/labstack/echo") {
 			continue
