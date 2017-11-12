@@ -3,7 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/shirasudon/go-chat"
+	gochat "github.com/shirasudon/go-chat"
+	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/infra/inmemory"
 )
 
@@ -11,5 +12,11 @@ func main() {
 	// initilize database
 	repos := inmemory.OpenRepositories()
 	defer repos.Close()
-	log.Fatal(chat.ListenAndServe(repos, nil))
+
+	qs := &chat.Queryers{
+		UserQueryer:    repos.UserRepository,
+		RoomQueryer:    repos.RoomRepository,
+		MessageQueryer: repos.MessageRepository,
+	}
+	log.Fatal(gochat.ListenAndServe(repos, qs, nil))
 }
