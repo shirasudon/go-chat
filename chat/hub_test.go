@@ -88,7 +88,10 @@ func TestHubEventSendingServiceAtMessageCreated(t *testing.T) {
 
 	// build Hub
 	commandService := NewCommandService(repos, pubsub)
-	queryService := NewQueryService(repos)
+	queryService := NewQueryService(&Queryers{
+		UserQueryer: repos.Users(),
+		RoomQueryer: repos.Rooms(),
+	})
 
 	// set timeout 10ms for testing.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)

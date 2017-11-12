@@ -18,6 +18,12 @@ import (
 
 var (
 	repository = inmemory.OpenRepositories()
+
+	queryers *chat.Queryers = &chat.Queryers{
+		UserQueryer:    repository.UserRepository,
+		RoomQueryer:    repository.RoomRepository,
+		MessageQueryer: repository.MessageRepository,
+	}
 )
 
 const (
@@ -25,7 +31,7 @@ const (
 )
 
 func TestServerServeChatWebsocket(t *testing.T) {
-	server := NewServer(repository, nil)
+	server := NewServer(repository, queryers, nil)
 	defer server.Shutdown(context.Background())
 
 	e := echo.New()

@@ -49,23 +49,21 @@ func (repo *MessageRepository) FindAllByRoomIDOrderByLatest(ctx context.Context,
 	return msgs, nil
 }
 
-func (repo *MessageRepository) FindPreviousMessagesOrderByLatest(ctx context.Context, offset domain.Message, n int) ([]domain.Message, error) {
-	if n <= 0 {
+func (repo *MessageRepository) FindRoomMessagesOrderByLatest(ctx context.Context, roomID uint64, before time.Time, limit int) ([]domain.Message, error) {
+	if limit <= 0 {
 		return []domain.Message{}, nil
 	}
 
-	msgs := make([]domain.Message, 0, n)
+	msgs := make([]domain.Message, 0, limit)
 	for _, m := range messageMap {
-		if m.CreatedAt.Before(offset.CreatedAt) {
+		if m.RoomID == roomID && m.CreatedAt.Before(before) {
 			msgs = append(msgs, m)
-			if len(msgs) == n {
-				break
-			}
 		}
 	}
 
 	sort.Slice(msgs, func(i, j int) bool { return msgs[i].CreatedAt.After(msgs[j].CreatedAt) })
-	return msgs, nil
+
+	return msgs[:limit], nil
 }
 
 func (repo *MessageRepository) Store(ctx context.Context, m domain.Message) (uint64, error) {

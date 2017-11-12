@@ -22,7 +22,7 @@ func createRESTHandler() (rest *RESTHandler, doneFunc func()) {
 	}
 	return NewRESTHandler(
 		chat.NewCommandService(repository, ps),
-		chat.NewQueryService(repository),
+		chat.NewQueryService(queryers),
 	), doneFunc
 }
 

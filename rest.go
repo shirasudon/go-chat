@@ -114,27 +114,7 @@ func (rest *RESTHandler) GetUserRooms(e echo.Context) error {
 		return err
 	}
 
-	// TODO move to query service
-	type userRoom struct {
-		RoomName string `json:"room_name"`
-		OwnerID  uint64 `json:"owner_id"`
-		Members  []struct {
-			UserID   uint64 `json:"user_id"`
-			UserName string `json:"user_name"`
-		} `json:"members"`
-	}
-	userRooms := make([]userRoom, 0, len(rooms))
-	for _, r := range rooms {
-		ur := userRoom{
-			RoomName: r.Name,
-			OwnerID:  userID,
-		}
-		// TODO get user information
-		// ur.Members = ...
-		userRooms = append(userRooms, ur)
-	}
-
-	return e.JSON(http.StatusOK, userRooms)
+	return e.JSON(http.StatusOK, rooms)
 }
 
 func (rest *RESTHandler) PostRoomMessage(e echo.Context) error {

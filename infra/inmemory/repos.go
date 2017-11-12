@@ -6,18 +6,20 @@ import (
 
 func OpenRepositories() *Repositories {
 	return &Repositories{
+		UserRepository:    &UserRepository{},
 		MessageRepository: NewMessageRepository(),
 		RoomRepository:    NewRoomRepository(),
 	}
 }
 
 type Repositories struct {
-	domain.MessageRepository
-	domain.RoomRepository
+	*UserRepository
+	*MessageRepository
+	*RoomRepository
 }
 
-func (Repositories) Users() domain.UserRepository {
-	return &UserRepository{}
+func (r Repositories) Users() domain.UserRepository {
+	return r.UserRepository
 }
 
 func (r Repositories) Messages() domain.MessageRepository {
@@ -25,7 +27,7 @@ func (r Repositories) Messages() domain.MessageRepository {
 }
 
 func (r Repositories) Rooms() domain.RoomRepository {
-	return &RoomRepository{}
+	return r.RoomRepository
 }
 
 func (r *Repositories) Close() error {
