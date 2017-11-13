@@ -33,6 +33,18 @@ func (m *MockRepositories) EXPECT() *MockRepositoriesMockRecorder {
 	return m.recorder
 }
 
+// Events mocks base method
+func (m *MockRepositories) Events() domain.EventRepository {
+	ret := m.ctrl.Call(m, "Events")
+	ret0, _ := ret[0].(domain.EventRepository)
+	return ret0
+}
+
+// Events indicates an expected call of Events
+func (mr *MockRepositoriesMockRecorder) Events() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Events", reflect.TypeOf((*MockRepositories)(nil).Events))
+}
+
 // Messages mocks base method
 func (m *MockRepositories) Messages() domain.MessageRepository {
 	ret := m.ctrl.Call(m, "Messages")

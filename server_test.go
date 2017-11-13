@@ -24,6 +24,7 @@ var (
 		UserQueryer:    repository.UserRepository,
 		RoomQueryer:    repository.RoomRepository,
 		MessageQueryer: repository.MessageRepository,
+		EventQueryer:   repository.EventRepository,
 	}
 )
 

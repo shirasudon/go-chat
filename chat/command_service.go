@@ -14,6 +14,7 @@ type CommandService struct {
 	msgs         domain.MessageRepository
 	users        domain.UserRepository
 	rooms        domain.RoomRepository
+	events       domain.EventRepository
 	pubsub       Pubsub
 	updateCancel chan struct{}
 }
@@ -23,6 +24,7 @@ func NewCommandService(repos domain.Repositories, pubsub Pubsub) *CommandService
 		msgs:         repos.Messages(),
 		users:        repos.Users(),
 		rooms:        repos.Rooms(),
+		events:       repos.Events(),
 		pubsub:       pubsub,
 		updateCancel: make(chan struct{}),
 	}
@@ -70,6 +72,10 @@ func (s *CommandService) withEventTransaction(
 		}
 
 		if events != nil {
+			_, err := s.events.Store(ctx, events...)
+			if err != nil {
+				return err
+			}
 			s.pubsub.Pub(events...)
 		}
 		return nil

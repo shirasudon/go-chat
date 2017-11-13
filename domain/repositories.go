@@ -8,6 +8,8 @@ type Repositories interface {
 	Users() UserRepository
 	Messages() MessageRepository
 	Rooms() RoomRepository
+
+	Events() EventRepository
 }
 
 // SimpleRepositories implementes Repositories interface.
@@ -17,6 +19,8 @@ type SimpleRepositories struct {
 	UserRepository    UserRepository
 	MessageRepository MessageRepository
 	RoomRepository    RoomRepository
+
+	EventRepository EventRepository
 }
 
 func (s SimpleRepositories) Users() UserRepository {
@@ -29,4 +33,8 @@ func (s SimpleRepositories) Messages() MessageRepository {
 
 func (s SimpleRepositories) Rooms() RoomRepository {
 	return s.RoomRepository
+}
+
+func (s SimpleRepositories) Events() EventRepository {
+	return s.EventRepository
 }

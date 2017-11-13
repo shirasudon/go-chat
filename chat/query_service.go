@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/shirasudon/go-chat/chat/action"
+	"github.com/shirasudon/go-chat/domain"
 )
 
 // TODO cache feature.
@@ -16,6 +17,8 @@ type QueryService struct {
 	users UserQueryer
 	rooms RoomQueryer
 	msgs  MessageQueryer
+
+	events EventQueryer
 }
 
 func NewQueryService(qs *Queryers) *QueryService {
@@ -23,10 +26,15 @@ func NewQueryService(qs *Queryers) *QueryService {
 		panic("nil Queryers")
 	}
 	return &QueryService{
-		users: qs.UserQueryer,
-		rooms: qs.RoomQueryer,
-		msgs:  qs.MessageQueryer,
+		users:  qs.UserQueryer,
+		rooms:  qs.RoomQueryer,
+		msgs:   qs.MessageQueryer,
+		events: qs.EventQueryer,
 	}
+}
+
+func (s *QueryService) FindEventsByTimeCursor(ctx context.Context, after time.Time, limit int) ([]domain.Event, error) {
+	return s.events.FindAllByTimeCursor(ctx, after, limit)
 }
 
 // Find friend users related with specified user id.

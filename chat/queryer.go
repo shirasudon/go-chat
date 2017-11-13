@@ -7,7 +7,7 @@ import (
 	"github.com/shirasudon/go-chat/domain"
 )
 
-//go:generate mockgen -destination=../internal/mocks/mock_queryer.go -package=mocks github.com/shirasudon/go-chat/chat UserQueryer,RoomQueryer,MessageQueryer
+//go:generate mockgen -destination=../internal/mocks/mock_queryer.go -package=mocks github.com/shirasudon/go-chat/chat UserQueryer,RoomQueryer,MessageQueryer,EventQueryer
 
 // Queryers is just data struct which have
 // some XXXQueryers.
@@ -15,6 +15,8 @@ type Queryers struct {
 	UserQueryer
 	RoomQueryer
 	MessageQueryer
+
+	EventQueryer
 }
 
 // UserQueryer queries users stored in the data-store.
@@ -44,4 +46,13 @@ type MessageQueryer interface {
 	// specified limit.
 	// It returns error if infrastructure raise some errors.
 	FindRoomMessagesOrderByLatest(ctx context.Context, roomID uint64, before time.Time, limit int) ([]domain.Message, error)
+}
+
+// EventQueryer queries events stored in the data-store.
+type EventQueryer interface {
+	// Find events from the data-store.
+	// The returned events are, ordered by older created at
+	// and all of after specified after time.
+	// It returns error if any.
+	FindAllByTimeCursor(ctx context.Context, after time.Time, limit int) ([]domain.Event, error)
 }

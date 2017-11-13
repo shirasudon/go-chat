@@ -61,32 +61,6 @@ func (mr *MockMessageRepositoryMockRecorder) Find(arg0, arg1 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Find", reflect.TypeOf((*MockMessageRepository)(nil).Find), arg0, arg1)
 }
 
-// FindAllByRoomIDOrderByLatest mocks base method
-func (m *MockMessageRepository) FindAllByRoomIDOrderByLatest(arg0 context.Context, arg1 uint64, arg2 int) ([]domain.Message, error) {
-	ret := m.ctrl.Call(m, "FindAllByRoomIDOrderByLatest", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]domain.Message)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FindAllByRoomIDOrderByLatest indicates an expected call of FindAllByRoomIDOrderByLatest
-func (mr *MockMessageRepositoryMockRecorder) FindAllByRoomIDOrderByLatest(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindAllByRoomIDOrderByLatest", reflect.TypeOf((*MockMessageRepository)(nil).FindAllByRoomIDOrderByLatest), arg0, arg1, arg2)
-}
-
-// FindPreviousMessagesOrderByLatest mocks base method
-func (m *MockMessageRepository) FindPreviousMessagesOrderByLatest(arg0 context.Context, arg1 domain.Message, arg2 int) ([]domain.Message, error) {
-	ret := m.ctrl.Call(m, "FindPreviousMessagesOrderByLatest", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]domain.Message)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FindPreviousMessagesOrderByLatest indicates an expected call of FindPreviousMessagesOrderByLatest
-func (mr *MockMessageRepositoryMockRecorder) FindPreviousMessagesOrderByLatest(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindPreviousMessagesOrderByLatest", reflect.TypeOf((*MockMessageRepository)(nil).FindPreviousMessagesOrderByLatest), arg0, arg1, arg2)
-}
-
 // RemoveAllByRoomID mocks base method
 func (m *MockMessageRepository) RemoveAllByRoomID(arg0 context.Context, arg1 uint64) error {
 	ret := m.ctrl.Call(m, "RemoveAllByRoomID", arg0, arg1)

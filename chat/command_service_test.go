@@ -7,6 +7,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 
+	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/internal/mocks"
 )
@@ -62,5 +63,65 @@ func TestChatUpdateServiceAtRoomDeleted(t *testing.T) {
 		// PASS
 	case <-ctx.Done():
 		t.Errorf("timeout to fail")
+	}
+}
+
+func TestCommandServiceCreateRoom(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	var (
+		CreateRoom = action.CreateRoom{
+			SenderID:      1,
+			RoomName:      "room-name",
+			RoomMemberIDs: []uint64{1},
+		}
+
+		RoomID = uint64(1)
+
+		User = domain.User{ID: CreateRoom.SenderID}
+	)
+
+	pubsub := mocks.NewMockPubsub(mockCtrl)
+	pubsub.EXPECT().
+		Pub(gomock.Any()).
+		Times(1)
+
+	rooms := mocks.NewMockRoomRepository(mockCtrl)
+	rooms.EXPECT().
+		Store(gomock.Any(), gomock.Any()).
+		Return(RoomID, nil).
+		Times(1)
+
+	rooms.EXPECT().
+		BeginTx(gomock.Any(), nil).
+		Return(domain.EmptyTxBeginner{}, nil).
+		Times(1)
+
+	users := mocks.NewMockUserRepository(mockCtrl)
+	users.EXPECT().
+		Find(gomock.Any(), CreateRoom.SenderID).
+		Return(User, nil).
+		Times(1)
+
+	events := mocks.NewMockEventRepository(mockCtrl)
+	events.EXPECT().
+		Store(gomock.Any(), gomock.Any()).
+		Return([]uint64{1}, nil).
+		Times(1)
+
+	cmdService := NewCommandService(domain.SimpleRepositories{
+		UserRepository:  users,
+		RoomRepository:  rooms,
+		EventRepository: events,
+	}, pubsub)
+
+	roomID, err := cmdService.CreateRoom(context.Background(), CreateRoom)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	if roomID != RoomID {
+		t.Errorf("different room id for create room, expect: %v, got: %v", RoomID, roomID)
 	}
 }

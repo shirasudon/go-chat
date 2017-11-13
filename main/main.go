@@ -17,6 +17,7 @@ func main() {
 		UserQueryer:    repos.UserRepository,
 		RoomQueryer:    repos.RoomRepository,
 		MessageQueryer: repos.MessageRepository,
+		EventQueryer:   repos.EventRepository,
 	}
 	log.Fatal(gochat.ListenAndServe(repos, qs, nil))
 }

@@ -2,6 +2,16 @@
 
 package domain
 
+import "context"
+
+//go:generate mockgen -destination=../internal/mocks/mock_events.go -package=mocks github.com/shirasudon/go-chat/domain EventRepository
+
+type EventRepository interface {
+	// store events to the data-store.
+	// It returns stored event's IDs and error if any.
+	Store(ctx context.Context, ev ...Event) ([]uint64, error)
+}
+
 type Event interface {
 	EventType() EventType
 }
