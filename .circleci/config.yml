@@ -40,7 +40,13 @@ jobs:
           command: |
             trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
             go test -v -race ./... | tee ${TEST_RESULTS}/go-test.out
-            goverage -v -race -coverprofile=${TEST_RESULTS}/go-test.coverage ./... 
+            goverage -coverprofile=${TEST_RESULTS}/go-test.coverage ./... 
+
+      - run: 
+          name: Upload coverage profile to codecov.io
+          command: |
+            cp ${TEST_RESULTS}/go-test.coverage ./coverage.txt
+            bash <(curl -s https://codecov.io/bash)
 
       - run: 
           name: Build main program
