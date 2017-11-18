@@ -13,7 +13,6 @@ jobs:
 
     environment:
       TEST_RESULTS: /tmp/test-results
-      GOTEST_COVERAGE_PKGS: `go list ./... | grep -v "/main\\|/internal\\|/wstest"`
 
     steps:
       - checkout
@@ -41,7 +40,7 @@ jobs:
           command: |
             trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
             go test -v -race ./... | tee ${TEST_RESULTS}/go-test.out
-            goverage -coverprofile=${TEST_RESULTS}/go-test.coverage ${GOTEST_COVERAGE_PKGS}
+            bash .circleci/coverage.sh
 
       - run: 
           name: Upload coverage profile to codecov.io
