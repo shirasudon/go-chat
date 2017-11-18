@@ -1,10 +1,11 @@
 # chat
 
 [![CircleCI](https://circleci.com/gh/shirasudon/go-chat/tree/master.svg?style=svg)](https://circleci.com/gh/shirasudon/go-chat/tree/master)
+[![codecov](https://codecov.io/gh/shirasudon/go-chat/branch/master/graph/badge.svg)](https://codecov.io/gh/shirasudon/go-chat)
 
 Backend chat server based on the Websocket written by Go.
 
-# Websocket Connection
+## Websocket Connection
 
 The server can accepts the Websocket connetion at `/chat/ws`.
 The Websocket connetion can be used two ways:
@@ -12,7 +13,7 @@ The Websocket connetion can be used two ways:
 1. Receive events from the server.
 1. Send actions to the server.
 
-## Receive events
+### Receive events
 
 The Websocket connetion can be used as the Event stream which 
 publish the Events, such as Message created, Message deleted and so on, 
@@ -30,7 +31,7 @@ The event format is a JSON like:
 }
 ```
 
-## Send actions
+### Send actions
 
 The Websocket connetion can be used as the chat application interface
 for sending the commands, such as Post new message, Create new room and so on,
