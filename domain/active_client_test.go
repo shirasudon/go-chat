@@ -2,6 +2,7 @@ package domain
 
 import (
 	"testing"
+	"time"
 )
 
 type ConnImpl struct {
@@ -48,6 +49,9 @@ func TestNewActiveClientSuccess(t *testing.T) {
 	}
 	if created.UserName != user.Name {
 		t.Errorf("ActiveClientActivated has different user name, expect: %s, got: %s", created.UserName, user.Name)
+	}
+	if got := created.Timestamp(); got == (time.Time{}) {
+		t.Error("ActiveClientActivated has no timestamp")
 	}
 }
 
@@ -189,6 +193,9 @@ func TestActiveClientDelete(t *testing.T) {
 	}
 	if ev.UserID != user.ID {
 		t.Errorf("ActiveClient deleted event has different user id, expect: %d, got: %d", user.ID, ev.UserID)
+	}
+	if got := ev.Timestamp(); got == (time.Time{}) {
+		t.Error("ActiveClientInactivated has no timestamp")
 	}
 
 	invalidAC := &ActiveClient{}

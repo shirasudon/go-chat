@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
 )
 
 type UserRepositoryStub struct{}
@@ -62,6 +63,9 @@ func TestUserCreated(t *testing.T) {
 	if got := len(ev.FriendIDs); got != 1 {
 		t.Errorf("UseerCreated has dieffrent friends size, expect: %d, got: %d", 1, got)
 	}
+	if got := ev.Timestamp(); got == (time.Time{}) {
+		t.Error("UserCreated has no timestamp")
+	}
 
 }
 
@@ -79,6 +83,9 @@ func TestUserAddFriendSuccess(t *testing.T) {
 	}
 	if got := ev.AddedFriendID; got != friend.ID {
 		t.Errorf("UserAddedFriend has different friend id, expect: %d, got: %d", friend.ID, got)
+	}
+	if got := ev.Timestamp(); got == (time.Time{}) {
+		t.Error("UserAddedFriend has no timestamp")
 	}
 
 	if !u.HasFriend(friend) {

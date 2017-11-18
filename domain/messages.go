@@ -73,11 +73,12 @@ func NewRoomMessage(
 	m.ID = id
 
 	ev := MessageCreated{
-		MessageID:  m.ID,
-		RoomID:     m.RoomID,
-		SenderName: u.Name,
-		Content:    content,
+		MessageID: m.ID,
+		RoomID:    m.RoomID,
+		CreatedBy: u.ID,
+		Content:   content,
 	}
+	ev.Occurs()
 	m.AddEvent(ev)
 
 	return m, nil
@@ -98,6 +99,7 @@ func (m *Message) ReadBy(u User) (MessageReadByUser, error) {
 		MessageID: m.ID,
 		UserID:    u.ID,
 	}
+	ev.Occurs()
 	m.AddEvent(ev)
 	return ev, nil
 }
@@ -108,18 +110,20 @@ func (m *Message) ReadBy(u User) (MessageReadByUser, error) {
 
 // Event for the message is created.
 type MessageCreated struct {
-	MessageID  uint64 `json:"message_id"`
-	RoomID     uint64 `json:"room_id"`
-	SenderName string `json:"user_id"`
-	Content    string `json:"content"`
+	EventEmbd
+	MessageID uint64 `json:"message_id"`
+	RoomID    uint64 `json:"room_id"`
+	CreatedBy uint64 `json:"created_by"`
+	Content   string `json:"content"`
 }
 
 func (MessageCreated) EventType() EventType { return EventMessageCreated }
 
 // Event for the message is read by the user.
 type MessageReadByUser struct {
-	MessageID uint64
-	UserID    uint64
+	EventEmbd
+	MessageID uint64 `json:"message_id"`
+	UserID    uint64 `json:"user_id"`
 }
 
 func (MessageReadByUser) EventType() EventType { return EventMessageReadByUser }

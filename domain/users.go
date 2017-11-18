@@ -100,9 +100,9 @@ func NewUser(ctx context.Context, userRepo UserRepository, name string, password
 
 	ev := UserCreated{
 		Name:      name,
-		Password:  password,
 		FriendIDs: friendIDs.List(),
 	}
+	ev.Occurs()
 	u.AddEvent(ev)
 
 	return u, nil
@@ -131,6 +131,7 @@ func (u *User) AddFriend(friend User) (UserAddedFriend, error) {
 		UserID:        u.ID,
 		AddedFriendID: friend.ID,
 	}
+	ev.Occurs()
 	u.AddEvent(ev)
 	return ev, nil
 }
@@ -146,17 +147,18 @@ func (u *User) HasFriend(friend User) bool {
 
 // Event for User is created.
 type UserCreated struct {
-	Name      string
-	Password  string
-	FriendIDs []uint64
+	EventEmbd
+	Name      string   `json:"user_name"`
+	FriendIDs []uint64 `json:"friend_ids"`
 }
 
 func (UserCreated) EventType() EventType { return EventUserCreated }
 
 // Event for User is created.
 type UserAddedFriend struct {
-	UserID        uint64
-	AddedFriendID uint64
+	EventEmbd
+	UserID        uint64 `json:"user_id"`
+	AddedFriendID uint64 `json:"added_friend_id"`
 }
 
 func (UserAddedFriend) EventType() EventType { return EventUserAddedFriend }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
 )
 
 type MessageRepositoryStub struct{}
@@ -63,6 +64,9 @@ func TestMessageCreatedSuccess(t *testing.T) {
 	if got := ev.MessageID; got != m.ID {
 		t.Errorf("MessageCreated has different messageID, expect: %v, got: %v", m.ID, got)
 	}
+	if got := ev.Timestamp(); got == (time.Time{}) {
+		t.Error("MessageCreated has no timestamp")
+	}
 }
 
 func TestMessageCreatedFail(t *testing.T) {
@@ -107,6 +111,9 @@ func TestMessageReadByUser(t *testing.T) {
 	if got := ev.UserID; got != u.ID {
 		t.Errorf("MessageReadByUser has different user id, expect: %d, got: %d", u.ID, got)
 	}
+	if got := ev.Timestamp(); got == (time.Time{}) {
+		t.Error("MessageReadByUser has no timestamp")
+	}
 
 	// message holds 2 events: MessageCreated, MessageReadByUser
 	events := m.Events()
@@ -119,6 +126,9 @@ func TestMessageReadByUser(t *testing.T) {
 	}
 	if ev != ev2 {
 		t.Errorf("returned event is not same as the holding event")
+	}
+	if got := ev2.Timestamp(); got == (time.Time{}) {
+		t.Error("MessageReadByUser has no timestamp")
 	}
 
 	// fail case: not exist

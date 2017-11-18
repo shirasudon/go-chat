@@ -153,6 +153,7 @@ func NewActiveClient(repo *ActiveClientRepository, c Conn, u User) (*ActiveClien
 		UserID:   c.UserID(),
 		UserName: u.Name,
 	}
+	ev.Occurs()
 	return ac, ev, nil
 }
 
@@ -170,10 +171,12 @@ func (ac *ActiveClient) Delete(repo *ActiveClientRepository) (ActiveClientInacti
 		return ActiveClientInactivated{}, fmt.Errorf("AcitiveClient not in the repository, can not be deleted: %v", err)
 	}
 
-	return ActiveClientInactivated{
+	ev := ActiveClientInactivated{
 		UserID:   ac.userID,
 		UserName: "", // TODO
-	}, nil
+	}
+	ev.Occurs()
+	return ev, nil
 }
 
 func (ac *ActiveClient) HasConn(c Conn) bool {
@@ -237,6 +240,7 @@ func (ac *ActiveClient) RemoveConn(c Conn) (int, error) {
 
 // domain event for the AcitiveClient is activated.
 type ActiveClientActivated struct {
+	EventEmbd
 	UserID   uint64 `json:"user_id"`
 	UserName string `json:"user_name"`
 }
@@ -245,6 +249,7 @@ func (ActiveClientActivated) EventType() EventType { return EventActiveClientAct
 
 // domain event for the AcitiveClient is inactivated.
 type ActiveClientInactivated struct {
+	EventEmbd
 	UserID   uint64 `json:"user_id"`
 	UserName string `json:"user_name"`
 }

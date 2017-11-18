@@ -2,7 +2,10 @@
 
 package domain
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 //go:generate mockgen -destination=../internal/mocks/mock_events.go -package=mocks github.com/shirasudon/go-chat/domain EventRepository
 
@@ -12,22 +15,22 @@ type EventRepository interface {
 	Store(ctx context.Context, ev ...Event) ([]uint64, error)
 }
 
+// Event is a domain event which is emitted when
+// domain objects, such as User, Room and Message, are
+// modified.
 type Event interface {
+	// return its type
 	EventType() EventType
-}
 
-// domain event for the error is raised.
-type ErrorRaised struct {
-	Message string `json:"message"`
+	// return its time stamp.
+	Timestamp() time.Time
 }
-
-func (ErrorRaised) EventType() EventType { return EventErrorRaised }
 
 type EventType uint
 
 const (
-	EventNone        EventType = iota
-	EventErrorRaised EventType = iota
+	EventNone EventType = iota
+	EventErrorRaised
 	EventUserCreated
 	EventUserDeleted
 	EventUserAddedFriend
@@ -43,6 +46,26 @@ const (
 	EventActiveClientActivated
 	EventActiveClientInactivated
 )
+
+// Common embeded fields for Event.
+// It implements Event interface.
+type EventEmbd struct {
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// Occurs confirms the event has occured at a point.
+func (e *EventEmbd) Occurs() { e.CreatedAt = time.Now() }
+
+func (EventEmbd) EventType() EventType   { return EventNone }
+func (e EventEmbd) Timestamp() time.Time { return e.CreatedAt }
+
+// domain event for the error is raised.
+type ErrorRaised struct {
+	EventEmbd
+	Message string `json:"message"`
+}
+
+func (ErrorRaised) EventType() EventType { return EventErrorRaised }
 
 // EventHolder holds event objects.
 // It is used to embed into entity.

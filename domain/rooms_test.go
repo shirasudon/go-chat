@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"testing"
+	"time"
 )
 
 type RoomRepositoryStub struct{}
@@ -62,6 +63,9 @@ func TestRoomCreated(t *testing.T) {
 	if got, expect := len(ev.MemberIDs), len(r.MemberIDs()); got != expect {
 		t.Errorf("RoomCreated has dieffrent room members size, expect: %d, got: %d", expect, got)
 	}
+	if got := ev.Timestamp(); got == (time.Time{}) {
+		t.Error("RoomCreated has no timestamp")
+	}
 }
 
 func TestRoomDeletedSuccess(t *testing.T) {
@@ -103,6 +107,9 @@ func TestRoomDeletedSuccess(t *testing.T) {
 	if got, expect := len(ev.MemberIDs), len(r.MemberIDs()); got != expect {
 		t.Errorf("RoomDeleted has dieffrent room members size, expect: %d, got: %d", expect, got)
 	}
+	if got := ev.Timestamp(); got == (time.Time{}) {
+		t.Error("RoomDeleted has no timestamp")
+	}
 }
 
 func TestRoomDeletedFail(t *testing.T) {
@@ -128,6 +135,9 @@ func TestRoomAddMember(t *testing.T) {
 	}
 	if got := ev.AddedUserID; got != u.ID {
 		t.Errorf("RoomAddedMember has different user id, expect: %d, got: %d", u.ID, got)
+	}
+	if got := ev.Timestamp(); got == (time.Time{}) {
+		t.Error("RoomAddedMember has no timestamp")
 	}
 
 	if !r.HasMember(u) {

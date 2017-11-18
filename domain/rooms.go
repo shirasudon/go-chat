@@ -68,11 +68,12 @@ func NewRoom(ctx context.Context, roomRepo RoomRepository, name string, user *Us
 	r.ID = id
 
 	ev := RoomCreated{
-		OwnerID:    user.ID,
+		CreatedBy:  user.ID,
 		Name:       name,
 		IsTalkRoom: false,
 		MemberIDs:  memberIDs.List(),
 	}
+	ev.Occurs()
 	r.AddEvent(ev)
 
 	return r, nil
@@ -101,11 +102,12 @@ func (r *Room) Delete(ctx context.Context, repo RoomRepository, user *User) erro
 
 	ev := RoomDeleted{
 		RoomID:     removedID,
-		OwnerID:    user.ID,
+		DeletedBy:  user.ID,
 		Name:       r.Name,
 		IsTalkRoom: r.IsTalkRoom,
 		MemberIDs:  r.MemberIDs(),
 	}
+	ev.Occurs()
 	r.AddEvent(ev)
 
 	return nil
@@ -141,6 +143,7 @@ func (r *Room) AddMember(user User) (RoomAddedMember, error) {
 		RoomID:      r.ID,
 		AddedUserID: user.ID,
 	}
+	ev.Occurs()
 	r.AddEvent(ev)
 	return ev, nil
 }
@@ -157,29 +160,32 @@ func (r *Room) HasMember(member User) bool {
 
 // Event for Room is created.
 type RoomCreated struct {
-	OwnerID    uint64
-	Name       string
+	EventEmbd
+	CreatedBy  uint64 `json:"created_by"`
+	Name       string `json:"name"`
 	IsTalkRoom bool
-	MemberIDs  []uint64
+	MemberIDs  []uint64 `json:"member_ids"`
 }
 
 func (RoomCreated) EventType() EventType { return EventRoomCreated }
 
 // Event for Room is deleted.
 type RoomDeleted struct {
-	OwnerID    uint64
-	RoomID     uint64
-	Name       string
+	EventEmbd
+	DeletedBy  uint64 `json:"deleted_by"`
+	RoomID     uint64 `json:"room_id"`
+	Name       string `json:"name"`
 	IsTalkRoom bool
-	MemberIDs  []uint64
+	MemberIDs  []uint64 `json:"member_ids"`
 }
 
 func (RoomDeleted) EventType() EventType { return EventRoomDeleted }
 
 // Event for Room added new member.
 type RoomAddedMember struct {
-	RoomID      uint64
-	AddedUserID uint64
+	EventEmbd
+	RoomID      uint64 `json:"room_id"`
+	AddedUserID uint64 `json:"added_user_id"`
 }
 
 func (RoomAddedMember) EventType() EventType { return EventRoomAddedMember }
