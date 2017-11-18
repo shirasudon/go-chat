@@ -7,13 +7,14 @@ import (
 
 	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 // Hub accepts any user connections to
 // propagates domain events for those connections.
 type Hub struct {
 	messages chan actionMessageRequest
-	events   chan domain.Event
+	events   chan event.Event
 	shutdown chan struct{}
 
 	chatCommand   *CommandService
@@ -37,7 +38,7 @@ func NewHub(cmdService *CommandService, queryService *QueryService) *Hub {
 
 	return &Hub{
 		messages: make(chan actionMessageRequest, 1),
-		events:   make(chan domain.Event, 1),
+		events:   make(chan event.Event, 1),
 		shutdown: make(chan struct{}),
 
 		chatCommand:   cmdService,
@@ -83,7 +84,7 @@ func (hub *Hub) Listen(ctx context.Context) {
 	}
 }
 
-func (hub *Hub) broadcastEvent(ev domain.Event, targetIDs ...uint64) error {
+func (hub *Hub) broadcastEvent(ev event.Event, targetIDs ...uint64) error {
 	if len(targetIDs) == 0 {
 		return nil
 	}
@@ -102,9 +103,9 @@ func (hub *Hub) broadcastEvent(ev domain.Event, targetIDs ...uint64) error {
 
 func (hub *Hub) eventSendingService(ctx context.Context) {
 	events := hub.pubsub.Sub(
-		domain.EventMessageCreated,
-		domain.EventActiveClientActivated,
-		domain.EventActiveClientInactivated,
+		event.TypeMessageCreated,
+		event.TypeActiveClientActivated,
+		event.TypeActiveClientInactivated,
 	)
 
 	for {
@@ -119,7 +120,7 @@ func (hub *Hub) eventSendingService(ctx context.Context) {
 			}
 
 			switch ev := ev.(type) {
-			case domain.MessageCreated:
+			case event.MessageCreated:
 				// send activate event for all friends.
 				room, err := hub.chatQuery.rooms.Find(ctx, ev.RoomID)
 				if err != nil {
@@ -135,7 +136,7 @@ func (hub *Hub) eventSendingService(ctx context.Context) {
 					continue
 				}
 
-			case domain.ActiveClientActivated:
+			case event.ActiveClientActivated:
 				// send activate event for all friends.
 				user, err := hub.chatQuery.users.Find(ctx, ev.UserID)
 				if err != nil {
@@ -152,7 +153,7 @@ func (hub *Hub) eventSendingService(ctx context.Context) {
 					continue
 				}
 
-			case domain.ActiveClientInactivated:
+			case event.ActiveClientInactivated:
 				// send inactivate event for all friends.
 				user, err := hub.chatQuery.users.Find(ctx, ev.UserID)
 				if err != nil {

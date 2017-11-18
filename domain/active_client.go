@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 // ActiveClientRepository manages active clients.
@@ -128,15 +130,15 @@ type ActiveClient struct {
 	conns map[Conn]connectionInfo
 }
 
-func NewActiveClient(repo *ActiveClientRepository, c Conn, u User) (*ActiveClient, ActiveClientActivated, error) {
+func NewActiveClient(repo *ActiveClientRepository, c Conn, u User) (*ActiveClient, event.ActiveClientActivated, error) {
 	if u.NotExist() {
-		return nil, ActiveClientActivated{}, fmt.Errorf("can not create ActiveClient with no-exist user(id=%d)", u.ID)
+		return nil, event.ActiveClientActivated{}, fmt.Errorf("can not create ActiveClient with no-exist user(id=%d)", u.ID)
 	}
 	if u.ID != c.UserID() {
-		return nil, ActiveClientActivated{}, fmt.Errorf("can not create AcitiveClient with different user(%d) and conncetion(userID=%d)", u.ID, c.UserID())
+		return nil, event.ActiveClientActivated{}, fmt.Errorf("can not create AcitiveClient with different user(%d) and conncetion(userID=%d)", u.ID, c.UserID())
 	}
 	if _, err := repo.Find(c.UserID()); err == nil {
-		return nil, ActiveClientActivated{}, fmt.Errorf("user(%d) is already active", c.UserID())
+		return nil, event.ActiveClientActivated{}, fmt.Errorf("user(%d) is already active", c.UserID())
 	}
 
 	ac := &ActiveClient{
@@ -146,10 +148,10 @@ func NewActiveClient(repo *ActiveClientRepository, c Conn, u User) (*ActiveClien
 	}
 	err := repo.Store(ac)
 	if err != nil {
-		return nil, ActiveClientActivated{}, err
+		return nil, event.ActiveClientActivated{}, err
 	}
 
-	ev := ActiveClientActivated{
+	ev := event.ActiveClientActivated{
 		UserID:   c.UserID(),
 		UserName: u.Name,
 	}
@@ -158,20 +160,20 @@ func NewActiveClient(repo *ActiveClientRepository, c Conn, u User) (*ActiveClien
 }
 
 // Delete deletes this ActiveClient from the repository.
-func (ac *ActiveClient) Delete(repo *ActiveClientRepository) (ActiveClientInactivated, error) {
+func (ac *ActiveClient) Delete(repo *ActiveClientRepository) (event.ActiveClientInactivated, error) {
 	ac.mu.RLock()
 	if len(ac.conns) > 0 {
 		ac.mu.RUnlock()
-		return ActiveClientInactivated{}, errors.New("AcitiveClient contains any connection, can not be deleted")
+		return event.ActiveClientInactivated{}, errors.New("AcitiveClient contains any connection, can not be deleted")
 	}
 	ac.mu.RUnlock()
 
 	err := repo.Remove(ac)
 	if err != nil {
-		return ActiveClientInactivated{}, fmt.Errorf("AcitiveClient not in the repository, can not be deleted: %v", err)
+		return event.ActiveClientInactivated{}, fmt.Errorf("AcitiveClient not in the repository, can not be deleted: %v", err)
 	}
 
-	ev := ActiveClientInactivated{
+	ev := event.ActiveClientInactivated{
 		UserID:   ac.userID,
 		UserName: "", // TODO
 	}
@@ -187,7 +189,7 @@ func (ac *ActiveClient) HasConn(c Conn) bool {
 }
 
 // Send domain event to all of the client connections.
-func (ac *ActiveClient) Send(ev Event) {
+func (ac *ActiveClient) Send(ev event.Event) {
 	ac.mu.RLock()
 	for c, _ := range ac.conns {
 		c.Send(ev)
@@ -237,21 +239,3 @@ func (ac *ActiveClient) RemoveConn(c Conn) (int, error) {
 	delete(ac.conns, c)
 	return len(ac.conns), nil
 }
-
-// domain event for the AcitiveClient is activated.
-type ActiveClientActivated struct {
-	EventEmbd
-	UserID   uint64 `json:"user_id"`
-	UserName string `json:"user_name"`
-}
-
-func (ActiveClientActivated) EventType() EventType { return EventActiveClientActivated }
-
-// domain event for the AcitiveClient is inactivated.
-type ActiveClientInactivated struct {
-	EventEmbd
-	UserID   uint64 `json:"user_id"`
-	UserName string `json:"user_name"`
-}
-
-func (ActiveClientInactivated) EventType() EventType { return EventActiveClientInactivated }

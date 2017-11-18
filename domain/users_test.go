@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"testing"
 	"time"
+
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 type UserRepositoryStub struct{}
@@ -51,7 +53,7 @@ func TestUserCreated(t *testing.T) {
 	if got := len(events); got != 1 {
 		t.Errorf("user has no event after UserCreated")
 	}
-	ev, ok := events[0].(UserCreated)
+	ev, ok := events[0].(event.UserCreated)
 	if !ok {
 		t.Errorf("invalid event state for the user")
 	}
@@ -96,7 +98,7 @@ func TestUserAddFriendSuccess(t *testing.T) {
 	if got := len(u.Events()); got != 2 {
 		t.Errorf("user has no event")
 	}
-	if _, ok := u.Events()[1].(UserAddedFriend); !ok {
+	if _, ok := u.Events()[1].(event.UserAddedFriend); !ok {
 		t.Errorf("invalid event is added")
 	}
 }

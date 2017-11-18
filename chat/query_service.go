@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/shirasudon/go-chat/chat/action"
-	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 // TODO cache feature.
@@ -33,7 +33,7 @@ func NewQueryService(qs *Queryers) *QueryService {
 	}
 }
 
-func (s *QueryService) FindEventsByTimeCursor(ctx context.Context, after time.Time, limit int) ([]domain.Event, error) {
+func (s *QueryService) FindEventsByTimeCursor(ctx context.Context, after time.Time, limit int) ([]event.Event, error) {
 	return s.events.FindAllByTimeCursor(ctx, after, limit)
 }
 

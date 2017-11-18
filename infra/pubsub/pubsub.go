@@ -3,7 +3,7 @@ package pubsub
 import (
 	"github.com/cskr/pubsub"
 
-	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 type PubSub struct {
@@ -16,7 +16,7 @@ func New(capacity int) *PubSub {
 }
 
 // subscribes specified EventType and return message channel.
-func (ps *PubSub) Sub(typ ...domain.EventType) chan interface{} {
+func (ps *PubSub) Sub(typ ...event.Type) chan interface{} {
 	tags := make([]string, 0, len(typ))
 	for _, tp := range typ {
 		tags = append(tags, tp.String())
@@ -30,9 +30,9 @@ func (ps *PubSub) Unsub(ch chan interface{}) {
 }
 
 // publish Event to corresponding subscribers.
-func (ps *PubSub) Pub(events ...domain.Event) {
+func (ps *PubSub) Pub(events ...event.Event) {
 	for _, ev := range events {
-		ps.pubsub.Pub(ev, ev.EventType().String())
+		ps.pubsub.Pub(ev, ev.Type().String())
 	}
 }
 

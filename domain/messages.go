@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 //go:generate mockgen -destination=../internal/mocks/mock_messages.go -package=mocks github.com/shirasudon/go-chat/domain MessageRepository
@@ -72,7 +74,7 @@ func NewRoomMessage(
 	}
 	m.ID = id
 
-	ev := MessageCreated{
+	ev := event.MessageCreated{
 		MessageID: m.ID,
 		RoomID:    m.RoomID,
 		CreatedBy: u.ID,
@@ -91,11 +93,11 @@ func (m *Message) NotExist() bool {
 // ReadBy marks the message to read by specified user.
 // It returns such event, which is contained the message,
 // and error if any.
-func (m *Message) ReadBy(u User) (MessageReadByUser, error) {
+func (m *Message) ReadBy(u User) (event.MessageReadByUser, error) {
 	if u.NotExist() {
-		return MessageReadByUser{}, errors.New("the user not in the datastore, can not read any message")
+		return event.MessageReadByUser{}, errors.New("the user not in the datastore, can not read any message")
 	}
-	ev := MessageReadByUser{
+	ev := event.MessageReadByUser{
 		MessageID: m.ID,
 		UserID:    u.ID,
 	}
@@ -103,27 +105,3 @@ func (m *Message) ReadBy(u User) (MessageReadByUser, error) {
 	m.AddEvent(ev)
 	return ev, nil
 }
-
-// -----------------------
-// Message events
-// -----------------------
-
-// Event for the message is created.
-type MessageCreated struct {
-	EventEmbd
-	MessageID uint64 `json:"message_id"`
-	RoomID    uint64 `json:"room_id"`
-	CreatedBy uint64 `json:"created_by"`
-	Content   string `json:"content"`
-}
-
-func (MessageCreated) EventType() EventType { return EventMessageCreated }
-
-// Event for the message is read by the user.
-type MessageReadByUser struct {
-	EventEmbd
-	MessageID uint64 `json:"message_id"`
-	UserID    uint64 `json:"user_id"`
-}
-
-func (MessageReadByUser) EventType() EventType { return EventMessageReadByUser }

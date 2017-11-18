@@ -2,6 +2,7 @@ package inmemory
 
 import (
 	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 func OpenRepositories() *Repositories {
@@ -32,7 +33,7 @@ func (r Repositories) Rooms() domain.RoomRepository {
 	return r.RoomRepository
 }
 
-func (r Repositories) Events() domain.EventRepository {
+func (r Repositories) Events() event.EventRepository {
 	return r.EventRepository
 }
 

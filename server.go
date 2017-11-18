@@ -14,6 +14,7 @@ import (
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/domain/event"
 	"github.com/shirasudon/go-chat/infra/pubsub"
 	"github.com/shirasudon/go-chat/ws"
 )
@@ -91,7 +92,7 @@ func (s *Server) serveChatWebsocket(c echo.Context) error {
 			s.chatHub.Send(conn, m)
 		})
 		conn.OnError(func(conn *ws.Conn, err error) {
-			conn.Send(domain.ErrorRaised{Message: err.Error()})
+			conn.Send(event.ErrorRaised{Message: err.Error()})
 		})
 		conn.OnClosed(func(conn *ws.Conn) {
 			s.chatHub.Disconnect(conn)

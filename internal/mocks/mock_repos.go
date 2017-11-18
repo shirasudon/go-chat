@@ -7,6 +7,7 @@ package mocks
 import (
 	gomock "github.com/golang/mock/gomock"
 	domain "github.com/shirasudon/go-chat/domain"
+	event "github.com/shirasudon/go-chat/domain/event"
 	reflect "reflect"
 )
 
@@ -34,9 +35,9 @@ func (m *MockRepositories) EXPECT() *MockRepositoriesMockRecorder {
 }
 
 // Events mocks base method
-func (m *MockRepositories) Events() domain.EventRepository {
+func (m *MockRepositories) Events() event.EventRepository {
 	ret := m.ctrl.Call(m, "Events")
-	ret0, _ := ret[0].(domain.EventRepository)
+	ret0, _ := ret[0].(event.EventRepository)
 	return ret0
 }
 

@@ -13,6 +13,8 @@ jobs:
 
     environment:
       TEST_RESULTS: /tmp/test-results
+      GOTEST_IGNORES: "/main\|/internal\|/wstest"
+      GOTEST_PKGS: `go list ./... | grep -v ${GOTEST_IGNORES}`
 
     steps:
       - checkout
@@ -39,8 +41,8 @@ jobs:
           name: Run unit tests
           command: |
             trap "go-junit-report <${TEST_RESULTS}/go-test.out > ${TEST_RESULTS}/go-test-report.xml" EXIT
-            go test -v -race ./... | tee ${TEST_RESULTS}/go-test.out
-            goverage -coverprofile=${TEST_RESULTS}/go-test.coverage ./... 
+            go test -v -race ${GOTEST_PKGS} | tee ${TEST_RESULTS}/go-test.out
+            goverage -coverprofile=${TEST_RESULTS}/go-test.coverage ${GOTEST_PKGS}
 
       - run: 
           name: Upload coverage profile to codecov.io

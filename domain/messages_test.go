@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"testing"
 	"time"
+
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 type MessageRepositoryStub struct{}
@@ -57,7 +59,7 @@ func TestMessageCreatedSuccess(t *testing.T) {
 	if len(events) != 1 {
 		t.Fatalf("Message is created but message has no event for that.")
 	}
-	ev, ok := events[0].(MessageCreated)
+	ev, ok := events[0].(event.MessageCreated)
 	if !ok {
 		t.Fatalf("Message is created but event is not a MessageCreated, got: %v", events[0])
 	}
@@ -120,7 +122,7 @@ func TestMessageReadByUser(t *testing.T) {
 	if len(events) != 2 {
 		t.Fatalf("Message holds different events size, expect: %v, got: %v", 2, len(events))
 	}
-	ev2, ok := events[1].(MessageReadByUser)
+	ev2, ok := events[1].(event.MessageReadByUser)
 	if !ok {
 		t.Errorf("Message is read but event is not MessageReadByUser, got: %v", ev2)
 	}

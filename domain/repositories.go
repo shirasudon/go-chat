@@ -1,5 +1,7 @@
 package domain
 
+import "github.com/shirasudon/go-chat/domain/event"
+
 //go:generate mockgen -destination=../internal/mocks/mock_repos.go -package=mocks github.com/shirasudon/go-chat/domain Repositories
 
 // Repositories holds any XXXRepository.
@@ -9,7 +11,7 @@ type Repositories interface {
 	Messages() MessageRepository
 	Rooms() RoomRepository
 
-	Events() EventRepository
+	Events() event.EventRepository
 }
 
 // SimpleRepositories implementes Repositories interface.
@@ -20,7 +22,7 @@ type SimpleRepositories struct {
 	MessageRepository MessageRepository
 	RoomRepository    RoomRepository
 
-	EventRepository EventRepository
+	EventRepository event.EventRepository
 }
 
 func (s SimpleRepositories) Users() UserRepository {
@@ -35,6 +37,6 @@ func (s SimpleRepositories) Rooms() RoomRepository {
 	return s.RoomRepository
 }
 
-func (s SimpleRepositories) Events() EventRepository {
+func (s SimpleRepositories) Events() event.EventRepository {
 	return s.EventRepository
 }

@@ -3,6 +3,8 @@ package domain
 import (
 	"context"
 	"fmt"
+
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 //go:generate mockgen -destination=../internal/mocks/mock_users.go -package=mocks github.com/shirasudon/go-chat/domain UserRepository
@@ -98,7 +100,7 @@ func NewUser(ctx context.Context, userRepo UserRepository, name string, password
 	}
 	u.ID = id
 
-	ev := UserCreated{
+	ev := event.UserCreated{
 		Name:      name,
 		FriendIDs: friendIDs.List(),
 	}
@@ -114,20 +116,20 @@ func (u *User) NotExist() bool { return u == nil || u.ID == 0 }
 // It adds the friend to the user.
 // It returns the event adding into the user, and error
 // when the friend already exist in the user.
-func (u *User) AddFriend(friend User) (UserAddedFriend, error) {
+func (u *User) AddFriend(friend User) (event.UserAddedFriend, error) {
 	if u.ID == 0 {
-		return UserAddedFriend{}, fmt.Errorf("newly user can not be added friend")
+		return event.UserAddedFriend{}, fmt.Errorf("newly user can not be added friend")
 	}
 	if u.ID == friend.ID {
-		return UserAddedFriend{}, fmt.Errorf("can not add user itself as friend")
+		return event.UserAddedFriend{}, fmt.Errorf("can not add user itself as friend")
 	}
 	if u.HasFriend(friend) {
-		return UserAddedFriend{}, fmt.Errorf("friend(id=%d) already exist in the user(id=%d)", friend.ID, u.ID)
+		return event.UserAddedFriend{}, fmt.Errorf("friend(id=%d) already exist in the user(id=%d)", friend.ID, u.ID)
 	}
 
 	u.FriendIDs.Add(friend.ID)
 
-	ev := UserAddedFriend{
+	ev := event.UserAddedFriend{
 		UserID:        u.ID,
 		AddedFriendID: friend.ID,
 	}
@@ -140,25 +142,3 @@ func (u *User) AddFriend(friend User) (UserAddedFriend, error) {
 func (u *User) HasFriend(friend User) bool {
 	return u.FriendIDs.Has(friend.ID)
 }
-
-// -----------------------
-// User events
-// -----------------------
-
-// Event for User is created.
-type UserCreated struct {
-	EventEmbd
-	Name      string   `json:"user_name"`
-	FriendIDs []uint64 `json:"friend_ids"`
-}
-
-func (UserCreated) EventType() EventType { return EventUserCreated }
-
-// Event for User is created.
-type UserAddedFriend struct {
-	EventEmbd
-	UserID        uint64 `json:"user_id"`
-	AddedFriendID uint64 `json:"added_friend_id"`
-}
-
-func (UserAddedFriend) EventType() EventType { return EventUserAddedFriend }

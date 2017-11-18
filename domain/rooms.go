@@ -3,6 +3,8 @@ package domain
 import (
 	"context"
 	"fmt"
+
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 //go:generate mockgen -destination=../internal/mocks/mock_rooms.go -package=mocks github.com/shirasudon/go-chat/domain RoomRepository
@@ -67,7 +69,7 @@ func NewRoom(ctx context.Context, roomRepo RoomRepository, name string, user *Us
 
 	r.ID = id
 
-	ev := RoomCreated{
+	ev := event.RoomCreated{
 		CreatedBy:  user.ID,
 		Name:       name,
 		IsTalkRoom: false,
@@ -100,7 +102,7 @@ func (r *Room) Delete(ctx context.Context, repo RoomRepository, user *User) erro
 	removedID := r.ID
 	r.ID = 0 // means not in the repository.
 
-	ev := RoomDeleted{
+	ev := event.RoomDeleted{
 		RoomID:     removedID,
 		DeletedBy:  user.ID,
 		Name:       r.Name,
@@ -126,20 +128,20 @@ func (r *Room) MemberIDs() []uint64 {
 // It adds the member to the room.
 // It returns the event adding to the room, and error
 // when the user already exist in the room.
-func (r *Room) AddMember(user User) (RoomAddedMember, error) {
+func (r *Room) AddMember(user User) (event.RoomAddedMember, error) {
 	if r.NotExist() {
-		return RoomAddedMember{}, fmt.Errorf("newly room can not be added new member")
+		return event.RoomAddedMember{}, fmt.Errorf("newly room can not be added new member")
 	}
 	if user.NotExist() {
-		return RoomAddedMember{}, fmt.Errorf("the user not in the datastore, can not be a room member")
+		return event.RoomAddedMember{}, fmt.Errorf("the user not in the datastore, can not be a room member")
 	}
 	if r.HasMember(user) {
-		return RoomAddedMember{}, fmt.Errorf("user(id=%d) is already member of the room(id=%d)", user.ID, r.ID)
+		return event.RoomAddedMember{}, fmt.Errorf("user(id=%d) is already member of the room(id=%d)", user.ID, r.ID)
 	}
 
 	r.MemberIDSet.Add(user.ID)
 
-	ev := RoomAddedMember{
+	ev := event.RoomAddedMember{
 		RoomID:      r.ID,
 		AddedUserID: user.ID,
 	}
@@ -153,39 +155,3 @@ func (r *Room) AddMember(user User) (RoomAddedMember, error) {
 func (r *Room) HasMember(member User) bool {
 	return r.MemberIDSet.Has(member.ID)
 }
-
-// -----------------------
-// Room events
-// -----------------------
-
-// Event for Room is created.
-type RoomCreated struct {
-	EventEmbd
-	CreatedBy  uint64 `json:"created_by"`
-	Name       string `json:"name"`
-	IsTalkRoom bool
-	MemberIDs  []uint64 `json:"member_ids"`
-}
-
-func (RoomCreated) EventType() EventType { return EventRoomCreated }
-
-// Event for Room is deleted.
-type RoomDeleted struct {
-	EventEmbd
-	DeletedBy  uint64 `json:"deleted_by"`
-	RoomID     uint64 `json:"room_id"`
-	Name       string `json:"name"`
-	IsTalkRoom bool
-	MemberIDs  []uint64 `json:"member_ids"`
-}
-
-func (RoomDeleted) EventType() EventType { return EventRoomDeleted }
-
-// Event for Room added new member.
-type RoomAddedMember struct {
-	EventEmbd
-	RoomID      uint64 `json:"room_id"`
-	AddedUserID uint64 `json:"added_user_id"`
-}
-
-func (RoomAddedMember) EventType() EventType { return EventRoomAddedMember }

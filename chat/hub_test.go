@@ -8,6 +8,7 @@ import (
 	"github.com/golang/mock/gomock"
 
 	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/domain/event"
 	"github.com/shirasudon/go-chat/internal/mocks"
 )
 
@@ -27,11 +28,11 @@ func TestHubEventSendingServiceAtMessageCreated(t *testing.T) {
 		UserID     = uint64(2)
 		MsgContent = "hello!"
 	)
-	testEv := domain.MessageCreated{Content: MsgContent}
+	testEv := event.MessageCreated{Content: MsgContent}
 	pubsub.EXPECT().
 		Pub(gomock.Any()).
 		AnyTimes().
-		Do(func(ev domain.Event) {
+		Do(func(ev event.Event) {
 			t.Logf("publish event: %#v", ev)
 			events <- ev
 		})
@@ -70,7 +71,7 @@ func TestHubEventSendingServiceAtMessageCreated(t *testing.T) {
 	conn.EXPECT().
 		Send(gomock.Any()).
 		Times(2).
-		Do(func(ev domain.Event) {
+		Do(func(ev event.Event) {
 			enc, ok := ev.(EventJSON)
 			if !ok {
 				t.Fatalf("invalid data is sent: %#v", ev)
@@ -78,7 +79,7 @@ func TestHubEventSendingServiceAtMessageCreated(t *testing.T) {
 
 			switch enc.EventName {
 			case EventNameMessageCreated:
-				created, ok := enc.Data.(domain.MessageCreated)
+				created, ok := enc.Data.(event.MessageCreated)
 				if !ok {
 					t.Fatalf("invalid data structure: %#v", enc)
 				}
@@ -88,7 +89,7 @@ func TestHubEventSendingServiceAtMessageCreated(t *testing.T) {
 				doneCh <- struct{}{}
 
 			case EventNameActiveClientActivated:
-				activated, ok := enc.Data.(domain.ActiveClientActivated)
+				activated, ok := enc.Data.(event.ActiveClientActivated)
 				if !ok {
 					t.Fatalf("invalid data structure: %#v", enc)
 				}

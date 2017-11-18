@@ -9,6 +9,7 @@ import (
 
 	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/domain/event"
 	"github.com/shirasudon/go-chat/internal/mocks"
 )
 
@@ -20,16 +21,16 @@ func TestChatUpdateServiceAtRoomDeleted(t *testing.T) {
 
 	roomDeleted := make(chan interface{}, 1)
 	pubsub.EXPECT().
-		Sub(domain.EventRoomDeleted).
+		Sub(event.TypeRoomDeleted).
 		Return(roomDeleted).
 		Times(1)
 
 	// deleting target for the room.
 	const DeletedRoomID = uint64(1)
-	roomDeleteEvent := domain.RoomDeleted{RoomID: DeletedRoomID}
+	roomDeleteEvent := event.RoomDeleted{RoomID: DeletedRoomID}
 	pubsub.EXPECT().
 		Pub(roomDeleteEvent).
-		Do(func(ev domain.Event) {
+		Do(func(ev event.Event) {
 			t.Log("Pubsub.Pub(roomDeleteEvent)")
 			roomDeleted <- ev
 		})

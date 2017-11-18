@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"testing"
 	"time"
+
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 type RoomRepositoryStub struct{}
@@ -51,7 +53,7 @@ func TestRoomCreated(t *testing.T) {
 	if got := len(events); got != 1 {
 		t.Errorf("room has no event after RoomCreated")
 	}
-	ev, ok := events[0].(RoomCreated)
+	ev, ok := events[0].(event.RoomCreated)
 	if !ok {
 		t.Errorf("invalid event state for the room")
 	}
@@ -92,7 +94,7 @@ func TestRoomDeletedSuccess(t *testing.T) {
 	if got := len(events); got != 2 {
 		t.Errorf("room has invalid event after RoomCreated and RoomDeleted")
 	}
-	ev, ok := events[1].(RoomDeleted)
+	ev, ok := events[1].(event.RoomDeleted)
 	if !ok {
 		t.Errorf("invalid event state for the room")
 	}
@@ -148,7 +150,7 @@ func TestRoomAddMember(t *testing.T) {
 	if got := len(r.Events()); got != 2 {
 		t.Errorf("room has no event")
 	}
-	if _, ok := r.Events()[1].(RoomAddedMember); !ok {
+	if _, ok := r.Events()[1].(event.RoomAddedMember); !ok {
 		t.Errorf("invalid event is added")
 	}
 }

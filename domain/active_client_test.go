@@ -3,20 +3,22 @@ package domain
 import (
 	"testing"
 	"time"
+
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 type ConnImpl struct {
 	userID     uint64
-	receviedEv []Event
+	receviedEv []event.Event
 }
 
 func (c ConnImpl) UserID() uint64 {
 	return c.userID
 }
 
-func (c *ConnImpl) Send(ev Event) {
+func (c *ConnImpl) Send(ev event.Event) {
 	if c.receviedEv == nil {
-		c.receviedEv = make([]Event, 0, 4)
+		c.receviedEv = make([]event.Event, 0, 4)
 	}
 	c.receviedEv = append(c.receviedEv, ev)
 }
@@ -140,7 +142,7 @@ func TestActiveClientSend(t *testing.T) {
 	conn2 := &ConnImpl{userID: user.ID}
 	ac.AddConn(conn2)
 
-	ac.Send(MessageCreated{})
+	ac.Send(event.MessageCreated{})
 	for i, c := range []*ConnImpl{conn, conn2} {
 		t.Logf("currently inspecting for conn[%d]", i)
 
@@ -148,8 +150,8 @@ func TestActiveClientSend(t *testing.T) {
 			t.Fatalf("send one event to the conns but the number of event the conns are received is different, expect: %d, got: %d", 1, got)
 		}
 
-		if got, ok := c.receviedEv[0].(MessageCreated); !ok {
-			t.Errorf("different event type for the conns received and ActiveClien sent, expect: %#v, got: %#v", MessageCreated{}, got)
+		if got, ok := c.receviedEv[0].(event.MessageCreated); !ok {
+			t.Errorf("different event type for the conns received and ActiveClien sent, expect: %#v, got: %#v", event.MessageCreated{}, got)
 		}
 	}
 }

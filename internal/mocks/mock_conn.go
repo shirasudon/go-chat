@@ -6,7 +6,7 @@ package mocks
 
 import (
 	gomock "github.com/golang/mock/gomock"
-	domain "github.com/shirasudon/go-chat/domain"
+	event "github.com/shirasudon/go-chat/domain/event"
 	reflect "reflect"
 )
 
@@ -34,7 +34,7 @@ func (m *MockConn) EXPECT() *MockConnMockRecorder {
 }
 
 // Send mocks base method
-func (m *MockConn) Send(arg0 domain.Event) {
+func (m *MockConn) Send(arg0 event.Event) {
 	m.ctrl.Call(m, "Send", arg0)
 }
 

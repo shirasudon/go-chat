@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 //go:generate mockgen -destination=../internal/mocks/mock_queryer.go -package=mocks github.com/shirasudon/go-chat/chat UserQueryer,RoomQueryer,MessageQueryer,EventQueryer
@@ -54,5 +55,5 @@ type EventQueryer interface {
 	// The returned events are, ordered by older created at
 	// and all of after specified after time.
 	// It returns error if any.
-	FindAllByTimeCursor(ctx context.Context, after time.Time, limit int) ([]domain.Event, error)
+	FindAllByTimeCursor(ctx context.Context, after time.Time, limit int) ([]event.Event, error)
 }

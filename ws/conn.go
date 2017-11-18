@@ -8,6 +8,7 @@ import (
 
 	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/domain/event"
 
 	"golang.org/x/net/websocket"
 )
@@ -74,7 +75,7 @@ func (c *Conn) OnError(f func(*Conn, error)) {
 
 // Send ActionMessage to browser-side client.
 // message is ignored when Conn is closed.
-func (c *Conn) Send(m domain.Event) {
+func (c *Conn) Send(m event.Event) {
 	select {
 	case c.messages <- m:
 	case <-c.done:
@@ -161,7 +162,7 @@ func (c *Conn) receivePump(ctx context.Context) {
 					return
 				}
 				// return error message to client
-				c.Send(domain.ErrorRaised{Message: err.Error()})
+				c.Send(event.ErrorRaised{Message: err.Error()})
 				continue
 			}
 			// Receive success, handling received message
@@ -212,7 +213,7 @@ func (c *Conn) handleActionJSON(m *ActionJSON) {
 		if c.onError != nil {
 			c.onError(c, err)
 		}
-		c.Send(domain.ErrorRaised{Message: err.Error()})
+		c.Send(event.ErrorRaised{Message: err.Error()})
 		return
 	}
 	if c.onActionMessage != nil {

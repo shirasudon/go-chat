@@ -8,6 +8,7 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	domain "github.com/shirasudon/go-chat/domain"
+	event "github.com/shirasudon/go-chat/domain/event"
 	reflect "reflect"
 	time "time"
 )
@@ -157,9 +158,9 @@ func (m *MockEventQueryer) EXPECT() *MockEventQueryerMockRecorder {
 }
 
 // FindAllByTimeCursor mocks base method
-func (m *MockEventQueryer) FindAllByTimeCursor(arg0 context.Context, arg1 time.Time, arg2 int) ([]domain.Event, error) {
+func (m *MockEventQueryer) FindAllByTimeCursor(arg0 context.Context, arg1 time.Time, arg2 int) ([]event.Event, error) {
 	ret := m.ctrl.Call(m, "FindAllByTimeCursor", arg0, arg1, arg2)
-	ret0, _ := ret[0].([]domain.Event)
+	ret0, _ := ret[0].([]event.Event)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

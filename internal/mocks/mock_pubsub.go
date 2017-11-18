@@ -6,7 +6,7 @@ package mocks
 
 import (
 	gomock "github.com/golang/mock/gomock"
-	domain "github.com/shirasudon/go-chat/domain"
+	event "github.com/shirasudon/go-chat/domain/event"
 	reflect "reflect"
 )
 
@@ -34,7 +34,7 @@ func (m *MockPubsub) EXPECT() *MockPubsubMockRecorder {
 }
 
 // Pub mocks base method
-func (m *MockPubsub) Pub(arg0 ...domain.Event) {
+func (m *MockPubsub) Pub(arg0 ...event.Event) {
 	varargs := []interface{}{}
 	for _, a := range arg0 {
 		varargs = append(varargs, a)
@@ -48,7 +48,7 @@ func (mr *MockPubsubMockRecorder) Pub(arg0 ...interface{}) *gomock.Call {
 }
 
 // Sub mocks base method
-func (m *MockPubsub) Sub(arg0 ...domain.EventType) chan interface{} {
+func (m *MockPubsub) Sub(arg0 ...event.Type) chan interface{} {
 	varargs := []interface{}{}
 	for _, a := range arg0 {
 		varargs = append(varargs, a)

@@ -1,5 +1,7 @@
 package domain
 
+import "github.com/shirasudon/go-chat/domain/event"
+
 //go:generate mockgen -destination=../internal/mocks/mock_conn.go -package=mocks github.com/shirasudon/go-chat/domain Conn
 
 // Conn is a interface for the end-point connection for
@@ -10,5 +12,5 @@ type Conn interface {
 	UserID() uint64
 
 	// It sends any domain event to client.
-	Send(ev Event)
+	Send(ev event.Event)
 }

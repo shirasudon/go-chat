@@ -8,6 +8,7 @@ import (
 
 	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/domain/event"
 	"github.com/shirasudon/go-chat/ws/wstest"
 
 	"golang.org/x/net/websocket"
@@ -24,7 +25,7 @@ func TestNewConn(t *testing.T) {
 	server := wstest.NewServer(websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
 
-		cm := domain.MessageCreated{Content: GreetingMsg}
+		cm := event.MessageCreated{Content: GreetingMsg}
 		conn := NewConn(ws, domain.User{})
 		conn.Send(cm)
 		conn.OnActionMessage(func(conn *Conn, m action.ActionMessage) {
@@ -61,7 +62,7 @@ func TestNewConn(t *testing.T) {
 	defer conn.Close()
 
 	// Receive hello message
-	var created domain.MessageCreated
+	var created event.MessageCreated
 	if err := websocket.JSON.Receive(conn, &created); err != nil {
 		t.Fatalf("client receive error: %v", err)
 	}

@@ -3,7 +3,7 @@ package chat
 import (
 	"time"
 
-	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 const (
@@ -13,10 +13,10 @@ const (
 	EventNameUnknown                 = "unknown"
 )
 
-var eventEncodeNames = map[domain.EventType]string{
-	domain.EventMessageCreated:          EventNameMessageCreated,
-	domain.EventActiveClientActivated:   EventNameActiveClientActivated,
-	domain.EventActiveClientInactivated: EventNameActiveClientInactivated,
+var eventEncodeNames = map[event.Type]string{
+	event.TypeMessageCreated:          EventNameMessageCreated,
+	event.TypeActiveClientActivated:   EventNameActiveClientActivated,
+	event.TypeActiveClientInactivated: EventNameActiveClientInactivated,
 }
 
 // EventJSON is a data-transfer-object
@@ -27,15 +27,15 @@ type EventJSON struct {
 	Data      interface{} `json:"data"`
 }
 
-func (EventJSON) EventType() domain.EventType { return domain.EventNone }
-func (e EventJSON) Timestamp() time.Time      { return e.Data.(domain.Event).Timestamp() }
+func (EventJSON) Type() event.Type       { return event.TypeNone }
+func (e EventJSON) Timestamp() time.Time { return e.Data.(event.Event).Timestamp() }
 
-func NewEventJSON(ev domain.Event) EventJSON {
+func NewEventJSON(ev event.Event) EventJSON {
 	if ev == nil {
 		panic("nil Event is not allowed")
 	}
 
-	eventName, ok := eventEncodeNames[ev.EventType()]
+	eventName, ok := eventEncodeNames[ev.Type()]
 	if !ok {
 		eventName = EventNameUnknown
 	}

@@ -5,6 +5,7 @@ import (
 
 	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 // CommandService provides the usecases for
@@ -14,7 +15,7 @@ type CommandService struct {
 	msgs         domain.MessageRepository
 	users        domain.UserRepository
 	rooms        domain.RoomRepository
-	events       domain.EventRepository
+	events       event.EventRepository
 	pubsub       Pubsub
 	updateCancel chan struct{}
 }
@@ -33,14 +34,14 @@ func NewCommandService(repos domain.Repositories, pubsub Pubsub) *CommandService
 // Run updating service for the domain events.
 // It blocks until calling CancelUpdate() or context is done.
 func (s *CommandService) RunUpdateService(ctx context.Context) {
-	roomDeleted := s.pubsub.Sub(domain.EventRoomDeleted)
+	roomDeleted := s.pubsub.Sub(event.TypeRoomDeleted)
 	for {
 		select {
 		case ev, chAlived := <-roomDeleted:
 			if !chAlived {
 				return
 			}
-			deleted := ev.(domain.RoomDeleted)
+			deleted := ev.(event.RoomDeleted)
 			err := s.msgs.RemoveAllByRoomID(ctx, deleted.RoomID)
 			// TODO error handling, create ErrorEvent? or just log?
 			_ = err
@@ -63,7 +64,7 @@ func (s *CommandService) CancelUpdateService() {
 func (s *CommandService) withEventTransaction(
 	ctx context.Context,
 	txBeginner domain.TxBeginner,
-	txFunc func(ctx context.Context) ([]domain.Event, error),
+	txFunc func(ctx context.Context) ([]event.Event, error),
 ) error {
 	return withTransaction(ctx, txBeginner, func(ctx context.Context) error {
 		events, err := txFunc(ctx)
@@ -107,7 +108,7 @@ func (s *CommandService) CreateRoom(ctx context.Context, m action.CreateRoom) (r
 		return 0, err
 	}
 
-	err = s.withEventTransaction(ctx, s.rooms, func(ctx context.Context) ([]domain.Event, error) {
+	err = s.withEventTransaction(ctx, s.rooms, func(ctx context.Context) ([]event.Event, error) {
 		room, err := domain.NewRoom(
 			ctx, s.rooms, m.RoomName,
 			&user, domain.NewUserIDSet(m.RoomMemberIDs...),
@@ -130,7 +131,7 @@ func (s *CommandService) DeleteRoom(ctx context.Context, m action.DeleteRoom) (r
 		return 0, err
 	}
 
-	err = s.withEventTransaction(ctx, s.rooms, func(ctx context.Context) ([]domain.Event, error) {
+	err = s.withEventTransaction(ctx, s.rooms, func(ctx context.Context) ([]event.Event, error) {
 		room, err := s.rooms.Find(ctx, m.RoomID)
 		if err != nil {
 			return nil, err
@@ -162,7 +163,7 @@ func (s *CommandService) PostRoomMessage(ctx context.Context, m action.ChatMessa
 		return 0, err
 	}
 
-	err = s.withEventTransaction(ctx, s.msgs, func(ctx context.Context) ([]domain.Event, error) {
+	err = s.withEventTransaction(ctx, s.msgs, func(ctx context.Context) ([]event.Event, error) {
 		msg, err := domain.NewRoomMessage(ctx, s.msgs, user, room, m.Content)
 		if err != nil {
 			return nil, err
@@ -182,7 +183,7 @@ func (s *CommandService) ReadRoomMessage(ctx context.Context, m action.ReadMessa
 		return err
 	}
 
-	txErr := s.withEventTransaction(ctx, s.msgs, func(ctx context.Context) ([]domain.Event, error) {
+	txErr := s.withEventTransaction(ctx, s.msgs, func(ctx context.Context) ([]event.Event, error) {
 		// TODO implement FindAllByMessageIDs.
 		msg, err := s.msgs.Find(ctx, m.MessageIDs[0])
 		if err != nil {
