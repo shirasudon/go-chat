@@ -71,7 +71,7 @@ Responce JSON:
   "friends": [
     {
       "user_id": user_id, 
-      "user_name: "<user name>",
+      "user_name": "<user name>",
       "first_name": "<first name>",
       "last_name": "<last name>",
     },
@@ -83,7 +83,7 @@ Responce JSON:
   "rooms": [
     {
       "room_id": room_id,
-      "room_name: "<room name>",
+      "room_name": "<room name>",
     },
     {
       ...
