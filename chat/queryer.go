@@ -25,6 +25,10 @@ type UserQueryer interface {
 	// Find a user specified by userID and return it.
 	// It returns error if not found.
 	Find(ctx context.Context, userID uint64) (domain.User, error)
+
+	// Find a user related information with userID.
+	// It returns queried result and error if the information is not found.
+	FindUserRelation(ctx context.Context, userID uint64) (*QueriedUserRelation, error)
 }
 
 // RoomQueryer queries rooms stored in the data-store.

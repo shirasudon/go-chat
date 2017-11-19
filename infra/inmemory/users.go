@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"sync"
 
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/domain"
@@ -17,8 +18,15 @@ var ErrNotFound = errors.New("user not found")
 
 var (
 	DummyUser  = domain.User{ID: 0, Name: "user", Password: "password"}
-	DummyUser2 = domain.User{ID: 2, Name: "user2", Password: "password"}
+	DummyUser2 = domain.User{
+		ID:        2,
+		Name:      "user2",
+		Password:  "password",
+		FriendIDs: domain.NewUserIDSet(3),
+	}
 	DummyUser3 = domain.User{ID: 3, Name: "user3", Password: "password"}
+
+	userMapMu *sync.RWMutex = new(sync.RWMutex)
 
 	userMap = map[uint64]domain.User{
 		0: DummyUser,
@@ -129,4 +137,50 @@ func (repo UserRepository) FindAllByUserID(ctx context.Context, id uint64) ([]do
 	}
 	sort.Slice(us, func(i, j int) bool { return us[i].ID < us[j].ID })
 	return us, nil
+}
+
+func (repo UserRepository) FindUserRelation(ctx context.Context, userID uint64) (*chat.QueriedUserRelation, error) {
+	// TODO: run constructing service by using event,
+	// then just return already constructed value.
+	userMapMu.RLock()
+
+	user, ok := userMap[userID]
+	if !ok {
+		userMapMu.RUnlock()
+		return nil, ErrNotFound
+	}
+
+	friends := make([]chat.UserFriend, 0, 4)
+	for _, id := range user.FriendIDs.List() {
+		if friend, ok := userMap[id]; ok {
+			friends = append(friends, chat.UserFriend{
+				UserID:   id,
+				UserName: friend.Name,
+			})
+		}
+	}
+
+	userMapMu.RUnlock()
+
+	roomMapMu.RLock()
+
+	rooms := make([]chat.UserRoom, 0, 4)
+	for rID, userIDs := range roomToUsersMap {
+		if _, ok := userIDs[userID]; ok {
+			r := roomMap[rID]
+			rooms = append(rooms, chat.UserRoom{
+				RoomID:   rID,
+				RoomName: r.Name,
+			})
+		}
+	}
+
+	roomMapMu.RUnlock()
+
+	return &chat.QueriedUserRelation{
+		UserID:   userID,
+		UserName: user.Name,
+		Friends:  friends,
+		Rooms:    rooms,
+	}, nil
 }

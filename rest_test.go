@@ -139,6 +139,38 @@ func TestRESTGetUserRoom(t *testing.T) {
 	//TODO
 }
 
+func TestRESTGetUserInfo(t *testing.T) {
+	RESTHandler, done := createRESTHandler()
+	defer done()
+
+	req := httptest.NewRequest(echo.GET, "/users/2", nil)
+	rec := httptest.NewRecorder()
+
+	const TestUserID = uint64(2)
+	c := theEcho.NewContext(req, rec)
+	c.Set(KeyLoggedInUserID, TestUserID)
+	c.SetParamNames("user_id")
+	c.SetParamValues(fmt.Sprint(TestUserID))
+
+	err := RESTHandler.GetUserInfo(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expect, got := http.StatusFound, rec.Code; expect != got {
+		t.Errorf("different http status code, expect: %v, got: %v", expect, got)
+	}
+
+	response := make(map[string]interface{})
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if userID := uint64(response["user_id"].(float64)); userID != TestUserID {
+		t.Errorf("returning different user id, expect: %d, got: %d", TestUserID, userID)
+	}
+}
+
 func TestRESTPostRoomMessage(t *testing.T) {
 	RESTHandler, done := createRESTHandler()
 	defer done()

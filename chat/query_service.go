@@ -37,12 +37,6 @@ func (s *QueryService) FindEventsByTimeCursor(ctx context.Context, after time.Ti
 	return s.events.FindAllByTimeCursor(ctx, after, limit)
 }
 
-// Find friend users related with specified user id.
-// It returns error if not found.
-// func (s *QueryService) FindUserFriends(ctx context.Context, userID uint64) ([]domain.User, error) {
-// 	return s.users.FindAllByUserID(ctx, userID)
-// }
-
 type QueriedUserRoom struct {
 	RoomName string `json:"room_name"`
 	OwnerID  uint64 `json:"owner_id"`
@@ -73,28 +67,34 @@ func (s *QueryService) FindUserRooms(ctx context.Context, userID uint64) ([]Quer
 	return userRooms, nil
 }
 
-// UserRelation is the relationship owned by specified UserID.
-// type UserRelation struct {
-// 	UserID  uint64
-// 	Friends []domain.User
-// 	Rooms   []domain.Room
-// }
+// QueriedUserRelation is the abstarct information associated with specified User.
+type QueriedUserRelation struct {
+	UserID   uint64 `json:"user_id"`
+	UserName string `json:"user_name"`
+	// TODO first name, last name
 
-// Find both of friends and rooms related with specified user id.
-// It returns error if not found.
-// func (s QueryService) FFindUserRelation(ctx context.Context, userID uint64) (UserRelation, error) {
-// 	users, err1 := s.users.FindAllByUserID(ctx, userID)
-// 	if err1 != nil {
-// 		return UserRelation{}, err1
-// 	}
-// 	rooms, err := s.rooms.FindAllByUserID(ctx, userID)
-//
-// 	return UserRelation{
-// 		UserID:  userID,
-// 		Friends: users,
-// 		Rooms:   rooms,
-// 	}, err
-// }
+	Friends []UserFriend `json:"friends"`
+
+	Rooms []UserRoom `json:"rooms"`
+}
+
+type UserFriend struct {
+	UserID   uint64 `json:"user_id"`
+	UserName string `json:"user_name"`
+}
+
+type UserRoom struct {
+	RoomID   uint64 `json:"room_id"`
+	RoomName string `json:"room_name"`
+}
+
+// Find abstarct information accociated with the User.
+// It returns queried result and error if the information is not found.
+func (s *QueryService) FindUserRelation(ctx context.Context, userID uint64) (*QueriedUserRelation, error) {
+	relation, err := s.users.FindUserRelation(ctx, userID)
+	// TODO cache?
+	return relation, err
+}
 
 type QueriedRoomMessages struct {
 	RoomID uint64 `json:"room_id"`

@@ -117,6 +117,16 @@ func (rest *RESTHandler) GetUserRooms(e echo.Context) error {
 	return e.JSON(http.StatusOK, rooms)
 }
 
+func (rest *RESTHandler) GetUserInfo(e echo.Context) error {
+	userID := uintParam(e, "user_id")
+	relation, err := rest.chatQuery.FindUserRelation(e.Request().Context(), userID)
+	if err != nil {
+		return err
+	}
+
+	return e.JSON(http.StatusFound, relation)
+}
+
 func (rest *RESTHandler) PostRoomMessage(e echo.Context) error {
 	userID, ok := LoggedInUserID(e)
 	if !ok {

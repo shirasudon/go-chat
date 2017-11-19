@@ -3,6 +3,7 @@ package inmemory
 import (
 	"context"
 	"sort"
+	"sync"
 
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/domain"
@@ -21,6 +22,9 @@ var (
 	DummyRoom2 = domain.Room{ID: 2, Name: "title2", MemberIDSet: domain.NewUserIDSet(2, 3)}
 	DummyRoom3 = domain.Room{ID: 3, Name: "title3", MemberIDSet: domain.NewUserIDSet(2)}
 
+	roomMapMu *sync.RWMutex = new(sync.RWMutex)
+
+	// under mu
 	roomMap = map[uint64]*domain.Room{
 		1: &DummyRoom1,
 		2: &DummyRoom2,
