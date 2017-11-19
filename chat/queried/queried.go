@@ -17,18 +17,18 @@ type Room struct {
 
 // UserRelation is the abstarct information associated with specified User.
 type UserRelation struct {
-	UserID   uint64 `json:"user_id"`
-	UserName string `json:"user_name"`
-	// TODO first name, last name
+	UserProfile
 
-	Friends []UserFriend `json:"friends"`
+	Friends []UserProfile `json:"friends"`
 
 	Rooms []UserRoom `json:"rooms"`
 }
 
-type UserFriend struct {
-	UserID   uint64 `json:"user_id"`
-	UserName string `json:"user_name"`
+type UserProfile struct {
+	UserID    uint64 `json:"user_id"`
+	UserName  string `json:"user_name"`
+	FirstName string `json:"first_name"`
+	LastName  string `json:"last_name"`
 }
 
 type UserRoom struct {

@@ -8,6 +8,8 @@ package event
 type UserCreated struct {
 	EventEmbd
 	Name      string   `json:"user_name"`
+	FirstName string   `json:"first_name"`
+	LastName  string   `json:"last_name"`
 	FriendIDs []uint64 `json:"friend_ids"`
 }
 

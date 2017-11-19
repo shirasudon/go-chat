@@ -169,6 +169,7 @@ func TestRESTGetUserInfo(t *testing.T) {
 	if userID := uint64(response["user_id"].(float64)); userID != TestUserID {
 		t.Errorf("returning different user id, expect: %d, got: %d", TestUserID, userID)
 	}
+	t.Logf("Response: %#v", response)
 }
 
 func TestRESTPostRoomMessage(t *testing.T) {

@@ -39,7 +39,7 @@ var userRepo = &UserRepositoryStub{}
 
 func TestUserCreated(t *testing.T) {
 	ctx := context.Background()
-	u, err := NewUser(ctx, userRepo, "user", "password", NewUserIDSet(1))
+	u, err := NewUser(ctx, userRepo, "user", "u-", "ser", "password", NewUserIDSet(1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,6 +62,12 @@ func TestUserCreated(t *testing.T) {
 	if got := ev.Name; got != "user" {
 		t.Errorf("UserCreated has different user name, expect: %s, got: %s", "user", got)
 	}
+	if got := ev.FirstName; got != "u-" {
+		t.Errorf("UserCreated has different first name, expect: %s, got: %s", "u-", got)
+	}
+	if got := ev.LastName; got != "ser" {
+		t.Errorf("UserCreated has different last name, expect: %s, got: %s", "ser", got)
+	}
 	if got := len(ev.FriendIDs); got != 1 {
 		t.Errorf("UseerCreated has dieffrent friends size, expect: %d, got: %d", 1, got)
 	}
@@ -73,7 +79,7 @@ func TestUserCreated(t *testing.T) {
 
 func TestUserAddFriendSuccess(t *testing.T) {
 	ctx := context.Background()
-	u, _ := NewUser(ctx, userRepo, "user", "password", NewUserIDSet())
+	u, _ := NewUser(ctx, userRepo, "user", "u-", "ser", "password", NewUserIDSet())
 	u.ID = 1 // it may not be allowed at application side.
 	friend := User{ID: u.ID + 1}
 	ev, err := u.AddFriend(friend)
@@ -106,7 +112,7 @@ func TestUserAddFriendSuccess(t *testing.T) {
 func TestUserAddFriendFail(t *testing.T) {
 	// fail case: Add itself as friend.
 	ctx := context.Background()
-	u, _ := NewUser(ctx, userRepo, "user", "password", NewUserIDSet())
+	u, _ := NewUser(ctx, userRepo, "user", "u-", "ser", "password", NewUserIDSet())
 	u.ID = 1 // it may not be allowed at application side.
 	_, err := u.AddFriend(u)
 	if err == nil {

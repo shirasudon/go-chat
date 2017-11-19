@@ -76,20 +76,31 @@ func (set *UserIDSet) List() []uint64 {
 type User struct {
 	EventHolder
 
-	ID       uint64
-	Name     string
-	Password string
+	ID        uint64
+	Name      string
+	FirstName string
+	LastName  string
+	Password  string
 
 	FriendIDs UserIDSet
 }
 
+// TODO validation
+
 // create new Room entity into the repository. It retruns the new user
 // holding event for UserCreated and error if any.
-func NewUser(ctx context.Context, userRepo UserRepository, name string, password string, friendIDs UserIDSet) (User, error) {
+func NewUser(
+	ctx context.Context,
+	userRepo UserRepository,
+	name, firstName, lastName, password string,
+	friendIDs UserIDSet,
+) (User, error) {
 	u := User{
 		EventHolder: NewEventHolder(),
 		ID:          0, // 0 means new entity
 		Name:        name,
+		FirstName:   firstName,
+		LastName:    lastName,
 		Password:    password,
 		FriendIDs:   friendIDs,
 	}
@@ -102,6 +113,8 @@ func NewUser(ctx context.Context, userRepo UserRepository, name string, password
 
 	ev := event.UserCreated{
 		Name:      name,
+		FirstName: firstName,
+		LastName:  lastName,
 		FriendIDs: friendIDs.List(),
 	}
 	ev.Occurs()

@@ -18,14 +18,28 @@ type UserRepository struct {
 var ErrNotFound = errors.New("user not found")
 
 var (
-	DummyUser  = domain.User{ID: 0, Name: "user", Password: "password"}
+	DummyUser = domain.User{
+		ID:        0,
+		Name:      "user",
+		FirstName: "u-",
+		LastName:  "ser",
+		Password:  "password",
+	}
 	DummyUser2 = domain.User{
 		ID:        2,
 		Name:      "user2",
+		FirstName: "u-",
+		LastName:  "ser",
 		Password:  "password",
 		FriendIDs: domain.NewUserIDSet(3),
 	}
-	DummyUser3 = domain.User{ID: 3, Name: "user3", Password: "password"}
+	DummyUser3 = domain.User{
+		ID:        3,
+		Name:      "user3",
+		FirstName: "u-",
+		LastName:  "ser",
+		Password:  "password",
+	}
 
 	userMapMu *sync.RWMutex = new(sync.RWMutex)
 
@@ -151,12 +165,14 @@ func (repo UserRepository) FindUserRelation(ctx context.Context, userID uint64) 
 		return nil, ErrNotFound
 	}
 
-	friends := make([]queried.UserFriend, 0, 4)
+	friends := make([]queried.UserProfile, 0, 4)
 	for _, id := range user.FriendIDs.List() {
 		if friend, ok := userMap[id]; ok {
-			friends = append(friends, queried.UserFriend{
-				UserID:   id,
-				UserName: friend.Name,
+			friends = append(friends, queried.UserProfile{
+				UserID:    id,
+				UserName:  friend.Name,
+				FirstName: friend.FirstName,
+				LastName:  friend.LastName,
 			})
 		}
 	}
@@ -179,9 +195,13 @@ func (repo UserRepository) FindUserRelation(ctx context.Context, userID uint64) 
 	roomMapMu.RUnlock()
 
 	return &queried.UserRelation{
-		UserID:   userID,
-		UserName: user.Name,
-		Friends:  friends,
-		Rooms:    rooms,
+		UserProfile: queried.UserProfile{
+			UserID:    userID,
+			UserName:  user.Name,
+			FirstName: user.FirstName,
+			LastName:  user.LastName,
+		},
+		Friends: friends,
+		Rooms:   rooms,
 	}, nil
 }
