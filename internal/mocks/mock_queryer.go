@@ -7,6 +7,7 @@ package mocks
 import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
+	queried "github.com/shirasudon/go-chat/chat/queried"
 	domain "github.com/shirasudon/go-chat/domain"
 	event "github.com/shirasudon/go-chat/domain/event"
 	reflect "reflect"
@@ -47,6 +48,19 @@ func (m *MockUserQueryer) Find(arg0 context.Context, arg1 uint64) (domain.User, 
 // Find indicates an expected call of Find
 func (mr *MockUserQueryerMockRecorder) Find(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Find", reflect.TypeOf((*MockUserQueryer)(nil).Find), arg0, arg1)
+}
+
+// FindUserRelation mocks base method
+func (m *MockUserQueryer) FindUserRelation(arg0 context.Context, arg1 uint64) (*queried.UserRelation, error) {
+	ret := m.ctrl.Call(m, "FindUserRelation", arg0, arg1)
+	ret0, _ := ret[0].(*queried.UserRelation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindUserRelation indicates an expected call of FindUserRelation
+func (mr *MockUserQueryerMockRecorder) FindUserRelation(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindUserRelation", reflect.TypeOf((*MockUserQueryer)(nil).FindUserRelation), arg0, arg1)
 }
 
 // MockRoomQueryer is a mock of RoomQueryer interface

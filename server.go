@@ -54,7 +54,7 @@ func NewServer(repos domain.Repositories, qs *chat.Queryers, conf *Config) *Serv
 		echo:         e,
 		loginHandler: NewLoginHandler(repos.Users()),
 		restHandler:  NewRESTHandler(chatCmd, chatQuery),
-		chatHub:      chat.NewHub(chatCmd, chatQuery),
+		chatHub:      chat.NewHub(chatCmd),
 		chatCmd:      chatCmd,
 		chatQuery:    chatQuery,
 		pubsub:       pubsub,

@@ -18,7 +18,6 @@ type Hub struct {
 	shutdown chan struct{}
 
 	chatCommand   *CommandService
-	chatQuery     *QueryService
 	activeClients *domain.ActiveClientRepository
 	pubsub        Pubsub
 }
@@ -31,9 +30,9 @@ type actionMessageRequest struct {
 	Conn domain.Conn
 }
 
-func NewHub(cmdService *CommandService, queryService *QueryService) *Hub {
-	if cmdService == nil || queryService == nil {
-		panic("passed either nil services")
+func NewHub(cmdService *CommandService) *Hub {
+	if cmdService == nil {
+		panic("passed nil service")
 	}
 
 	return &Hub{
@@ -42,7 +41,6 @@ func NewHub(cmdService *CommandService, queryService *QueryService) *Hub {
 		shutdown: make(chan struct{}),
 
 		chatCommand:   cmdService,
-		chatQuery:     queryService,
 		activeClients: domain.NewActiveClientRepository(64),
 		pubsub:        cmdService.pubsub,
 	}
@@ -108,6 +106,8 @@ func (hub *Hub) eventSendingService(ctx context.Context) {
 		event.TypeActiveClientInactivated,
 	)
 
+	chatCommand := hub.chatCommand
+
 	for {
 		select {
 		case <-hub.shutdown:
@@ -122,7 +122,7 @@ func (hub *Hub) eventSendingService(ctx context.Context) {
 			switch ev := ev.(type) {
 			case event.MessageCreated:
 				// send activate event for all friends.
-				room, err := hub.chatQuery.rooms.Find(ctx, ev.RoomID)
+				room, err := chatCommand.rooms.Find(ctx, ev.RoomID)
 				if err != nil {
 					// TODO error handling
 					log.Println(err)
@@ -138,7 +138,7 @@ func (hub *Hub) eventSendingService(ctx context.Context) {
 
 			case event.ActiveClientActivated:
 				// send activate event for all friends.
-				user, err := hub.chatQuery.users.Find(ctx, ev.UserID)
+				user, err := chatCommand.users.Find(ctx, ev.UserID)
 				if err != nil {
 					// TODO error handling
 					log.Println(err)
@@ -155,7 +155,7 @@ func (hub *Hub) eventSendingService(ctx context.Context) {
 
 			case event.ActiveClientInactivated:
 				// send inactivate event for all friends.
-				user, err := hub.chatQuery.users.Find(ctx, ev.UserID)
+				user, err := chatCommand.users.Find(ctx, ev.UserID)
 				if err != nil {
 					// TODO error handling
 					log.Println(err)
@@ -209,7 +209,7 @@ func (hub *Hub) Send(conn domain.Conn, message action.ActionMessage) {
 // Connect new websocket connection to the hub.
 func (hub *Hub) Connect(ctx context.Context, c domain.Conn) error {
 	userID := c.UserID()
-	user, err := hub.chatQuery.users.Find(ctx, userID)
+	user, err := hub.chatCommand.users.Find(ctx, userID)
 	if err != nil {
 		return fmt.Errorf("connected user(%d) is not found", userID)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/shirasudon/go-chat/chat/queried"
 	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/domain/event"
 )
@@ -28,7 +29,7 @@ type UserQueryer interface {
 
 	// Find a user related information with userID.
 	// It returns queried result and error if the information is not found.
-	FindUserRelation(ctx context.Context, userID uint64) (*QueriedUserRelation, error)
+	FindUserRelation(ctx context.Context, userID uint64) (*queried.UserRelation, error)
 }
 
 // RoomQueryer queries rooms stored in the data-store.

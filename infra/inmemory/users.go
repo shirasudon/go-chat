@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/shirasudon/go-chat/chat"
+	"github.com/shirasudon/go-chat/chat/queried"
 	"github.com/shirasudon/go-chat/domain"
 )
 
@@ -139,7 +140,7 @@ func (repo UserRepository) FindAllByUserID(ctx context.Context, id uint64) ([]do
 	return us, nil
 }
 
-func (repo UserRepository) FindUserRelation(ctx context.Context, userID uint64) (*chat.QueriedUserRelation, error) {
+func (repo UserRepository) FindUserRelation(ctx context.Context, userID uint64) (*queried.UserRelation, error) {
 	// TODO: run constructing service by using event,
 	// then just return already constructed value.
 	userMapMu.RLock()
@@ -150,10 +151,10 @@ func (repo UserRepository) FindUserRelation(ctx context.Context, userID uint64) 
 		return nil, ErrNotFound
 	}
 
-	friends := make([]chat.UserFriend, 0, 4)
+	friends := make([]queried.UserFriend, 0, 4)
 	for _, id := range user.FriendIDs.List() {
 		if friend, ok := userMap[id]; ok {
-			friends = append(friends, chat.UserFriend{
+			friends = append(friends, queried.UserFriend{
 				UserID:   id,
 				UserName: friend.Name,
 			})
@@ -164,11 +165,11 @@ func (repo UserRepository) FindUserRelation(ctx context.Context, userID uint64) 
 
 	roomMapMu.RLock()
 
-	rooms := make([]chat.UserRoom, 0, 4)
+	rooms := make([]queried.UserRoom, 0, 4)
 	for rID, userIDs := range roomToUsersMap {
 		if _, ok := userIDs[userID]; ok {
 			r := roomMap[rID]
-			rooms = append(rooms, chat.UserRoom{
+			rooms = append(rooms, queried.UserRoom{
 				RoomID:   rID,
 				RoomName: r.Name,
 			})
@@ -177,7 +178,7 @@ func (repo UserRepository) FindUserRelation(ctx context.Context, userID uint64) 
 
 	roomMapMu.RUnlock()
 
-	return &chat.QueriedUserRelation{
+	return &queried.UserRelation{
 		UserID:   userID,
 		UserName: user.Name,
 		Friends:  friends,

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/shirasudon/go-chat/chat/action"
+	"github.com/shirasudon/go-chat/chat/queried"
 	"github.com/shirasudon/go-chat/domain/event"
 )
 
@@ -37,26 +38,17 @@ func (s *QueryService) FindEventsByTimeCursor(ctx context.Context, after time.Ti
 	return s.events.FindAllByTimeCursor(ctx, after, limit)
 }
 
-type QueriedUserRoom struct {
-	RoomName string `json:"room_name"`
-	OwnerID  uint64 `json:"owner_id"`
-	Members  []struct {
-		UserID   uint64 `json:"user_id"`
-		UserName string `json:"user_name"`
-	} `json:"members"`
-}
-
 // Find rooms related with specified user id.
 // It returns error if not found.
-func (s *QueryService) FindUserRooms(ctx context.Context, userID uint64) ([]QueriedUserRoom, error) {
+func (s *QueryService) FindUserRooms(ctx context.Context, userID uint64) ([]queried.Room, error) {
 	rooms, err := s.rooms.FindAllByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
-	userRooms := make([]QueriedUserRoom, 0, len(rooms))
+	userRooms := make([]queried.Room, 0, len(rooms))
 	for _, r := range rooms {
-		ur := QueriedUserRoom{
+		ur := queried.Room{
 			RoomName: r.Name,
 			OwnerID:  userID,
 		}
@@ -67,55 +59,17 @@ func (s *QueryService) FindUserRooms(ctx context.Context, userID uint64) ([]Quer
 	return userRooms, nil
 }
 
-// QueriedUserRelation is the abstarct information associated with specified User.
-type QueriedUserRelation struct {
-	UserID   uint64 `json:"user_id"`
-	UserName string `json:"user_name"`
-	// TODO first name, last name
-
-	Friends []UserFriend `json:"friends"`
-
-	Rooms []UserRoom `json:"rooms"`
-}
-
-type UserFriend struct {
-	UserID   uint64 `json:"user_id"`
-	UserName string `json:"user_name"`
-}
-
-type UserRoom struct {
-	RoomID   uint64 `json:"room_id"`
-	RoomName string `json:"room_name"`
-}
-
 // Find abstarct information accociated with the User.
 // It returns queried result and error if the information is not found.
-func (s *QueryService) FindUserRelation(ctx context.Context, userID uint64) (*QueriedUserRelation, error) {
+func (s *QueryService) FindUserRelation(ctx context.Context, userID uint64) (*queried.UserRelation, error) {
 	relation, err := s.users.FindUserRelation(ctx, userID)
 	// TODO cache?
 	return relation, err
 }
 
-type QueriedRoomMessages struct {
-	RoomID uint64 `json:"room_id"`
-
-	Msgs []QueriedMessage `json:"messages"`
-
-	Cursor struct {
-		Current time.Time `json:"current"`
-		Next    time.Time `json:"next"`
-	} `json:"cursor"`
-}
-
-type QueriedMessage struct {
-	MessageID uint64    `json:"message_id"`
-	Content   string    `json:"content"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
 // Find messages from specified room.
 // It returns error if infrastructure raise some errors.
-func (s *QueryService) FindRoomMessages(ctx context.Context, userID uint64, q action.QueryRoomMessages) (*QueriedRoomMessages, error) {
+func (s *QueryService) FindRoomMessages(ctx context.Context, userID uint64, q action.QueryRoomMessages) (*queried.RoomMessages, error) {
 	r, err := s.rooms.Find(ctx, q.RoomID)
 	if err != nil {
 		return nil, err
@@ -135,7 +89,7 @@ func (s *QueryService) FindRoomMessages(ctx context.Context, userID uint64, q ac
 
 	// TODO move to infrastructure and just return QueryRoomMessages.
 
-	roomMsgs := &QueriedRoomMessages{
+	roomMsgs := &queried.RoomMessages{
 		RoomID: q.RoomID,
 	}
 	roomMsgs.Cursor.Current = q.Before
@@ -145,9 +99,9 @@ func (s *QueryService) FindRoomMessages(ctx context.Context, userID uint64, q ac
 		roomMsgs.Cursor.Next = q.Before
 	}
 
-	qMsgs := make([]QueriedMessage, 0, len(msgs))
+	qMsgs := make([]queried.Message, 0, len(msgs))
 	for _, m := range msgs {
-		qm := QueriedMessage{
+		qm := queried.Message{
 			MessageID: m.ID,
 			Content:   m.Content,
 			CreatedAt: m.CreatedAt,
