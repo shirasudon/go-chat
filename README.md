@@ -64,7 +64,7 @@ Responce JSON:
 ```javascript
 {
   "user_id": user_id, 
-  "user_name: "<user name>",
+  "user_name": "<user name>",
   "first_name": "<first name>",
   "last_name": "<last name>",
 
