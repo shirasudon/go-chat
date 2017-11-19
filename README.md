@@ -51,4 +51,38 @@ The action format is a JSON like:
 
 Note that the responses to those commands are indirectly returnd by the events.
 
+### REST API
+
+* GetUserInfo -- `GET /chat/users/:user_id`
+
+It returns user information specified by `user_id`.
+
+Request JSON data: `None`.
+
+Responce JSON: 
+
+```javascript
+{
+  "user_id": <user_id>,
+  "user_name: "<user name>",
+  "friends": [
+    {
+      "user_id": <user_id>,
+      "user_name: "<user name>",
+    },
+    {
+      ...
+    }
+  ],
+  "rooms": [
+    {
+      "room_id": <room_id>,
+      "room_name: "<user name>",
+    },
+    {
+      ...
+    }
+  ]
+}
+```
 
