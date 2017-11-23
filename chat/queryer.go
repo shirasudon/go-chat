@@ -40,6 +40,10 @@ type RoomQueryer interface {
 
 	// Find all rooms which user has.
 	FindAllByUserID(ctx context.Context, userID uint64) ([]domain.Room, error)
+
+	// Find room information with specified userID and roomID.
+	// It returns error if not found.
+	FindRoomInfo(ctx context.Context, userID, roomID uint64) (*queried.RoomInfo, error)
 }
 
 // MessageQueryer queries messages stored in the data-store.

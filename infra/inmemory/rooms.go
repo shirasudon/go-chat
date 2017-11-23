@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/shirasudon/go-chat/chat"
+	"github.com/shirasudon/go-chat/chat/queried"
 	"github.com/shirasudon/go-chat/domain"
 )
 
@@ -127,4 +128,42 @@ func (repo *RoomRepository) Find(ctx context.Context, roomID uint64) (domain.Roo
 		return *room, nil
 	}
 	return domain.Room{}, ErrNotFound
+}
+
+func (repo *RoomRepository) FindRoomInfo(ctx context.Context, userID, roomID uint64) (*queried.RoomInfo, error) {
+	roomMapMu.RLock()
+	r, ok := roomMap[roomID]
+	if !ok {
+		roomMapMu.RUnlock()
+		return nil, ErrNotFound
+	}
+	roomMapMu.RUnlock()
+
+	members := make([]queried.UserProfile, 0, 2)
+
+	userMapMu.RLock()
+	// check whether user exist in the room
+	u, ok := userMap[userID]
+	if !ok || !r.HasMember(u) {
+		userMapMu.RUnlock()
+		return nil, ErrNotFound
+	}
+
+	// create member profiles
+	for _, id := range r.MemberIDs() {
+		u, ok := userMap[id]
+		if !ok {
+			continue
+		}
+		members = append(members, createUserProfile(&u))
+	}
+	userMapMu.RUnlock()
+
+	return &queried.RoomInfo{
+		RoomName:    r.Name,
+		RoomID:      r.ID,
+		CreatorID:   r.OwnerID,
+		Members:     members,
+		MembersSize: len(members),
+	}, nil
 }

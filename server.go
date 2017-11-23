@@ -142,6 +142,9 @@ func (s *Server) ListenAndServe() error {
 		Name = "chat.createUserRoom"
 	chatGroup.DELETE("/users/:id/rooms", s.restHandler.DeleteRoom).
 		Name = "chat.deleteUserRoom"
+	chatGroup.GET("/rooms/:room_id", s.restHandler.GetRoomInfo).
+		Name = "chat.getRoomInfo"
+
 	chatGroup.GET("/users/:user_id", s.restHandler.GetUserInfo).
 		Name = "chat.getUserInfo"
 

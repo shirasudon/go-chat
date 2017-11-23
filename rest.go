@@ -47,6 +47,18 @@ func (rest *RESTHandler) validateUserID(e echo.Context) (uint64, error) {
 	return userID, nil
 }
 
+func (rest *RESTHandler) validateParamRoomID(e echo.Context) (uint64, error) {
+	const ParamKey = "room_id"
+
+	param := e.Param(ParamKey)
+	roomID, err := strconv.ParseUint(param, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("requested room id(%v) is not allowed", param)
+	}
+
+	return roomID, nil
+}
+
 func (rest *RESTHandler) CreateRoom(e echo.Context) error {
 	userID, err := rest.validateUserID(e)
 	if err != nil {
@@ -103,18 +115,25 @@ func (rest *RESTHandler) DeleteRoom(e echo.Context) error {
 	return e.JSON(http.StatusNoContent, response)
 }
 
-func (rest *RESTHandler) GetUserRooms(e echo.Context) error {
+func (rest *RESTHandler) GetRoomInfo(e echo.Context) error {
 	userID, ok := LoggedInUserID(e)
 	if !ok {
 		return ErrRequireLoginFirst
 	}
 
-	rooms, err := rest.chatQuery.FindUserRooms(e.Request().Context(), userID)
+	roomID, err := rest.validateParamRoomID(e)
 	if err != nil {
-		return err
+		return echo.NewHTTPError(http.StatusBadRequest, err)
 	}
 
-	return e.JSON(http.StatusOK, rooms)
+	info, err := rest.chatQuery.FindRoomInfo(e.Request().Context(), userID, roomID)
+	if err != nil {
+		// TODO distinguish logic error or infra error
+		// if _, ok := err.(*chat.InfraError); ok {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	return e.JSON(http.StatusFound, info)
 }
 
 func (rest *RESTHandler) GetUserInfo(e echo.Context) error {

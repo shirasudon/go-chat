@@ -112,6 +112,19 @@ func (mr *MockRoomQueryerMockRecorder) FindAllByUserID(arg0, arg1 interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindAllByUserID", reflect.TypeOf((*MockRoomQueryer)(nil).FindAllByUserID), arg0, arg1)
 }
 
+// FindRoomInfo mocks base method
+func (m *MockRoomQueryer) FindRoomInfo(arg0 context.Context, arg1, arg2 uint64) (*queried.RoomInfo, error) {
+	ret := m.ctrl.Call(m, "FindRoomInfo", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*queried.RoomInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindRoomInfo indicates an expected call of FindRoomInfo
+func (mr *MockRoomQueryerMockRecorder) FindRoomInfo(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindRoomInfo", reflect.TypeOf((*MockRoomQueryer)(nil).FindRoomInfo), arg0, arg1, arg2)
+}
+
 // MockMessageQueryer is a mock of MessageQueryer interface
 type MockMessageQueryer struct {
 	ctrl     *gomock.Controller

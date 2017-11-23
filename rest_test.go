@@ -132,11 +132,64 @@ func TestRESTDeleteRoom(t *testing.T) {
 	t.Logf("%#v", response)
 }
 
-func TestRESTGetUserRoom(t *testing.T) {
-	req := httptest.NewRequest(echo.GET, "/users/1/rooms", nil)
+func TestRESTGetRoomInfo(t *testing.T) {
+	const (
+		getRoomID   = uint64(3)
+		loginUserID = uint64(2)
+	)
+	RESTHandler, done := createRESTHandler()
+	defer done()
+
+	req := httptest.NewRequest(echo.GET, "/rooms/:room_id", nil)
 	rec := httptest.NewRecorder()
-	_ = theEcho.NewContext(req, rec)
-	//TODO
+
+	c := theEcho.NewContext(req, rec)
+	c.Set(KeyLoggedInUserID, loginUserID)
+	c.SetParamNames("room_id")
+	c.SetParamValues(fmt.Sprint(getRoomID))
+
+	err := RESTHandler.GetRoomInfo(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expect, got := http.StatusFound, rec.Code; expect != got {
+		t.Errorf("different http status code, expect: %v, got: %v", expect, got)
+	}
+
+	response := make(map[string]interface{})
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for _, key := range []string{
+		"room_name",
+		"room_creator_id",
+		"room_members",
+		"room_members_size",
+	} {
+		if _, ok := response[key]; !ok {
+			t.Errorf("missing field (%v) in json response", key)
+		}
+	}
+
+	members, ok := response["room_members"].([]interface{})
+	if !ok {
+		t.Fatalf("The response has invalid field (%v); value: %#v", "room_members", response)
+	}
+
+	for _, member := range members {
+		for _, key := range []string{
+			"user_name",
+			"user_id",
+			"first_name",
+			"last_name",
+		} {
+			if _, ok := member.(map[string]interface{})[key]; !ok {
+				t.Errorf("missing field (%v) in room member", key)
+			}
+		}
+	}
 }
 
 func TestRESTGetUserInfo(t *testing.T) {

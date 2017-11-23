@@ -8,9 +8,44 @@ import (
 	"github.com/golang/mock/gomock"
 
 	"github.com/shirasudon/go-chat/chat/action"
+	"github.com/shirasudon/go-chat/chat/queried"
 	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/internal/mocks"
 )
+
+func TestQueryServiceFindRoomInfo(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	var (
+		roomInfo = &queried.RoomInfo{
+			RoomName:  "room_name",
+			RoomID:    1,
+			CreatorID: 2,
+			Members: []queried.UserProfile{
+				{UserName: "user", UserID: 2},
+			},
+			MembersSize: 1,
+		}
+	)
+
+	roomQr := mocks.NewMockRoomQueryer(mockCtrl)
+	roomQr.EXPECT().
+		FindRoomInfo(gomock.Any(), roomInfo.CreatorID, roomInfo.RoomID).
+		Return(roomInfo, nil).
+		Times(1)
+
+	queryers := &Queryers{
+		RoomQueryer: roomQr,
+	}
+
+	qservice := NewQueryService(queryers)
+
+	_, err := qservice.FindRoomInfo(context.Background(), roomInfo.CreatorID, roomInfo.RoomID)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
 
 func TestQueryServiceFindRoomMessagesSuccess(t *testing.T) {
 	mockCtrl := gomock.NewController(t)

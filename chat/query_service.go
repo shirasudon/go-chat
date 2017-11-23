@@ -38,28 +38,17 @@ func (s *QueryService) FindEventsByTimeCursor(ctx context.Context, after time.Ti
 	return s.events.FindAllByTimeCursor(ctx, after, limit)
 }
 
-// Find rooms related with specified user id.
-// It returns error if not found.
-func (s *QueryService) FindUserRooms(ctx context.Context, userID uint64) ([]queried.Room, error) {
-	rooms, err := s.rooms.FindAllByUserID(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-
-	userRooms := make([]queried.Room, 0, len(rooms))
-	for _, r := range rooms {
-		ur := queried.Room{
-			RoomName: r.Name,
-			OwnerID:  userID,
-		}
-		// TODO get user information
-		// ur.Members = ...
-		userRooms = append(userRooms, ur)
-	}
-	return userRooms, nil
+// Find detailed room information specified by room ID.
+// It also requires userID to query the information which
+// can be permmited to the user.
+// It returns queried room information and error if not found.
+func (s *QueryService) FindRoomInfo(ctx context.Context, userID, roomID uint64) (*queried.RoomInfo, error) {
+	info, err := s.rooms.FindRoomInfo(ctx, userID, roomID)
+	// TODO cache?
+	return info, err
 }
 
-// Find abstarct information accociated with the User.
+// Find abstract information associated with the User.
 // It returns queried result and error if the information is not found.
 func (s *QueryService) FindUserRelation(ctx context.Context, userID uint64) (*queried.UserRelation, error) {
 	relation, err := s.users.FindUserRelation(ctx, userID)
@@ -70,6 +59,8 @@ func (s *QueryService) FindUserRelation(ctx context.Context, userID uint64) (*qu
 // Find messages from specified room.
 // It returns error if infrastructure raise some errors.
 func (s *QueryService) FindRoomMessages(ctx context.Context, userID uint64, q action.QueryRoomMessages) (*queried.RoomMessages, error) {
+	// TODO create specific queried data, messages associated with room ID and user ID,
+	// to remove domain logic in the QueryService.
 	r, err := s.rooms.Find(ctx, q.RoomID)
 	if err != nil {
 		return nil, err

@@ -154,6 +154,15 @@ func (repo UserRepository) FindAllByUserID(ctx context.Context, id uint64) ([]do
 	return us, nil
 }
 
+func createUserProfile(u *domain.User) queried.UserProfile {
+	return queried.UserProfile{
+		UserID:    u.ID,
+		UserName:  u.Name,
+		FirstName: u.FirstName,
+		LastName:  u.LastName,
+	}
+}
+
 func (repo UserRepository) FindUserRelation(ctx context.Context, userID uint64) (*queried.UserRelation, error) {
 	// TODO: run constructing service by using event,
 	// then just return already constructed value.
@@ -168,12 +177,7 @@ func (repo UserRepository) FindUserRelation(ctx context.Context, userID uint64) 
 	friends := make([]queried.UserProfile, 0, 4)
 	for _, id := range user.FriendIDs.List() {
 		if friend, ok := userMap[id]; ok {
-			friends = append(friends, queried.UserProfile{
-				UserID:    id,
-				UserName:  friend.Name,
-				FirstName: friend.FirstName,
-				LastName:  friend.LastName,
-			})
+			friends = append(friends, createUserProfile(&friend))
 		}
 	}
 
@@ -195,13 +199,8 @@ func (repo UserRepository) FindUserRelation(ctx context.Context, userID uint64) 
 	roomMapMu.RUnlock()
 
 	return &queried.UserRelation{
-		UserProfile: queried.UserProfile{
-			UserID:    userID,
-			UserName:  user.Name,
-			FirstName: user.FirstName,
-			LastName:  user.LastName,
-		},
-		Friends: friends,
-		Rooms:   rooms,
+		UserProfile: createUserProfile(&user),
+		Friends:     friends,
+		Rooms:       rooms,
 	}, nil
 }
