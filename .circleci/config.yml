@@ -7,7 +7,7 @@ jobs:
   build:
     docker:
       # CircleCI Go images available at: https://hub.docker.com/r/circleci/golang/
-      - image: circleci/golang:1.8
+      - image: circleci/golang:1.9
 
     working_directory: /go/src/github.com/shirasudon/go-chat
 
