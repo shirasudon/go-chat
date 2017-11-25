@@ -92,7 +92,7 @@ func testAssertHTTPError(t *testing.T, target error, expectCode int, msgExists b
 
 	he, ok := target.(*echo.HTTPError)
 	if !ok {
-		t.Fatal("invalid error type. expect: *echo.HTTPError, got: %#v", target)
+		t.Fatalf("invalid error type. expect: *echo.HTTPError, got: %#v", target)
 	}
 	if he.Code != expectCode {
 		t.Errorf("different http status code for HTTPError, expect: %v, got: %v", expectCode, he.Code)
