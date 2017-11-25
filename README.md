@@ -63,32 +63,64 @@ Responce JSON:
 
 ```javascript
 {
-  "user_id": user_id, 
-  "user_name": "<user name>",
-  "first_name": "<first name>",
-  "last_name": "<last name>",
+    "user_id": user_id,
+    "user_name": "<user name>",
+    "first_name": "<first name>",
+    "last_name": "<last name>",
 
-  "friends": [
-    {
-      "user_id": user_id, 
-      "user_name": "<user name>",
-      "first_name": "<first name>",
-      "last_name": "<last name>",
-    },
-    {
-      ...
-    }
-  ],
+    "friends": [
+        {
+            "user_id": user_id,
+            "user_name": "<user name>",
+            "first_name": "<first name>",
+            "last_name": "<last name>",
+        },
+        {
+            ...
+        }
+    ],
 
-  "rooms": [
-    {
-      "room_id": room_id,
-      "room_name": "<room name>",
-    },
-    {
-      ...
-    }
-  ]
+    "rooms": [
+        {
+            "room_id": room_id,
+            "room_name": "<room name>",
+        },
+        {
+            ...
+        }
+    ]
+}
+```
+
+---
+
+* GetRoomInfo -- `GET /chat/rooms/:room_id`
+
+It returns room information specified by `room_id`.
+
+Request JSON data: `None`.
+
+Responce JSON:
+
+```javascript
+{
+    "room_id": room_id,
+    "room_name": "<room name>",
+    "room_creator_id": room_creator_id, // user_id
+
+    "room_members": [
+        {
+            "user_id": user_id,
+            "user_name": "<user name>",
+            "first_name": "<first name>",
+            "last_name": "<last name>",
+        },
+        {
+            ...
+        }
+    ],
+
+    "room_members_size": room_members_size,
 }
 ```
 
