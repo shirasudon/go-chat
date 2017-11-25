@@ -132,7 +132,7 @@ func TestRESTDeleteRoom(t *testing.T) {
 	t.Logf("%#v", response)
 }
 
-func TestRESTGetRoomInfo(t *testing.T) {
+func TestRESTGetRoomInfoSuccess(t *testing.T) {
 	const (
 		getRoomID   = uint64(3)
 		loginUserID = uint64(2)
@@ -189,6 +189,28 @@ func TestRESTGetRoomInfo(t *testing.T) {
 				t.Errorf("missing field (%v) in room member", key)
 			}
 		}
+	}
+}
+
+func TestRESTGetRoomInfoFail(t *testing.T) {
+	const (
+		NotFoundRoomID = uint64(99)
+		loginUserID    = uint64(2)
+	)
+	RESTHandler, done := createRESTHandler()
+	defer done()
+
+	req := httptest.NewRequest(echo.GET, "/rooms/:room_id", nil)
+	rec := httptest.NewRecorder()
+
+	c := theEcho.NewContext(req, rec)
+	c.Set(KeyLoggedInUserID, loginUserID)
+	c.SetParamNames("room_id")
+	c.SetParamValues(fmt.Sprint(NotFoundRoomID))
+
+	err := RESTHandler.GetRoomInfo(c)
+	if err == nil {
+		t.Fatal("not found room is specified but no error")
 	}
 }
 

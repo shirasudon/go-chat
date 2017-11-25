@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -9,6 +10,14 @@ import (
 
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/chat/action"
+)
+
+var (
+	// ErrRequireLoginFirst indicates that unauthenticated error message.
+	ErrRequireLoginFirst = errors.New("require login first")
+
+	// ErrAPIRequireLoginFirst indicates that unauthenticated error message with htto status code.
+	ErrAPIRequireLoginFirst = NewHTTPError(http.StatusForbidden, ErrRequireLoginFirst.Error())
 )
 
 type RESTHandler struct {
@@ -36,12 +45,12 @@ func uintParam(e echo.Context, key string) uint64 {
 func (rest *RESTHandler) validateUserID(e echo.Context) (uint64, error) {
 	userID, ok := LoggedInUserID(e)
 	if !ok {
-		return 0, echo.NewHTTPError(http.StatusUnauthorized, ErrRequireLoginFirst)
+		return 0, ErrAPIRequireLoginFirst
 	}
 
 	userPathID, err := strconv.ParseUint(e.Param("id"), 10, 64)
 	if err != nil || userPathID != userID {
-		return 0, echo.NewHTTPError(http.StatusBadRequest, fmt.Errorf("requested user id(%v) is not allowed", userPathID))
+		return 0, NewHTTPError(http.StatusBadRequest, fmt.Errorf("requested user id(%v) is not allowed", userPathID))
 	}
 
 	return userID, nil
@@ -68,13 +77,13 @@ func (rest *RESTHandler) CreateRoom(e echo.Context) error {
 	createRoom := action.CreateRoom{}
 	if err = e.Bind(&createRoom); err != nil {
 		// TODO return error as JSON format
-		return echo.NewHTTPError(http.StatusBadRequest, err)
+		return NewHTTPError(http.StatusBadRequest, err)
 	}
 	createRoom.SenderID = userID
 
 	createdID, err := rest.chatCmd.CreateRoom(e.Request().Context(), createRoom)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+		return NewHTTPError(http.StatusInternalServerError, err)
 	}
 
 	response := struct {
@@ -96,13 +105,13 @@ func (rest *RESTHandler) DeleteRoom(e echo.Context) error {
 	deleteRoom := action.DeleteRoom{}
 	if err := e.Bind(&deleteRoom); err != nil {
 		// TODO return error as JSON format
-		return echo.NewHTTPError(http.StatusBadRequest, err)
+		return NewHTTPError(http.StatusBadRequest, err)
 	}
 	deleteRoom.SenderID = userID
 
 	deletedID, err := rest.chatCmd.DeleteRoom(e.Request().Context(), deleteRoom)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+		return NewHTTPError(http.StatusInternalServerError, err)
 	}
 
 	response := struct {
@@ -118,19 +127,19 @@ func (rest *RESTHandler) DeleteRoom(e echo.Context) error {
 func (rest *RESTHandler) GetRoomInfo(e echo.Context) error {
 	userID, ok := LoggedInUserID(e)
 	if !ok {
-		return ErrRequireLoginFirst
+		return ErrAPIRequireLoginFirst
 	}
 
 	roomID, err := rest.validateParamRoomID(e)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusBadRequest, err)
+		return NewHTTPError(http.StatusBadRequest, err)
 	}
 
 	info, err := rest.chatQuery.FindRoomInfo(e.Request().Context(), userID, roomID)
 	if err != nil {
 		// TODO distinguish logic error or infra error
 		// if _, ok := err.(*chat.InfraError); ok {
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+		return NewHTTPError(http.StatusInternalServerError, err)
 	}
 
 	return e.JSON(http.StatusFound, info)
@@ -149,19 +158,19 @@ func (rest *RESTHandler) GetUserInfo(e echo.Context) error {
 func (rest *RESTHandler) PostRoomMessage(e echo.Context) error {
 	userID, ok := LoggedInUserID(e)
 	if !ok {
-		return ErrRequireLoginFirst
+		return ErrAPIRequireLoginFirst
 	}
 
 	postMsg := action.ChatMessage{}
 	if err := e.Bind(&postMsg); err != nil {
 		// TODO return error as JSON format
-		return echo.NewHTTPError(http.StatusBadRequest, err)
+		return NewHTTPError(http.StatusBadRequest, err)
 	}
 	postMsg.SenderID = userID
 	postMsg.RoomID = uintParam(e, "room_id") // TODO use const variable for "room_id"
 	msgID, err := rest.chatCmd.PostRoomMessage(e.Request().Context(), postMsg)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+		return NewHTTPError(http.StatusInternalServerError, err)
 	}
 
 	response := struct {
@@ -179,18 +188,18 @@ func (rest *RESTHandler) PostRoomMessage(e echo.Context) error {
 func (rest *RESTHandler) GetRoomMessages(e echo.Context) error {
 	userID, ok := LoggedInUserID(e)
 	if !ok {
-		return ErrRequireLoginFirst
+		return ErrAPIRequireLoginFirst
 	}
 
 	qRoomMsg := action.QueryRoomMessages{}
 	if err := e.Bind(&qRoomMsg); err != nil {
 		// TODO return error as JSON format
-		return echo.NewHTTPError(http.StatusBadRequest, err)
+		return NewHTTPError(http.StatusBadRequest, err)
 	}
 
 	roomMsg, err := rest.chatQuery.FindRoomMessages(e.Request().Context(), userID, qRoomMsg)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+		return NewHTTPError(http.StatusInternalServerError, err)
 	}
 
 	return e.JSON(http.StatusFound, roomMsg)
