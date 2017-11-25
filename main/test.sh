@@ -11,7 +11,7 @@ curl http://localhost:8080/login -b $COOKIE
 echo ""
 
 echo "# create new room"
-curl http://localhost:8080/chat/users/2/rooms -XPOST -d '{ "name": "new room"}' -b $COOKIE -H "Content-type: application/json"
+curl http://localhost:8080/chat/rooms -XPOST -d '{ "name": "new room"}' -b $COOKIE -H "Content-type: application/json"
 echo ""
 
 echo "# get room info"

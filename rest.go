@@ -32,34 +32,24 @@ func NewRESTHandler(chatCmd *chat.CommandService, chatQuery *chat.QueryService) 
 	}
 }
 
-// parse uint parameter with key from echo.Context.
-// it returns parsed uint number, or 0 if can not parsed.
-func uintParam(e echo.Context, key string) uint64 {
-	n, err := strconv.ParseUint(e.Param(key), 10, 64)
+const (
+	// keys for the URL parameters. e.g. /root/:param_name
+	ParamKeyUserID = "user_id"
+	ParamKeyRoomID = "room_id"
+)
+
+func validateParamUserID(e echo.Context) (uint64, error) {
+	param := e.Param(ParamKeyUserID)
+	userID, err := strconv.ParseUint(param, 10, 64)
 	if err != nil {
-		return 0
-	}
-	return n
-}
-
-func (rest *RESTHandler) validateUserID(e echo.Context) (uint64, error) {
-	userID, ok := LoggedInUserID(e)
-	if !ok {
-		return 0, ErrAPIRequireLoginFirst
-	}
-
-	userPathID, err := strconv.ParseUint(e.Param("id"), 10, 64)
-	if err != nil || userPathID != userID {
-		return 0, NewHTTPError(http.StatusBadRequest, fmt.Errorf("requested user id(%v) is not allowed", userPathID))
+		return 0, fmt.Errorf("requested user id(%v) is not allowed", param)
 	}
 
 	return userID, nil
 }
 
-func (rest *RESTHandler) validateParamRoomID(e echo.Context) (uint64, error) {
-	const ParamKey = "room_id"
-
-	param := e.Param(ParamKey)
+func validateParamRoomID(e echo.Context) (uint64, error) {
+	param := e.Param(ParamKeyRoomID)
 	roomID, err := strconv.ParseUint(param, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("requested room id(%v) is not allowed", param)
@@ -69,14 +59,13 @@ func (rest *RESTHandler) validateParamRoomID(e echo.Context) (uint64, error) {
 }
 
 func (rest *RESTHandler) CreateRoom(e echo.Context) error {
-	userID, err := rest.validateUserID(e)
-	if err != nil {
-		return err
+	userID, ok := LoggedInUserID(e)
+	if !ok {
+		return ErrRequireLoginFirst
 	}
 
 	createRoom := action.CreateRoom{}
-	if err = e.Bind(&createRoom); err != nil {
-		// TODO return error as JSON format
+	if err := e.Bind(&createRoom); err != nil {
 		return NewHTTPError(http.StatusBadRequest, err)
 	}
 	createRoom.SenderID = userID
@@ -97,14 +86,13 @@ func (rest *RESTHandler) CreateRoom(e echo.Context) error {
 }
 
 func (rest *RESTHandler) DeleteRoom(e echo.Context) error {
-	userID, err := rest.validateUserID(e)
-	if err != nil {
-		return err
+	userID, ok := LoggedInUserID(e)
+	if !ok {
+		return ErrAPIRequireLoginFirst
 	}
 
 	deleteRoom := action.DeleteRoom{}
 	if err := e.Bind(&deleteRoom); err != nil {
-		// TODO return error as JSON format
 		return NewHTTPError(http.StatusBadRequest, err)
 	}
 	deleteRoom.SenderID = userID
@@ -130,7 +118,7 @@ func (rest *RESTHandler) GetRoomInfo(e echo.Context) error {
 		return ErrAPIRequireLoginFirst
 	}
 
-	roomID, err := rest.validateParamRoomID(e)
+	roomID, err := validateParamRoomID(e)
 	if err != nil {
 		return NewHTTPError(http.StatusBadRequest, err)
 	}
@@ -146,10 +134,14 @@ func (rest *RESTHandler) GetRoomInfo(e echo.Context) error {
 }
 
 func (rest *RESTHandler) GetUserInfo(e echo.Context) error {
-	userID := uintParam(e, "user_id")
+	userID, err := validateParamUserID(e)
+	if err != nil {
+		return NewHTTPError(http.StatusBadRequest, err)
+	}
+
 	relation, err := rest.chatQuery.FindUserRelation(e.Request().Context(), userID)
 	if err != nil {
-		return err
+		return NewHTTPError(http.StatusInternalServerError, err)
 	}
 
 	return e.JSON(http.StatusFound, relation)
@@ -160,14 +152,17 @@ func (rest *RESTHandler) PostRoomMessage(e echo.Context) error {
 	if !ok {
 		return ErrAPIRequireLoginFirst
 	}
+	roomID, err := validateParamRoomID(e)
+	if err != nil {
+		return NewHTTPError(http.StatusBadRequest, err)
+	}
 
 	postMsg := action.ChatMessage{}
 	if err := e.Bind(&postMsg); err != nil {
-		// TODO return error as JSON format
 		return NewHTTPError(http.StatusBadRequest, err)
 	}
 	postMsg.SenderID = userID
-	postMsg.RoomID = uintParam(e, "room_id") // TODO use const variable for "room_id"
+	postMsg.RoomID = roomID
 	msgID, err := rest.chatCmd.PostRoomMessage(e.Request().Context(), postMsg)
 	if err != nil {
 		return NewHTTPError(http.StatusInternalServerError, err)

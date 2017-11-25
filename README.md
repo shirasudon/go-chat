@@ -51,7 +51,7 @@ The action format is a JSON like:
 
 Note that the responses to those commands are indirectly returnd by the events.
 
-### REST API
+## REST API
 
 * GetUserInfo -- `GET /chat/users/:user_id`
 
@@ -59,7 +59,7 @@ It returns user information specified by `user_id`.
 
 Request JSON data: `None`.
 
-Responce JSON: 
+Responce JSON:
 
 ```javascript
 {

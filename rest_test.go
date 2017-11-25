@@ -54,7 +54,7 @@ func TestRESTCreateRoom(t *testing.T) {
 	createRoom.RoomName = "room1"
 	createRoom.RoomMemberIDs = []uint64{2, 3}
 
-	req, err := newJSONRequest(echo.POST, "/users/:user_id/rooms/new", createRoom)
+	req, err := newJSONRequest(echo.POST, "/rooms", createRoom)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -63,8 +63,6 @@ func TestRESTCreateRoom(t *testing.T) {
 
 	c := theEcho.NewContext(req, rec)
 	c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
-	c.SetParamNames("id")
-	c.SetParamValues(fmt.Sprint(createOrDeleteByUserID))
 
 	err = RESTHandler.CreateRoom(c)
 	if err != nil {
@@ -97,7 +95,7 @@ func TestRESTDeleteRoom(t *testing.T) {
 	deleteRoom.ActionName = action.ActionDeleteRoom
 	deleteRoom.RoomID = createOrDeleteRoomID
 
-	req, err := newJSONRequest(echo.POST, "/users/:user_id/rooms/:room_id/delete", deleteRoom)
+	req, err := newJSONRequest(echo.POST, "/rooms/:room_id", deleteRoom)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,8 +104,6 @@ func TestRESTDeleteRoom(t *testing.T) {
 
 	c := theEcho.NewContext(req, rec)
 	c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
-	c.SetParamNames("id")
-	c.SetParamValues(fmt.Sprint(createOrDeleteByUserID))
 
 	err = RESTHandler.DeleteRoom(c)
 	if err != nil {
@@ -218,10 +214,13 @@ func TestRESTGetUserInfo(t *testing.T) {
 	RESTHandler, done := createRESTHandler()
 	defer done()
 
+	const (
+		TestUserID = uint64(2)
+	)
+
 	req := httptest.NewRequest(echo.GET, "/users/2", nil)
 	rec := httptest.NewRecorder()
 
-	const TestUserID = uint64(2)
 	c := theEcho.NewContext(req, rec)
 	c.Set(KeyLoggedInUserID, TestUserID)
 	c.SetParamNames("user_id")

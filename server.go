@@ -138,10 +138,10 @@ func (s *Server) ListenAndServe() error {
 	chatGroup := e.Group(chatPath, s.loginHandler.Filter())
 
 	// set restHandler
-	chatGroup.POST("/users/:id/rooms", s.restHandler.CreateRoom).
-		Name = "chat.createUserRoom"
-	chatGroup.DELETE("/users/:id/rooms", s.restHandler.DeleteRoom).
-		Name = "chat.deleteUserRoom"
+	chatGroup.POST("/rooms", s.restHandler.CreateRoom).
+		Name = "chat.createRoom"
+	chatGroup.DELETE("/rooms/:room_id", s.restHandler.DeleteRoom).
+		Name = "chat.deleteRoom"
 	chatGroup.GET("/rooms/:room_id", s.restHandler.GetRoomInfo).
 		Name = "chat.getRoomInfo"
 
