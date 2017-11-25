@@ -50,7 +50,6 @@ func TestRESTCreateRoom(t *testing.T) {
 	defer done()
 
 	createRoom := action.CreateRoom{}
-	createRoom.ActionName = action.ActionCreateRoom
 	createRoom.RoomName = "room1"
 	createRoom.RoomMemberIDs = []uint64{2, 3}
 
@@ -87,25 +86,80 @@ func TestRESTCreateRoom(t *testing.T) {
 	t.Logf("%#v", response)
 }
 
+// helper function for the echo.HTTPError.
+func testAssertHTTPError(t *testing.T, target error, expectCode int, msgExists bool) {
+	t.Helper()
+
+	he, ok := target.(*echo.HTTPError)
+	if !ok {
+		t.Fatal("invalid error type. expect: *echo.HTTPError, got: %#v", target)
+	}
+	if he.Code != expectCode {
+		t.Errorf("different http status code for HTTPError, expect: %v, got: %v", expectCode, he.Code)
+	}
+	if msgExists && he.Message == nil {
+		t.Errorf("error message is empty")
+	}
+}
+
+func TestRESTCreateRoomFail(t *testing.T) {
+	RESTHandler, done := createRESTHandler()
+	defer done()
+
+	// case 1: invalid request json
+	{
+		req := httptest.NewRequest(echo.POST, "/rooms", nil) // no json data and header
+		rec := httptest.NewRecorder()
+
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
+
+		err := RESTHandler.CreateRoom(c)
+		if err == nil {
+			t.Fatal("invalid json request is sent, but no error")
+		}
+		testAssertHTTPError(t, err, http.StatusBadRequest, true)
+	}
+
+	// case 2: referring not found user
+	{
+		const (
+			NotFoundUserID = uint64(99)
+		)
+		createRoom := action.CreateRoom{}
+		createRoom.RoomName = "room1"
+		createRoom.RoomMemberIDs = []uint64{2, 3}
+
+		req, err := newJSONRequest(echo.POST, "/rooms", createRoom)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rec := httptest.NewRecorder()
+
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, NotFoundUserID)
+
+		err = RESTHandler.CreateRoom(c)
+		if err == nil {
+			t.Fatal("requesting not found user, but no error")
+		}
+		testAssertHTTPError(t, err, http.StatusInternalServerError, true)
+	}
+}
+
 func TestRESTDeleteRoom(t *testing.T) {
 	RESTHandler, done := createRESTHandler()
 	defer done()
 
-	deleteRoom := action.DeleteRoom{}
-	deleteRoom.ActionName = action.ActionDeleteRoom
-	deleteRoom.RoomID = createOrDeleteRoomID
-
-	req, err := newJSONRequest(echo.POST, "/rooms/:room_id", deleteRoom)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	req := httptest.NewRequest(echo.POST, "/rooms/:room_id", nil)
 	rec := httptest.NewRecorder()
 
 	c := theEcho.NewContext(req, rec)
 	c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
+	c.SetParamNames("room_id")
+	c.SetParamValues(fmt.Sprint(createOrDeleteRoomID))
 
-	err = RESTHandler.DeleteRoom(c)
+	err := RESTHandler.DeleteRoom(c)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,6 +180,68 @@ func TestRESTDeleteRoom(t *testing.T) {
 		t.Errorf("room deleted but not ok status")
 	}
 	t.Logf("%#v", response)
+}
+
+func TestRESTDeleteRoomFail(t *testing.T) {
+	RESTHandler, done := createRESTHandler()
+	defer done()
+
+	// case 1: invalid request for resource parameter
+	{
+		req := httptest.NewRequest(echo.POST, "/rooms/:room_id", nil)
+		rec := httptest.NewRecorder()
+
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
+		c.SetParamNames("room_id")
+		c.SetParamValues("room_id_string")
+
+		err := RESTHandler.DeleteRoom(c)
+		if err == nil {
+			t.Fatal("invalid resource parameter is sent, but no error")
+		}
+		testAssertHTTPError(t, err, http.StatusBadRequest, true)
+	}
+
+	// case 2: referring not found user
+	{
+		const (
+			NotFoundUserID = uint64(99)
+		)
+		req := httptest.NewRequest(echo.POST, "/rooms/:room_id", nil)
+		rec := httptest.NewRecorder()
+
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, NotFoundUserID)
+		c.SetParamNames("room_id")
+		c.SetParamValues(fmt.Sprint(createOrDeleteRoomID))
+
+		err := RESTHandler.DeleteRoom(c)
+		if err == nil {
+			t.Fatal("requesting not found user, but no error")
+		}
+		testAssertHTTPError(t, err, http.StatusInternalServerError, true)
+	}
+
+	// case 3: referring not found room
+	{
+		const (
+			NotFoundRoomID = uint64(99)
+		)
+		req := httptest.NewRequest(echo.POST, "/rooms/:room_id", nil)
+		rec := httptest.NewRecorder()
+
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, createOrDeleteRoomID)
+		c.SetParamNames("room_id")
+		c.SetParamValues(fmt.Sprint(NotFoundRoomID))
+
+		err := RESTHandler.DeleteRoom(c)
+		if err == nil {
+			t.Fatal("requesting not found room, but no error")
+		}
+		testAssertHTTPError(t, err, http.StatusInternalServerError, true)
+	}
 }
 
 func TestRESTGetRoomInfoSuccess(t *testing.T) {
@@ -158,6 +274,7 @@ func TestRESTGetRoomInfoSuccess(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// just check for existance of json keys.
 	for _, key := range []string{
 		"room_name",
 		"room_creator_id",
@@ -189,24 +306,45 @@ func TestRESTGetRoomInfoSuccess(t *testing.T) {
 }
 
 func TestRESTGetRoomInfoFail(t *testing.T) {
-	const (
-		NotFoundRoomID = uint64(99)
-		loginUserID    = uint64(2)
-	)
 	RESTHandler, done := createRESTHandler()
 	defer done()
 
-	req := httptest.NewRequest(echo.GET, "/rooms/:room_id", nil)
-	rec := httptest.NewRecorder()
+	// case 1: invalid request for resource parameter
+	{
+		req := httptest.NewRequest(echo.GET, "/rooms/:room_id", nil)
+		rec := httptest.NewRecorder()
 
-	c := theEcho.NewContext(req, rec)
-	c.Set(KeyLoggedInUserID, loginUserID)
-	c.SetParamNames("room_id")
-	c.SetParamValues(fmt.Sprint(NotFoundRoomID))
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
+		c.SetParamNames("room_id")
+		c.SetParamValues("room_id_string")
 
-	err := RESTHandler.GetRoomInfo(c)
-	if err == nil {
-		t.Fatal("not found room is specified but no error")
+		err := RESTHandler.GetRoomInfo(c)
+		if err == nil {
+			t.Fatal("invalid resource parameter is sent, but no error")
+		}
+		testAssertHTTPError(t, err, http.StatusBadRequest, true)
+	}
+
+	// case 2: referring not found room
+	{
+		const (
+			NotFoundRoomID = uint64(99)
+			loginUserID    = uint64(2)
+		)
+
+		req := httptest.NewRequest(echo.GET, "/rooms/:room_id", nil)
+		rec := httptest.NewRecorder()
+
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, loginUserID)
+		c.SetParamNames("room_id")
+		c.SetParamValues(fmt.Sprint(NotFoundRoomID))
+
+		err := RESTHandler.GetRoomInfo(c)
+		if err == nil {
+			t.Fatal("not found room is specified but no error")
+		}
 	}
 }
 
@@ -244,6 +382,49 @@ func TestRESTGetUserInfo(t *testing.T) {
 		t.Errorf("returning different user id, expect: %d, got: %d", TestUserID, userID)
 	}
 	t.Logf("Response: %#v", response)
+}
+
+func TestRESTGetUserInfoFail(t *testing.T) {
+	RESTHandler, done := createRESTHandler()
+	defer done()
+
+	// case 1: invalid request for resource parameter
+	{
+		req := httptest.NewRequest(echo.GET, "/users/:user_id", nil)
+		rec := httptest.NewRecorder()
+
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
+		c.SetParamNames("user_id")
+		c.SetParamValues("user_id_string")
+
+		err := RESTHandler.GetUserInfo(c)
+		if err == nil {
+			t.Fatal("invalid resource parameter is sent, but no error")
+		}
+		testAssertHTTPError(t, err, http.StatusBadRequest, true)
+	}
+
+	// case 2: referring not found user
+	{
+		const (
+			NotFoundUserID = uint64(99)
+			loginUserID    = uint64(2)
+		)
+
+		req := httptest.NewRequest(echo.GET, "/users/:user_id", nil)
+		rec := httptest.NewRecorder()
+
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, loginUserID)
+		c.SetParamNames("user_id")
+		c.SetParamValues(fmt.Sprint(NotFoundUserID))
+
+		err := RESTHandler.GetUserInfo(c)
+		if err == nil {
+			t.Fatal("not found user is specified but no error")
+		}
+	}
 }
 
 func TestRESTPostRoomMessage(t *testing.T) {

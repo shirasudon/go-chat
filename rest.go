@@ -1,7 +1,6 @@
 package chat
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -13,11 +12,8 @@ import (
 )
 
 var (
-	// ErrRequireLoginFirst indicates that unauthenticated error message.
-	ErrRequireLoginFirst = errors.New("require login first")
-
 	// ErrAPIRequireLoginFirst indicates that unauthenticated error message with htto status code.
-	ErrAPIRequireLoginFirst = NewHTTPError(http.StatusForbidden, ErrRequireLoginFirst.Error())
+	ErrAPIRequireLoginFirst = NewHTTPError(http.StatusForbidden, "require login first")
 )
 
 type RESTHandler struct {
@@ -42,7 +38,7 @@ func validateParamUserID(e echo.Context) (uint64, error) {
 	param := e.Param(ParamKeyUserID)
 	userID, err := strconv.ParseUint(param, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("requested user id(%v) is not allowed", param)
+		return 0, NewHTTPError(http.StatusBadRequest, fmt.Errorf("requested user id(%v) is not allowed", param))
 	}
 
 	return userID, nil
@@ -52,7 +48,7 @@ func validateParamRoomID(e echo.Context) (uint64, error) {
 	param := e.Param(ParamKeyRoomID)
 	roomID, err := strconv.ParseUint(param, 10, 64)
 	if err != nil {
-		return 0, fmt.Errorf("requested room id(%v) is not allowed", param)
+		return 0, NewHTTPError(http.StatusBadRequest, fmt.Errorf("requested room id(%v) is not allowed", param))
 	}
 
 	return roomID, nil
@@ -61,12 +57,12 @@ func validateParamRoomID(e echo.Context) (uint64, error) {
 func (rest *RESTHandler) CreateRoom(e echo.Context) error {
 	userID, ok := LoggedInUserID(e)
 	if !ok {
-		return ErrRequireLoginFirst
+		return ErrAPIRequireLoginFirst
 	}
 
 	createRoom := action.CreateRoom{}
 	if err := e.Bind(&createRoom); err != nil {
-		return NewHTTPError(http.StatusBadRequest, err)
+		return err // default Bind returns *echo.NewHTTPError
 	}
 	createRoom.SenderID = userID
 
@@ -90,12 +86,14 @@ func (rest *RESTHandler) DeleteRoom(e echo.Context) error {
 	if !ok {
 		return ErrAPIRequireLoginFirst
 	}
+	roomID, err := validateParamRoomID(e)
+	if err != nil {
+		return err
+	}
 
 	deleteRoom := action.DeleteRoom{}
-	if err := e.Bind(&deleteRoom); err != nil {
-		return NewHTTPError(http.StatusBadRequest, err)
-	}
 	deleteRoom.SenderID = userID
+	deleteRoom.RoomID = roomID
 
 	deletedID, err := rest.chatCmd.DeleteRoom(e.Request().Context(), deleteRoom)
 	if err != nil {
@@ -117,10 +115,9 @@ func (rest *RESTHandler) GetRoomInfo(e echo.Context) error {
 	if !ok {
 		return ErrAPIRequireLoginFirst
 	}
-
 	roomID, err := validateParamRoomID(e)
 	if err != nil {
-		return NewHTTPError(http.StatusBadRequest, err)
+		return err
 	}
 
 	info, err := rest.chatQuery.FindRoomInfo(e.Request().Context(), userID, roomID)
@@ -136,7 +133,7 @@ func (rest *RESTHandler) GetRoomInfo(e echo.Context) error {
 func (rest *RESTHandler) GetUserInfo(e echo.Context) error {
 	userID, err := validateParamUserID(e)
 	if err != nil {
-		return NewHTTPError(http.StatusBadRequest, err)
+		return err
 	}
 
 	relation, err := rest.chatQuery.FindUserRelation(e.Request().Context(), userID)
@@ -154,12 +151,12 @@ func (rest *RESTHandler) PostRoomMessage(e echo.Context) error {
 	}
 	roomID, err := validateParamRoomID(e)
 	if err != nil {
-		return NewHTTPError(http.StatusBadRequest, err)
+		return err
 	}
 
 	postMsg := action.ChatMessage{}
 	if err := e.Bind(&postMsg); err != nil {
-		return NewHTTPError(http.StatusBadRequest, err)
+		return err
 	}
 	postMsg.SenderID = userID
 	postMsg.RoomID = roomID
@@ -188,8 +185,7 @@ func (rest *RESTHandler) GetRoomMessages(e echo.Context) error {
 
 	qRoomMsg := action.QueryRoomMessages{}
 	if err := e.Bind(&qRoomMsg); err != nil {
-		// TODO return error as JSON format
-		return NewHTTPError(http.StatusBadRequest, err)
+		return err
 	}
 
 	roomMsg, err := rest.chatQuery.FindRoomMessages(e.Request().Context(), userID, qRoomMsg)
