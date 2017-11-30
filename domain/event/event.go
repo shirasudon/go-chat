@@ -23,10 +23,14 @@ type Event interface {
 	// return its type
 	Type() Type
 
+	// return its stream ID
+	StreamID() StreamID
+
 	// return its time stamp.
 	Timestamp() time.Time
 }
 
+// Type represents event type.
 type Type uint
 
 const (
@@ -48,6 +52,16 @@ const (
 	TypeActiveClientInactivated
 )
 
+// StreamID represents identification for what type of domain-entity.
+type StreamID uint
+
+const (
+	NoneStream StreamID = iota
+	UserStream
+	RoomStream
+	MessageStream
+)
+
 // Common embeded fields for Event.
 // It implements Event interface.
 type EventEmbd struct {
@@ -58,6 +72,7 @@ type EventEmbd struct {
 func (e *EventEmbd) Occurs() { e.CreatedAt = time.Now() }
 
 func (EventEmbd) Type() Type             { return TypeNone }
+func (EventEmbd) StreamID() StreamID     { return NoneStream }
 func (e EventEmbd) Timestamp() time.Time { return e.CreatedAt }
 
 // domain event for the error is raised.

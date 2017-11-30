@@ -24,11 +24,12 @@ var eventEncodeNames = map[event.Type]string{
 // It implement Event interface.
 type EventJSON struct {
 	EventName string      `json:"event"`
-	Data      interface{} `json:"data"`
+	Data      event.Event `json:"data"`
 }
 
-func (EventJSON) Type() event.Type       { return event.TypeNone }
-func (e EventJSON) Timestamp() time.Time { return e.Data.(event.Event).Timestamp() }
+func (EventJSON) Type() event.Type           { return event.TypeNone }
+func (e EventJSON) Timestamp() time.Time     { return e.Data.Timestamp() }
+func (e EventJSON) StreamID() event.StreamID { return e.Data.StreamID() }
 
 func NewEventJSON(ev event.Event) EventJSON {
 	if ev == nil {
