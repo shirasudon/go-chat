@@ -24,10 +24,10 @@ func TestEventEmbd(t *testing.T) {
 		{"ActiveClientInactivated", ActiveClientInactivated{}, TypeActiveClientInactivated, NoneStream},
 	} {
 		if ev.Type() != ev.ExpectType {
-			t.Errorf("%v: different event type, got: %v, expect: %v", ev.Type(), ev.ExpectType)
+			t.Errorf("%v: different event type, got: %v, expect: %v", ev.Name, ev.Type(), ev.ExpectType)
 		}
 		if ev.StreamID() != ev.ExpectStreamID {
-			t.Errorf("%v: different event stream id, got: %v, expect: %v", ev.StreamID(), ev.ExpectStreamID)
+			t.Errorf("%v: different event stream id, got: %v, expect: %v", ev.Name, ev.StreamID(), ev.ExpectStreamID)
 		}
 	}
 }
