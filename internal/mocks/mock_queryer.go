@@ -184,6 +184,19 @@ func (m *MockEventQueryer) EXPECT() *MockEventQueryerMockRecorder {
 	return m.recorder
 }
 
+// FindAllByStreamID mocks base method
+func (m *MockEventQueryer) FindAllByStreamID(arg0 context.Context, arg1 event.StreamID, arg2 time.Time, arg3 int) ([]event.Event, error) {
+	ret := m.ctrl.Call(m, "FindAllByStreamID", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].([]event.Event)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindAllByStreamID indicates an expected call of FindAllByStreamID
+func (mr *MockEventQueryerMockRecorder) FindAllByStreamID(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindAllByStreamID", reflect.TypeOf((*MockEventQueryer)(nil).FindAllByStreamID), arg0, arg1, arg2, arg3)
+}
+
 // FindAllByTimeCursor mocks base method
 func (m *MockEventQueryer) FindAllByTimeCursor(arg0 context.Context, arg1 time.Time, arg2 int) ([]event.Event, error) {
 	ret := m.ctrl.Call(m, "FindAllByTimeCursor", arg0, arg1, arg2)

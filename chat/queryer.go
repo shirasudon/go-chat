@@ -65,4 +65,10 @@ type EventQueryer interface {
 	// and all of after specified after time.
 	// It returns error if any.
 	FindAllByTimeCursor(ctx context.Context, after time.Time, limit int) ([]event.Event, error)
+
+	// Find events, associated with specified stream ID, from the data-store.
+	// The returned events are, ordered by older created at
+	// and all of after specified after time.
+	// It returns error if any.
+	FindAllByStreamID(ctx context.Context, streamID event.StreamID, after time.Time, limit int) ([]event.Event, error)
 }
