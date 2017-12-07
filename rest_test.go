@@ -2,6 +2,7 @@ package chat
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -528,4 +529,65 @@ func TestRESTGetRoomMessages(t *testing.T) {
 	}
 
 	t.Logf("%#v", response)
+}
+
+func TestRESTGetUnreadRoomMessages(t *testing.T) {
+	RESTHandler := NewRESTHandler(
+		chat.NewCommandService(repository, globalPubsub),
+		chat.NewQueryService(queryers),
+	)
+
+	{ // create room messages
+		chatMsg := action.ChatMessage{}
+		chatMsg.RoomID = createMsgRoomID
+		chatMsg.SenderID = createOrDeleteByUserID
+		chatMsg.Content = "hello"
+		_, err := RESTHandler.chatCmd.PostRoomMessage(context.Background(), chatMsg)
+		if err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	query := action.QueryUnreadRoomMessages{
+		RoomID: createMsgRoomID,
+		Limit:  1,
+	}
+
+	req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages/unread", query)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rec := httptest.NewRecorder()
+
+	c := theEcho.NewContext(req, rec)
+	c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
+	c.SetParamNames("room_id")
+	c.SetParamValues(fmt.Sprint(createMsgRoomID))
+
+	err = RESTHandler.GetUnreadRoomMessages(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if expect, got := http.StatusFound, rec.Code; expect != got {
+		t.Errorf("different http status code, expect: %v, got: %v", expect, got)
+	}
+
+	response := make(map[string]interface{})
+	err = json.Unmarshal(rec.Body.Bytes(), &response)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// just check for existance of json keys.
+	for _, key := range []string{
+		"room_id",
+		"messages",
+		"messages_size",
+	} {
+		if _, ok := response[key]; !ok {
+			t.Errorf("missing field (%v) in json response", key)
+		}
+	}
 }

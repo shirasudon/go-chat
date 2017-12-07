@@ -1,6 +1,8 @@
 package inmemory
 
 import (
+	"context"
+
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/domain/event"
@@ -20,6 +22,13 @@ type Repositories struct {
 	*MessageRepository
 	*RoomRepository
 	*EventRepository
+}
+
+// run UpdatingService to make the query data is latest.
+// User should call this with new Repositories instance.
+// If context is done, then the services will be stopped.
+func (r *Repositories) UpdatingService(ctx context.Context) {
+	r.MessageRepository.UpdatingService(ctx)
 }
 
 func (r Repositories) Users() domain.UserRepository {

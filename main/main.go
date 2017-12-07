@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 
 	gochat "github.com/shirasudon/go-chat"
@@ -17,6 +18,10 @@ func main() {
 
 	repos := inmemory.OpenRepositories(ps)
 	defer repos.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go repos.UpdatingService(ctx)
 
 	qs := &chat.Queryers{
 		UserQueryer:    repos.UserRepository,

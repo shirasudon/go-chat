@@ -195,3 +195,27 @@ func (rest *RESTHandler) GetRoomMessages(e echo.Context) error {
 
 	return e.JSON(http.StatusFound, roomMsg)
 }
+
+func (rest *RESTHandler) GetUnreadRoomMessages(e echo.Context) error {
+	userID, ok := LoggedInUserID(e)
+	if !ok {
+		return ErrAPIRequireLoginFirst
+	}
+	roomID, err := validateParamRoomID(e)
+	if err != nil {
+		return err
+	}
+
+	q := action.QueryUnreadRoomMessages{}
+	if err := e.Bind(&q); err != nil {
+		return err
+	}
+	q.RoomID = roomID
+
+	unreads, err := rest.chatQuery.FindUnreadRoomMessages(e.Request().Context(), userID, q)
+	if err != nil {
+		return NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	return e.JSON(http.StatusFound, unreads)
+}

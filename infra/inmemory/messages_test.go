@@ -2,7 +2,6 @@ package inmemory
 
 import (
 	"context"
-	"runtime"
 	"testing"
 	"time"
 
@@ -15,6 +14,34 @@ var (
 	globalPubsub      = pubsub.New()
 	messageRepository = NewMessageRepository(globalPubsub)
 )
+
+func TestMessageRepoUpdatingService(t *testing.T) {
+	// with timeout to quit correctly
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	// run service for updating query data
+	go messageRepository.UpdatingService(ctx)
+
+	ch := globalPubsub.Sub(event.TypeMessageCreated)
+
+	const (
+		TargetRoomID = 1
+		TargetUserID = 1
+		Content      = "none"
+	)
+
+	for i := 0; i < 10; i++ {
+		id, _ := messageRepository.Store(ctx, domain.Message{Content: Content})
+		globalPubsub.Pub(event.MessageCreated{MessageID: id, CreatedBy: TargetUserID, RoomID: TargetRoomID})
+		select {
+		case <-ch:
+			continue
+		case <-ctx.Done():
+			t.Fatal("timeout")
+		}
+	}
+}
 
 func TestMessageRepoStore(t *testing.T) {
 	const Content = "hello"
@@ -133,12 +160,11 @@ func TestMessageRepoRemoveAllByRoomID(t *testing.T) {
 }
 
 func TestMessageRepoFindUnreadRoomMessages(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
 	defer cancel()
 
 	// run service for updating query data
 	go messageRepository.UpdatingService(ctx)
-	runtime.Gosched()
 	time.Sleep(1 * time.Millisecond) // wait for starting the service
 
 	const (
@@ -149,7 +175,6 @@ func TestMessageRepoFindUnreadRoomMessages(t *testing.T) {
 
 	id, _ := messageRepository.Store(ctx, domain.Message{Content: Content})
 	globalPubsub.Pub(event.MessageCreated{MessageID: id, CreatedBy: TargetUserID, RoomID: TargetRoomID})
-	runtime.Gosched()
 	time.Sleep(1 * time.Millisecond) // wait for the updated query
 
 	unreads, err := messageRepository.FindUnreadRoomMessages(ctx, TargetUserID, TargetRoomID, 1)

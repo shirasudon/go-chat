@@ -34,6 +34,12 @@ var (
 
 func TestMain(m *testing.M) {
 	defer globalPubsub.Shutdown()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go repository.UpdatingService(ctx)
+	time.Sleep(1 * time.Millisecond) // wait for the starting of UpdatingService.
+
 	os.Exit(m.Run())
 }
 
