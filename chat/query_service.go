@@ -103,3 +103,11 @@ func (s *QueryService) FindRoomMessages(ctx context.Context, userID uint64, q ac
 
 	return roomMsgs, nil
 }
+
+// Find unread messages from specified room.
+// It returns error if infrastructure raise some errors.
+func (s *QueryService) FindUnreadRoomMessages(ctx context.Context, userID uint64, q action.QueryUnreadRoomMessages) (*queried.UnreadRoomMessages, error) {
+	msgs, err := s.msgs.FindUnreadRoomMessages(ctx, userID, q.RoomID, q.Limit)
+	// TODO cache
+	return msgs, err
+}

@@ -15,7 +15,6 @@ import (
 	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/domain/event"
-	"github.com/shirasudon/go-chat/infra/pubsub"
 	"github.com/shirasudon/go-chat/ws"
 )
 
@@ -29,7 +28,6 @@ type Server struct {
 	chatHub   *chat.Hub
 	chatCmd   *chat.CommandService
 	chatQuery *chat.QueryService
-	pubsub    *pubsub.PubSub
 
 	repos domain.Repositories
 
@@ -38,7 +36,7 @@ type Server struct {
 
 // it returns new constructed server with config.
 // nil config is ok and use DefaultConfig insteadly.
-func NewServer(repos domain.Repositories, qs *chat.Queryers, conf *Config) *Server {
+func NewServer(repos domain.Repositories, qs *chat.Queryers, ps chat.Pubsub, conf *Config) *Server {
 	if conf == nil {
 		conf = &DefaultConfig
 	}
@@ -46,8 +44,7 @@ func NewServer(repos domain.Repositories, qs *chat.Queryers, conf *Config) *Serv
 	e := echo.New()
 	e.HideBanner = true
 
-	pubsub := pubsub.New(10)
-	chatCmd := chat.NewCommandService(repos, pubsub)
+	chatCmd := chat.NewCommandService(repos, ps)
 	chatQuery := chat.NewQueryService(qs)
 
 	s := &Server{
@@ -57,7 +54,6 @@ func NewServer(repos domain.Repositories, qs *chat.Queryers, conf *Config) *Serv
 		chatHub:      chat.NewHub(chatCmd),
 		chatCmd:      chatCmd,
 		chatQuery:    chatQuery,
-		pubsub:       pubsub,
 
 		repos: repos,
 		conf:  *conf,
@@ -185,7 +181,6 @@ func (s *Server) ListenAndServe() error {
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.chatHub.Shutdown()
-	s.pubsub.Shutdown()
 	return s.echo.Shutdown(ctx)
 }
 
@@ -194,11 +189,11 @@ func (s *Server) Shutdown(ctx context.Context) error {
 // A nil config is OK and use DefaultConfig insteadly.
 // It blocks until the process occurs any error and
 // return the error.
-func ListenAndServe(repos domain.Repositories, qs *chat.Queryers, conf *Config) error {
+func ListenAndServe(repos domain.Repositories, qs *chat.Queryers, ps chat.Pubsub, conf *Config) error {
 	if conf == nil {
 		conf = &DefaultConfig
 	}
-	s := NewServer(repos, qs, conf)
+	s := NewServer(repos, qs, ps, conf)
 	defer s.Shutdown(context.Background())
 	return s.ListenAndServe()
 }

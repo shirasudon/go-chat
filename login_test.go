@@ -9,6 +9,7 @@ import (
 
 	"github.com/ipfans/echo-session"
 	"github.com/labstack/echo"
+
 	"github.com/shirasudon/go-chat/infra/inmemory"
 )
 
@@ -18,7 +19,7 @@ var (
 )
 
 func init() {
-	repository := inmemory.OpenRepositories()
+	repository := inmemory.OpenRepositories(globalPubsub)
 	loginHandler = NewLoginHandler(repository.Users())
 	theEcho = echo.New()
 }

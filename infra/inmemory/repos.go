@@ -1,14 +1,15 @@
 package inmemory
 
 import (
+	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/domain/event"
 )
 
-func OpenRepositories() *Repositories {
+func OpenRepositories(pubsub chat.Pubsub) *Repositories {
 	return &Repositories{
 		UserRepository:    &UserRepository{},
-		MessageRepository: NewMessageRepository(),
+		MessageRepository: NewMessageRepository(pubsub),
 		RoomRepository:    NewRoomRepository(),
 		EventRepository:   &EventRepository{},
 	}

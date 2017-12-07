@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -11,14 +12,17 @@ import (
 	"golang.org/x/net/websocket"
 
 	"github.com/labstack/echo"
+
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/infra/inmemory"
+	"github.com/shirasudon/go-chat/infra/pubsub"
 	"github.com/shirasudon/go-chat/ws/wstest"
 )
 
 var (
-	repository = inmemory.OpenRepositories()
+	globalPubsub = pubsub.New()
+	repository   = inmemory.OpenRepositories(globalPubsub)
 
 	queryers *chat.Queryers = &chat.Queryers{
 		UserQueryer:    repository.UserRepository,
@@ -28,12 +32,17 @@ var (
 	}
 )
 
+func TestMain(m *testing.M) {
+	defer globalPubsub.Shutdown()
+	os.Exit(m.Run())
+}
+
 const (
 	LoginUserID = 2
 )
 
 func TestServerServeChatWebsocket(t *testing.T) {
-	server := NewServer(repository, queryers, nil)
+	server := NewServer(repository, queryers, globalPubsub, nil)
 	defer server.Shutdown(context.Background())
 
 	// run server process

@@ -56,6 +56,10 @@ type MessageQueryer interface {
 	// specified limit.
 	// It returns error if infrastructure raise some errors.
 	FindRoomMessagesOrderByLatest(ctx context.Context, roomID uint64, before time.Time, limit int) ([]domain.Message, error)
+
+	// Find all unread messages from the room specified by room_id.
+	// The returned messages are, ordered by latest created at,
+	FindUnreadRoomMessages(ctx context.Context, userID, roomID uint64, limit int) (*queried.UnreadRoomMessages, error)
 }
 
 // EventQueryer queries events stored in the data-store.

@@ -26,6 +26,7 @@ func (MessageCreated) Type() Type { return TypeMessageCreated }
 type MessageReadByUser struct {
 	MessageEventEmbd
 	MessageID uint64 `json:"message_id"`
+	RoomID    uint64 `json:"room_id"`
 	UserID    uint64 `json:"user_id"`
 }
 

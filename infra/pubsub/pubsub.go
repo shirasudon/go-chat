@@ -6,13 +6,20 @@ import (
 	"github.com/shirasudon/go-chat/domain/event"
 )
 
+// DefaultCapacity for the Pubsub
+const DefaultCapacity = 1
+
 type PubSub struct {
 	pubsub *pubsub.PubSub
 }
 
-func New(capacity int) *PubSub {
-	pubsub := &PubSub{pubsub: pubsub.New(capacity)}
-	return pubsub
+// New Pubsub with capacity size. If capacity
+// is not given, use default insteadly.
+func New(capacity ...int) *PubSub {
+	if len(capacity) == 0 {
+		capacity = []int{DefaultCapacity}
+	}
+	return &PubSub{pubsub: pubsub.New(capacity[0])}
 }
 
 // subscribes specified EventType and return message channel.

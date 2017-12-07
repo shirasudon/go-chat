@@ -175,3 +175,52 @@ func TestQueryServiceFindRoomMessagesFail(t *testing.T) {
 		t.Fatal("The room does not have specified member(user) but can be returned messages")
 	}
 }
+
+func TestQueryServiceFindUnreadRoomMessages(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	var (
+		user = domain.User{ID: 1}
+		room = domain.Room{
+			ID:          1,
+			MemberIDSet: domain.NewUserIDSet(), // no members
+		}
+	)
+
+	roomQr := mocks.NewMockRoomQueryer(mockCtrl)
+	userQr := mocks.NewMockUserQueryer(mockCtrl)
+	msgQr := mocks.NewMockMessageQueryer(mockCtrl)
+
+	query := action.QueryUnreadRoomMessages{
+		RoomID: room.ID,
+		Limit:  10,
+	}
+	msgQr.EXPECT().
+		FindUnreadRoomMessages(gomock.Any(), user.ID, query.RoomID, query.Limit).
+		Return(&queried.UnreadRoomMessages{
+			RoomID: room.ID,
+			Msgs: []queried.Message{
+				{Content: "hello0"},
+				{Content: "hello1"},
+			},
+			MsgsSize: 2,
+		}, nil).
+		Times(1)
+
+	queryers := &Queryers{
+		MessageQueryer: msgQr,
+		RoomQueryer:    roomQr,
+		UserQueryer:    userQr,
+	}
+
+	qservice := NewQueryService(queryers)
+
+	got, err := qservice.FindUnreadRoomMessages(context.Background(), user.ID, query)
+	if err != nil {
+		t.Fatalf("can not get RoomUnreadMessages: %v", err)
+	}
+	if got.MsgsSize != 2 {
+		t.Errorf("different message size, expect: %v, got: %v", 2, got.MsgsSize)
+	}
+}

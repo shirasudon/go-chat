@@ -100,6 +100,7 @@ func (m *Message) ReadBy(u User) (event.MessageReadByUser, error) {
 	ev := event.MessageReadByUser{
 		MessageID: m.ID,
 		UserID:    u.ID,
+		RoomID:    m.RoomID,
 	}
 	ev.Occurs()
 	m.AddEvent(ev)

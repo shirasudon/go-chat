@@ -161,6 +161,19 @@ func (mr *MockMessageQueryerMockRecorder) FindRoomMessagesOrderByLatest(arg0, ar
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindRoomMessagesOrderByLatest", reflect.TypeOf((*MockMessageQueryer)(nil).FindRoomMessagesOrderByLatest), arg0, arg1, arg2, arg3)
 }
 
+// FindUnreadRoomMessages mocks base method
+func (m *MockMessageQueryer) FindUnreadRoomMessages(arg0 context.Context, arg1, arg2 uint64, arg3 int) (*queried.UnreadRoomMessages, error) {
+	ret := m.ctrl.Call(m, "FindUnreadRoomMessages", arg0, arg1, arg2, arg3)
+	ret0, _ := ret[0].(*queried.UnreadRoomMessages)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindUnreadRoomMessages indicates an expected call of FindUnreadRoomMessages
+func (mr *MockMessageQueryerMockRecorder) FindUnreadRoomMessages(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindUnreadRoomMessages", reflect.TypeOf((*MockMessageQueryer)(nil).FindUnreadRoomMessages), arg0, arg1, arg2, arg3)
+}
+
 // MockEventQueryer is a mock of EventQueryer interface
 type MockEventQueryer struct {
 	ctrl     *gomock.Controller

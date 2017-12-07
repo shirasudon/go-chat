@@ -9,3 +9,10 @@ type QueryRoomMessages struct {
 	Before time.Time `json:"before"`
 	Limit  int       `json:"limit"`
 }
+
+// QueryUnreadRoomMessages is a query for
+// unread messages by user in specified room.
+type QueryUnreadRoomMessages struct {
+	RoomID uint64 `json:"room_id"`
+	Limit  int    `json:"limit"`
+}

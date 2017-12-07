@@ -54,3 +54,11 @@ type Message struct {
 	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+// UnreadRoomMessages is a list of unread messages in specified Room.
+type UnreadRoomMessages struct {
+	RoomID uint64 `json:"room_id"`
+
+	Msgs     []Message `json:"messages"`
+	MsgsSize int       `json:"messages_size"`
+}
