@@ -50,6 +50,19 @@ func (mr *MockUserQueryerMockRecorder) Find(arg0, arg1 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Find", reflect.TypeOf((*MockUserQueryer)(nil).Find), arg0, arg1)
 }
 
+// FindByNameAndPassword mocks base method
+func (m *MockUserQueryer) FindByNameAndPassword(arg0 context.Context, arg1, arg2 string) (*queried.AuthUser, error) {
+	ret := m.ctrl.Call(m, "FindByNameAndPassword", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*queried.AuthUser)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindByNameAndPassword indicates an expected call of FindByNameAndPassword
+func (mr *MockUserQueryerMockRecorder) FindByNameAndPassword(arg0, arg1, arg2 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByNameAndPassword", reflect.TypeOf((*MockUserQueryer)(nil).FindByNameAndPassword), arg0, arg1, arg2)
+}
+
 // FindUserRelation mocks base method
 func (m *MockUserQueryer) FindUserRelation(arg0 context.Context, arg1 uint64) (*queried.UserRelation, error) {
 	ret := m.ctrl.Call(m, "FindUserRelation", arg0, arg1)

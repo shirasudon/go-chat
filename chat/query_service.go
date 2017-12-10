@@ -34,12 +34,30 @@ func NewQueryService(qs *Queryers) *QueryService {
 	}
 }
 
+// TODO event permittion in for user id,
 func (s *QueryService) FindEventsByTimeCursor(ctx context.Context, after time.Time, limit int) ([]event.Event, error) {
 	evs, err := s.events.FindAllByTimeCursor(ctx, after, limit)
 	if err != nil && IsNotFoundError(err) {
 		return []event.Event{}, nil
 	}
 	return evs, err
+}
+
+// Find user profile matched with user name and password.
+// It returns queried user profile and nil when found in the data-store.
+// It returns nil and error when the user is not found.
+func (s *QueryService) FindUserByNameAndPassword(ctx context.Context, name, password string) (*queried.AuthUser, error) {
+	user, err := s.users.FindByNameAndPassword(ctx, name, password)
+	// TODO cache?
+	return user, err
+}
+
+// Find abstract information associated with the User.
+// It returns queried result and error if the information is not found.
+func (s *QueryService) FindUserRelation(ctx context.Context, userID uint64) (*queried.UserRelation, error) {
+	relation, err := s.users.FindUserRelation(ctx, userID)
+	// TODO cache?
+	return relation, err
 }
 
 // Find detailed room information specified by room ID.
@@ -50,14 +68,6 @@ func (s *QueryService) FindRoomInfo(ctx context.Context, userID, roomID uint64) 
 	info, err := s.rooms.FindRoomInfo(ctx, userID, roomID)
 	// TODO cache?
 	return info, err
-}
-
-// Find abstract information associated with the User.
-// It returns queried result and error if the information is not found.
-func (s *QueryService) FindUserRelation(ctx context.Context, userID uint64) (*queried.UserRelation, error) {
-	relation, err := s.users.FindUserRelation(ctx, userID)
-	// TODO cache?
-	return relation, err
 }
 
 // Find messages from specified room.

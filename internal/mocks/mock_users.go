@@ -48,18 +48,6 @@ func (mr *MockUserRepositoryMockRecorder) BeginTx(arg0, arg1 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BeginTx", reflect.TypeOf((*MockUserRepository)(nil).BeginTx), arg0, arg1)
 }
 
-// ExistByNameAndPassword mocks base method
-func (m *MockUserRepository) ExistByNameAndPassword(arg0 context.Context, arg1, arg2 string) bool {
-	ret := m.ctrl.Call(m, "ExistByNameAndPassword", arg0, arg1, arg2)
-	ret0, _ := ret[0].(bool)
-	return ret0
-}
-
-// ExistByNameAndPassword indicates an expected call of ExistByNameAndPassword
-func (mr *MockUserRepositoryMockRecorder) ExistByNameAndPassword(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ExistByNameAndPassword", reflect.TypeOf((*MockUserRepository)(nil).ExistByNameAndPassword), arg0, arg1, arg2)
-}
-
 // Find mocks base method
 func (m *MockUserRepository) Find(arg0 context.Context, arg1 uint64) (domain.User, error) {
 	ret := m.ctrl.Call(m, "Find", arg0, arg1)
@@ -84,19 +72,6 @@ func (m *MockUserRepository) FindAllByUserID(arg0 context.Context, arg1 uint64) 
 // FindAllByUserID indicates an expected call of FindAllByUserID
 func (mr *MockUserRepositoryMockRecorder) FindAllByUserID(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindAllByUserID", reflect.TypeOf((*MockUserRepository)(nil).FindAllByUserID), arg0, arg1)
-}
-
-// FindByNameAndPassword mocks base method
-func (m *MockUserRepository) FindByNameAndPassword(arg0 context.Context, arg1, arg2 string) (domain.User, error) {
-	ret := m.ctrl.Call(m, "FindByNameAndPassword", arg0, arg1, arg2)
-	ret0, _ := ret[0].(domain.User)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FindByNameAndPassword indicates an expected call of FindByNameAndPassword
-func (mr *MockUserRepositoryMockRecorder) FindByNameAndPassword(arg0, arg1, arg2 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindByNameAndPassword", reflect.TypeOf((*MockUserRepository)(nil).FindByNameAndPassword), arg0, arg1, arg2)
 }
 
 // Store mocks base method

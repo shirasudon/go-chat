@@ -27,6 +27,10 @@ type UserQueryer interface {
 	// It returns NotFoundError if not found.
 	Find(ctx context.Context, userID uint64) (domain.User, error)
 
+	// Find a user profile specified by user name and password.
+	// It returns error if not found.
+	FindByNameAndPassword(ctx context.Context, name, password string) (*queried.AuthUser, error)
+
 	// Find a user related information with userID.
 	// It returns queried result or NotFoundError if the information is not found.
 	FindUserRelation(ctx context.Context, userID uint64) (*queried.UserRelation, error)

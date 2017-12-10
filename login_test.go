@@ -20,7 +20,7 @@ var (
 
 func init() {
 	repository := inmemory.OpenRepositories(globalPubsub)
-	loginHandler = NewLoginHandler(repository.Users())
+	loginHandler = NewLoginHandler(repository.UserRepository)
 	theEcho = echo.New()
 }
 

@@ -23,6 +23,13 @@ type UserRelation struct {
 	Rooms   []UserRoom    `json:"rooms"`
 }
 
+// AuthUser is a authenticated user information.
+type AuthUser struct {
+	ID       uint64 `json:"user_id"`
+	Name     string `json:"user_name"`
+	Password string `json:"password"`
+}
+
 // UserProfile holds information for user profile.
 type UserProfile struct {
 	UserID    uint64 `json:"user_id"`

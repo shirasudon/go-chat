@@ -2,7 +2,7 @@
 
 package event
 
-import "fmt"
+import "strconv"
 
 const _Type_name = "TypeNoneTypeErrorRaisedTypeUserCreatedTypeUserDeletedTypeUserAddedFriendTypeRoomCreatedTypeRoomDeletedTypeRoomAddedMemberTypeRoomRemoveMemberTypeRoomPostedMessageTypeRoomUpdatedMessageTypeRoomDeletedMessageTypeMessageCreatedTypeMessageReadByUserTypeActiveClientActivatedTypeActiveClientInactivated"
 
@@ -10,7 +10,7 @@ var _Type_index = [...]uint16{0, 8, 23, 38, 53, 72, 87, 102, 121, 141, 162, 184,
 
 func (i Type) String() string {
 	if i >= Type(len(_Type_index)-1) {
-		return fmt.Sprintf("Type(%d)", i)
+		return "Type(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _Type_name[_Type_index[i]:_Type_index[i+1]]
 }

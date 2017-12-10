@@ -13,6 +13,37 @@ import (
 	"github.com/shirasudon/go-chat/internal/mocks"
 )
 
+func TestQueryServiceFindUserByNameAndPassword(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	var (
+		user = &queried.AuthUser{
+			ID:       1,
+			Name:     "user",
+			Password: "password",
+		}
+	)
+
+	userQr := mocks.NewMockUserQueryer(mockCtrl)
+	userQr.EXPECT().
+		FindByNameAndPassword(gomock.Any(), user.Name, user.Password).
+		Return(user, nil).
+		Times(1)
+
+	qservice := NewQueryService(&Queryers{
+		UserQueryer: userQr,
+	})
+
+	res, err := qservice.FindUserByNameAndPassword(context.Background(), user.Name, user.Password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if user != res {
+		t.Errorf("different queried result, expect: %v, got: %v", user, res)
+	}
+}
+
 func TestQueryServiceFindRoomInfo(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()

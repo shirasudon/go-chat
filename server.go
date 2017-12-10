@@ -49,7 +49,7 @@ func NewServer(repos domain.Repositories, qs *chat.Queryers, ps chat.Pubsub, con
 
 	s := &Server{
 		echo:         e,
-		loginHandler: NewLoginHandler(repos.Users()),
+		loginHandler: NewLoginHandler(qs.UserQueryer),
 		restHandler:  NewRESTHandler(chatCmd, chatQuery),
 		chatHub:      chat.NewHub(chatCmd),
 		chatCmd:      chatCmd,

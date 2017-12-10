@@ -6,7 +6,8 @@ import (
 
 	"github.com/ipfans/echo-session"
 	"github.com/labstack/echo"
-	"github.com/shirasudon/go-chat/domain"
+
+	"github.com/shirasudon/go-chat/chat"
 )
 
 func init() {
@@ -46,22 +47,22 @@ var DefaultOptions = session.Options{
 // it holds logged-in users, so that each request can reference
 // any logged-in user.
 type LoginHandler struct {
-	userRepo domain.UserRepository
-	store    session.Store
+	users chat.UserQueryer
+	store session.Store
 }
 
-func NewLoginHandler(uRepo domain.UserRepository, secretKeyPairs ...[]byte) *LoginHandler {
+func NewLoginHandler(users chat.UserQueryer, secretKeyPairs ...[]byte) *LoginHandler {
 	if len(secretKeyPairs) == 0 {
 		secretKeyPairs = [][]byte{
-			[]byte("sercret-key"),
+			[]byte("secret-key"),
 		}
 	}
 	store := session.NewCookieStore(secretKeyPairs...)
 	store.Options(DefaultOptions)
 
 	return &LoginHandler{
-		userRepo: uRepo,
-		store:    store,
+		users: users,
+		store: store,
 	}
 }
 
@@ -71,7 +72,7 @@ func (lh *LoginHandler) Login(c echo.Context) error {
 		return err
 	}
 
-	user, err := lh.userRepo.FindByNameAndPassword(c.Request().Context(), u.Name, u.Password)
+	user, err := lh.users.FindByNameAndPassword(c.Request().Context(), u.Name, u.Password)
 	if err != nil {
 		return c.JSON(http.StatusOK, LoginState{ErrorMsg: err.Error()})
 	}
@@ -130,6 +131,8 @@ func (lh *LoginHandler) Middleware() echo.MiddlewareFunc {
 	return session.Sessions(KeySessionID, lh.store)
 }
 
+// KeyLoggedInUserID is the key for the logged-in user id in the echo.Context.
+// It is set when user is logged-in through LoginHandler.
 const KeyLoggedInUserID = "SESSION-USER-ID"
 
 // Filter is a middleware which filters unauthenticated request.
@@ -139,11 +142,11 @@ const KeyLoggedInUserID = "SESSION-USER-ID"
 func (lh *LoginHandler) Filter() echo.MiddlewareFunc {
 	return func(handlerFunc echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			if lh.IsLoggedInRequest(c) {
-				loginState, _ := lh.Session(c) // must return loginState.
+			if loginState, ok := lh.Session(c); ok && loginState.LoggedIn {
 				c.Set(KeyLoggedInUserID, loginState.UserID)
 				return handlerFunc(c)
 			}
+			// not logged-in
 			return c.JSON(http.StatusForbidden, struct {
 				ErrorMsg string `json:"error"`
 			}{"you are not logged in"})

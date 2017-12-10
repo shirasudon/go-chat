@@ -46,6 +46,12 @@ var (
 		3: DummyUser3,
 	}
 
+	userNameUniqueMap = map[string]bool{
+		DummyUser.Name:  true,
+		DummyUser2.Name: true,
+		DummyUser3.Name: true,
+	}
+
 	userToUsersMap = map[uint64]map[uint64]bool{
 		// user(id=2) relates with the user(id=3).
 		2: {3: true},
@@ -58,15 +64,6 @@ func errUserNotFound(userID uint64) *chat.NotFoundError {
 
 var userCounter uint64 = uint64(len(userMap))
 
-func (repo UserRepository) FindByNameAndPassword(ctx context.Context, name, password string) (domain.User, error) {
-	for _, u := range userMap {
-		if name == u.Name && password == u.Password {
-			return u, nil
-		}
-	}
-	return domain.User{}, chat.NewNotFoundError("user name (%v) and password are not matched", name)
-}
-
 func (repo UserRepository) Store(ctx context.Context, u domain.User) (uint64, error) {
 	if u.NotExist() {
 		return repo.Create(ctx, u)
@@ -76,6 +73,14 @@ func (repo UserRepository) Store(ctx context.Context, u domain.User) (uint64, er
 }
 
 func (repo *UserRepository) Create(ctx context.Context, u domain.User) (uint64, error) {
+	userMapMu.Lock()
+	defer userMapMu.Unlock()
+
+	if exist := userNameUniqueMap[u.Name]; exist {
+		return 0, chat.NewInfraError("user name(%v) already exist and not allowed", u.Name)
+	}
+	userNameUniqueMap[u.Name] = true
+
 	userCounter += 1
 	u.ID = roomCounter
 	userMap[u.ID] = u
@@ -91,6 +96,9 @@ func (repo *UserRepository) Create(ctx context.Context, u domain.User) (uint64, 
 }
 
 func (repo *UserRepository) Update(ctx context.Context, u domain.User) (uint64, error) {
+	userMapMu.Lock()
+	defer userMapMu.Unlock()
+
 	if _, ok := userMap[u.ID]; !ok {
 		return 0, chat.NewInfraError("user(id=%d) is not in the datastore", u.ID)
 	}
@@ -122,12 +130,10 @@ func (repo *UserRepository) Update(ctx context.Context, u domain.User) (uint64, 
 	return u.ID, nil
 }
 
-func (repo UserRepository) ExistByNameAndPassword(ctx context.Context, name, password string) bool {
-	_, err := repo.FindByNameAndPassword(ctx, name, password)
-	return err == nil
-}
-
 func (repo UserRepository) Find(ctx context.Context, id uint64) (domain.User, error) {
+	userMapMu.RLock()
+	defer userMapMu.RUnlock()
+
 	u, ok := userMap[id]
 	if ok {
 		return u, nil
@@ -136,6 +142,9 @@ func (repo UserRepository) Find(ctx context.Context, id uint64) (domain.User, er
 }
 
 func (repo UserRepository) FindAllByUserID(ctx context.Context, id uint64) ([]domain.User, error) {
+	userMapMu.RLock()
+	defer userMapMu.RUnlock()
+
 	userIDs, ok := userToUsersMap[id]
 	if !ok || len(userIDs) == 0 {
 		return nil, errUserNotFound(id)
@@ -153,6 +162,22 @@ func (repo UserRepository) FindAllByUserID(ctx context.Context, id uint64) ([]do
 	}
 	sort.Slice(us, func(i, j int) bool { return us[i].ID < us[j].ID })
 	return us, nil
+}
+
+func (repo UserRepository) FindByNameAndPassword(ctx context.Context, name, password string) (*queried.AuthUser, error) {
+	userMapMu.RLock()
+	defer userMapMu.RUnlock()
+
+	for _, u := range userMap {
+		if name == u.Name && password == u.Password {
+			return &queried.AuthUser{
+				ID:       u.ID,
+				Name:     u.Name,
+				Password: u.Password,
+			}, nil
+		}
+	}
+	return nil, ErrNotFound
 }
 
 func createUserProfile(u *domain.User) queried.UserProfile {
