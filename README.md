@@ -124,3 +124,37 @@ Responce JSON:
 }
 ```
 
+---
+
+* GetUnreadRoomMessage -- `GET /chat/rooms/:room_id/messages/unread`
+
+It returns messages unread by the logged-in user in the room specified by `room_id`.
+
+Request JSON: 
+
+```javascript
+{
+    "limit": limit_number,
+}
+```
+
+
+Responce JSON:
+
+```javascript
+{
+    "room_id": room_id,
+
+    "messages": [
+        {
+            "message_id": message_id,
+            "content":    "<message content>",
+            "created_at": created_at,
+        },
+        ...
+    ],
+
+    "messages_size": messages_size,
+}
+```
+
