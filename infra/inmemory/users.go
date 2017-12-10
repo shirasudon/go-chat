@@ -2,7 +2,6 @@ package inmemory
 
 import (
 	"context"
-	"sort"
 	"sync"
 
 	"github.com/shirasudon/go-chat/chat"
@@ -120,7 +119,7 @@ func (repo *UserRepository) Update(ctx context.Context, u domain.User) (uint64, 
 	for _, friendID := range u.FriendIDs.List() {
 		userIDs[friendID] = true
 	}
-	// remove users deleteted from the room.
+	// remove users deleteted from the friends.
 	for uid, exist := range userIDs {
 		if !exist {
 			delete(userIDs, uid)
@@ -139,29 +138,6 @@ func (repo UserRepository) Find(ctx context.Context, id uint64) (domain.User, er
 		return u, nil
 	}
 	return DummyUser, errUserNotFound(id)
-}
-
-func (repo UserRepository) FindAllByUserID(ctx context.Context, id uint64) ([]domain.User, error) {
-	userMapMu.RLock()
-	defer userMapMu.RUnlock()
-
-	userIDs, ok := userToUsersMap[id]
-	if !ok || len(userIDs) == 0 {
-		return nil, errUserNotFound(id)
-	}
-
-	us := make([]domain.User, 0, len(userIDs))
-	for id, _ := range userIDs {
-		if u, ok := userMap[id]; ok {
-			us = append(us, u)
-		}
-	}
-
-	if len(us) == 0 {
-		return nil, chat.NewNotFoundError("any user id (%v) is not found", userIDs)
-	}
-	sort.Slice(us, func(i, j int) bool { return us[i].ID < us[j].ID })
-	return us, nil
 }
 
 func (repo UserRepository) FindByNameAndPassword(ctx context.Context, name, password string) (*queried.AuthUser, error) {

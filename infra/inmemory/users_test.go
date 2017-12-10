@@ -11,6 +11,48 @@ var (
 	userRepository = &UserRepository{}
 )
 
+func TestUsersStore(t *testing.T) {
+	// case1: success
+	newUser := domain.User{Name: "stored-user"}
+	id, err := userRepository.Store(context.Background(), newUser)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if id == 0 {
+		t.Errorf("created id is invalid (0)")
+	}
+
+	// case2: duplicated name error
+	_, err = userRepository.Store(context.Background(), newUser)
+	if err == nil {
+		t.Errorf("store duplicated name user, but no error")
+	}
+}
+
+func TestUsersFind(t *testing.T) {
+	// case1: found
+	newUser := domain.User{Name: "find-user"}
+	id, err := userRepository.Store(context.Background(), newUser)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	res, err := userRepository.Find(context.Background(), id)
+	if err != nil {
+		t.Fatalf("can not find user: %v", err)
+	}
+	if res.Name != newUser.Name {
+		t.Errorf("different user name, expect: %v, got: %v", newUser.Name, res.Name)
+	}
+
+	// case2: not found
+	const NotFoundUserID = 999999
+	_, err = userRepository.Find(context.Background(), NotFoundUserID)
+	if err == nil {
+		t.Errorf("given not found user id, but no error")
+	}
+}
+
 func TestUsersFindUserRelation(t *testing.T) {
 	repo := userRepository
 

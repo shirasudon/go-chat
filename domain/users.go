@@ -18,9 +18,6 @@ type UserRepository interface {
 
 	// Find one user by id.
 	Find(ctx context.Context, id uint64) (User, error)
-
-	// Find all users related with the specified user id.
-	FindAllByUserID(ctx context.Context, userID uint64) ([]User, error)
 }
 
 // set for user id.

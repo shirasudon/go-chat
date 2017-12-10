@@ -15,23 +15,11 @@ func (u *UserRepositoryStub) BeginTx(context.Context, *sql.TxOptions) (Tx, error
 	panic("not implemented")
 }
 
-func (u *UserRepositoryStub) FindByNameAndPassword(ctx context.Context, name string, password string) (User, error) {
-	panic("not implemented")
-}
-
-func (u *UserRepositoryStub) ExistByNameAndPassword(ctx context.Context, name string, password string) bool {
-	panic("not implemented")
-}
-
 func (uu *UserRepositoryStub) Store(ctx context.Context, u User) (uint64, error) {
 	return u.ID + 1, nil
 }
 
 func (u *UserRepositoryStub) Find(ctx context.Context, id uint64) (User, error) {
-	panic("not implemented")
-}
-
-func (u *UserRepositoryStub) FindAllByUserID(ctx context.Context, userID uint64) ([]User, error) {
 	panic("not implemented")
 }
 

@@ -61,19 +61,6 @@ func (mr *MockUserRepositoryMockRecorder) Find(arg0, arg1 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Find", reflect.TypeOf((*MockUserRepository)(nil).Find), arg0, arg1)
 }
 
-// FindAllByUserID mocks base method
-func (m *MockUserRepository) FindAllByUserID(arg0 context.Context, arg1 uint64) ([]domain.User, error) {
-	ret := m.ctrl.Call(m, "FindAllByUserID", arg0, arg1)
-	ret0, _ := ret[0].([]domain.User)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FindAllByUserID indicates an expected call of FindAllByUserID
-func (mr *MockUserRepositoryMockRecorder) FindAllByUserID(arg0, arg1 interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindAllByUserID", reflect.TypeOf((*MockUserRepository)(nil).FindAllByUserID), arg0, arg1)
-}
-
 // Store mocks base method
 func (m *MockUserRepository) Store(arg0 context.Context, arg1 domain.User) (uint64, error) {
 	ret := m.ctrl.Call(m, "Store", arg0, arg1)
