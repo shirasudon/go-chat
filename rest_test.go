@@ -39,6 +39,47 @@ func newJSONRequest(method, url string, data interface{}) (*http.Request, error)
 	return req, nil
 }
 
+func TestRESTRequireLoggeinUserID(t *testing.T) {
+	RESTHandler, done := createRESTHandler()
+	defer done()
+
+	handlers := []struct {
+		Name    string
+		Handler echo.HandlerFunc
+	}{
+		{"CreateRoom", RESTHandler.CreateRoom},
+		{"DeleteRoom", RESTHandler.DeleteRoom},
+		{"GetRoomInfo", RESTHandler.GetRoomInfo},
+		{"GetUserInfo", RESTHandler.GetUserInfo},
+		{"PostRoomMessage", RESTHandler.PostRoomMessage},
+		{"GetRoomMessages", RESTHandler.GetRoomMessages},
+		{"GetUnreadRoomMessages", RESTHandler.GetUnreadRoomMessages},
+	}
+
+	// expect to return LoginError.
+	for _, h := range handlers {
+		req := httptest.NewRequest(echo.GET, "/", nil)
+		rec := httptest.NewRecorder()
+		c := theEcho.NewContext(req, rec)
+
+		if err := h.Handler(c); err != ErrAPIRequireLoginFirst {
+			t.Errorf("%v: requesting with not loggedin state but login error is not returned: %v", h.Name, err)
+		}
+	}
+
+	// expect to return not LoginError.
+	for _, h := range handlers {
+		req := httptest.NewRequest(echo.GET, "/", nil)
+		rec := httptest.NewRecorder()
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, uint64(1))
+
+		if err := h.Handler(c); err == ErrAPIRequireLoginFirst {
+			t.Errorf("%v: requesting with loggedin state but login error is returned: %v", h.Name, err)
+		}
+	}
+}
+
 const (
 	createOrDeleteRoomID   = uint64(4)
 	createOrDeleteByUserID = uint64(2)
@@ -562,6 +603,8 @@ func TestRESTGetRoomMessages(t *testing.T) {
 }
 
 func TestRESTGetUnreadRoomMessages(t *testing.T) {
+	// The consistent pubsub should be used here,
+	// because updating service uses that.
 	RESTHandler := NewRESTHandler(
 		chat.NewCommandService(repository, globalPubsub),
 		chat.NewQueryService(queryers),

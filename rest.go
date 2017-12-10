@@ -131,12 +131,19 @@ func (rest *RESTHandler) GetRoomInfo(e echo.Context) error {
 }
 
 func (rest *RESTHandler) GetUserInfo(e echo.Context) error {
-	userID, err := validateParamUserID(e)
+	requestUserID, ok := LoggedInUserID(e)
+	if !ok {
+		return ErrAPIRequireLoginFirst
+	}
+	// TODO: use requestUserID to validate permittion for accessing other user info.
+	_ = requestUserID
+
+	queryUserID, err := validateParamUserID(e)
 	if err != nil {
 		return err
 	}
 
-	relation, err := rest.chatQuery.FindUserRelation(e.Request().Context(), userID)
+	relation, err := rest.chatQuery.FindUserRelation(e.Request().Context(), queryUserID)
 	if err != nil {
 		return NewHTTPError(http.StatusInternalServerError, err)
 	}
