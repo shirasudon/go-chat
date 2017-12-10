@@ -163,10 +163,6 @@ func TestMessageRepoFindUnreadRoomMessages(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
 	defer cancel()
 
-	// run service for updating query data
-	go messageRepository.UpdatingService(ctx)
-	time.Sleep(1 * time.Millisecond) // wait for starting the service
-
 	const (
 		TargetRoomID = 999
 		TargetUserID = 1
@@ -174,8 +170,8 @@ func TestMessageRepoFindUnreadRoomMessages(t *testing.T) {
 	)
 
 	id, _ := messageRepository.Store(ctx, domain.Message{Content: Content})
-	globalPubsub.Pub(event.MessageCreated{MessageID: id, CreatedBy: TargetUserID, RoomID: TargetRoomID})
-	time.Sleep(1 * time.Millisecond) // wait for the updated query
+	ev := event.MessageCreated{MessageID: id, CreatedBy: TargetUserID, RoomID: TargetRoomID}
+	messageRepository.updateByEvent(ev)
 
 	unreads, err := messageRepository.FindUnreadRoomMessages(ctx, TargetUserID, TargetRoomID, 1)
 	if err != nil {
