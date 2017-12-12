@@ -478,7 +478,6 @@ func TestRESTGetRoomMessages(t *testing.T) {
 	defer done()
 
 	query := action.QueryRoomMessages{
-		RoomID: createMsgRoomID,
 		Before: time.Now(),
 		Limit:  1,
 	}
@@ -550,8 +549,7 @@ func TestRESTGetUnreadRoomMessages(t *testing.T) {
 	}
 
 	query := action.QueryUnreadRoomMessages{
-		RoomID: createMsgRoomID,
-		Limit:  1,
+		Limit: 1,
 	}
 
 	req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages/unread", query)

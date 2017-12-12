@@ -182,11 +182,16 @@ func (rest *RESTHandler) GetRoomMessages(e echo.Context) error {
 	if !ok {
 		return ErrAPIRequireLoginFirst
 	}
+	roomID, err := validateParamRoomID(e)
+	if err != nil {
+		return err
+	}
 
 	qRoomMsg := action.QueryRoomMessages{}
 	if err := e.Bind(&qRoomMsg); err != nil {
 		return err
 	}
+	qRoomMsg.RoomID = roomID
 
 	roomMsg, err := rest.chatQuery.FindRoomMessages(e.Request().Context(), userID, qRoomMsg)
 	if err != nil {
