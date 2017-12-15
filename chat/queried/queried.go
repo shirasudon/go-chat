@@ -37,6 +37,11 @@ type UserRoom struct {
 	RoomName string `json:"room_name"`
 }
 
+// EmptyRoomMessages is RoomMessages having empty fields rather than nil.
+var EmptyRoomMessages = RoomMessages{
+	Msgs: []Message{},
+}
+
 // RoomMessages is a message list in specified Room.
 type RoomMessages struct {
 	RoomID uint64 `json:"room_id"`
@@ -53,6 +58,11 @@ type Message struct {
 	MessageID uint64    `json:"message_id"`
 	Content   string    `json:"content"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// EmptyUnreadRoomMessages is UnreadRoomMessages having empty fields rather than nil.
+var EmptyUnreadRoomMessages = UnreadRoomMessages{
+	Msgs: []Message{},
 }
 
 // UnreadRoomMessages is a list of unread messages in specified Room.

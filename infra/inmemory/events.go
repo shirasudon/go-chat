@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/domain/event"
 )
 
@@ -53,7 +54,7 @@ func (EventRepository) FindAllByTimeCursor(ctx context.Context, after time.Time,
 	}
 
 	if startAt == NotFound {
-		return ret, ErrNotFound
+		return ret, chat.NewNotFoundError("event not exist after %v", after)
 	}
 
 	// edge case: events[0] is after given time.

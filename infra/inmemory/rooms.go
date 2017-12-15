@@ -2,7 +2,6 @@ package inmemory
 
 import (
 	"context"
-	"errors"
 	"sort"
 	"sync"
 
@@ -50,7 +49,9 @@ var (
 	}
 )
 
-var ErrRoomNotFound = errors.New("room is not found")
+func errRoomNotFound(roomID uint64) *chat.NotFoundError {
+	return chat.NewNotFoundError("room (id=%v) is not found", roomID)
+}
 
 var roomCounter uint64 = uint64(len(roomMap))
 
@@ -130,7 +131,7 @@ func (repo *RoomRepository) Find(ctx context.Context, roomID uint64) (domain.Roo
 	if room, ok := roomMap[roomID]; ok {
 		return *room, nil
 	}
-	return domain.Room{}, ErrRoomNotFound
+	return domain.Room{}, errRoomNotFound(roomID)
 }
 
 func (repo *RoomRepository) FindRoomInfo(ctx context.Context, userID, roomID uint64) (*queried.RoomInfo, error) {
@@ -138,7 +139,7 @@ func (repo *RoomRepository) FindRoomInfo(ctx context.Context, userID, roomID uin
 	r, ok := roomMap[roomID]
 	if !ok {
 		roomMapMu.RUnlock()
-		return nil, ErrRoomNotFound
+		return nil, errRoomNotFound(roomID)
 	}
 	roomMapMu.RUnlock()
 
@@ -149,7 +150,7 @@ func (repo *RoomRepository) FindRoomInfo(ctx context.Context, userID, roomID uin
 	u, ok := userMap[userID]
 	if !ok || !r.HasMember(u) {
 		userMapMu.RUnlock()
-		return nil, ErrRoomNotFound
+		return nil, chat.NewNotFoundError("user (id=%v) is not a member of the room (id=%v)", userID, roomID)
 	}
 
 	// create member profiles

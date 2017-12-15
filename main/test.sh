@@ -18,6 +18,14 @@ echo "# get room info"
 curl http://localhost:8080/chat/rooms/4 -b $COOKIE
 echo ""
 
+echo "# get room messages"
+curl http://localhost:8080/chat/rooms/4/messages -b $COOKIE
+echo ""
+
+echo "# get unread room messages"
+curl http://localhost:8080/chat/rooms/4/messages/unread -b $COOKIE
+echo ""
+
 echo "# access websocket path with http protocol. (it will fail to connect websocke server.)"
 curl http://localhost:8080/chat/ws -b $COOKIE
 echo ""

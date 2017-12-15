@@ -477,57 +477,88 @@ func TestRESTGetRoomMessages(t *testing.T) {
 	RESTHandler, done := createRESTHandler()
 	defer done()
 
-	query := action.QueryRoomMessages{
-		Before: time.Now(),
-		Limit:  1,
+	// case 1: found resource
+	{
+		query := action.QueryRoomMessages{
+			Before: time.Now(),
+			Limit:  1,
+		}
+
+		req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages", query)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		rec := httptest.NewRecorder()
+
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
+		c.SetParamNames("room_id")
+		c.SetParamValues(fmt.Sprint(createMsgRoomID))
+
+		err = RESTHandler.GetRoomMessages(c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if expect, got := http.StatusFound, rec.Code; expect != got {
+			t.Errorf("different http status code, expect: %v, got: %v", expect, got)
+		}
+
+		response := make(map[string]interface{})
+		err = json.Unmarshal(rec.Body.Bytes(), &response)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		msgs, ok := response["messages"].([]interface{})
+		if !ok {
+			t.Fatalf("response has invalid structure, %#v", response)
+		}
+		if len(msgs) != 1 {
+			t.Fatalf("different messages size, expect: %v, got: %v", 1, len(msgs))
+		}
+		msg, ok := msgs[0].(map[string]interface{})
+		if !ok {
+			t.Fatalf("response.messages has invalid structure, %#v", msgs)
+		}
+		if expect, got := createMsgContent, msg["content"]; expect != got {
+			t.Errorf("different message content, expect: %v, got: %v", expect, got)
+		}
+
+		if roomID := uint64(response["room_id"].(float64)); roomID == 0 {
+			t.Errorf("message created but target room id is invalid")
+		}
 	}
 
-	req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages", query)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// case 2: not found resource
+	{
+		const (
+			UserID         = uint64(2)
+			NotFoundRoomID = uint64(999)
+		)
 
-	rec := httptest.NewRecorder()
+		query := action.QueryRoomMessages{
+			Before: time.Now(),
+			Limit:  1,
+		}
 
-	c := theEcho.NewContext(req, rec)
-	c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
-	c.SetParamNames("room_id")
-	c.SetParamValues(fmt.Sprint(createMsgRoomID))
+		req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages", query)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	err = RESTHandler.GetRoomMessages(c)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if expect, got := http.StatusFound, rec.Code; expect != got {
-		t.Errorf("different http status code, expect: %v, got: %v", expect, got)
-	}
+		rec := httptest.NewRecorder()
 
-	response := make(map[string]interface{})
-	err = json.Unmarshal(rec.Body.Bytes(), &response)
-	if err != nil {
-		t.Fatal(err)
-	}
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, UserID)
+		c.SetParamNames("room_id")
+		c.SetParamValues(fmt.Sprint(NotFoundRoomID))
 
-	msgs, ok := response["messages"].([]interface{})
-	if !ok {
-		t.Fatalf("response has invalid structure, %#v", response)
+		err = RESTHandler.GetRoomMessages(c)
+		if err == nil {
+			t.Error("given not found room id but no error")
+		}
 	}
-	if len(msgs) != 1 {
-		t.Fatalf("different messages size, expect: %v, got: %v", 1, len(msgs))
-	}
-	msg, ok := msgs[0].(map[string]interface{})
-	if !ok {
-		t.Fatalf("response.messages has invalid structure, %#v", msgs)
-	}
-	if expect, got := createMsgContent, msg["content"]; expect != got {
-		t.Errorf("different message content, expect: %v, got: %v", expect, got)
-	}
-
-	if roomID := uint64(response["room_id"].(float64)); roomID == 0 {
-		t.Errorf("message created but target room id is invalid")
-	}
-
-	t.Logf("%#v", response)
 }
 
 func TestRESTGetUnreadRoomMessages(t *testing.T) {
@@ -548,44 +579,76 @@ func TestRESTGetUnreadRoomMessages(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	query := action.QueryUnreadRoomMessages{
-		Limit: 1,
+	// case1: found
+	{
+		query := action.QueryUnreadRoomMessages{
+			Limit: 1,
+		}
+
+		req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages/unread", query)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		rec := httptest.NewRecorder()
+
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
+		c.SetParamNames("room_id")
+		c.SetParamValues(fmt.Sprint(createMsgRoomID))
+
+		err = RESTHandler.GetUnreadRoomMessages(c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if expect, got := http.StatusFound, rec.Code; expect != got {
+			t.Errorf("different http status code, expect: %v, got: %v", expect, got)
+		}
+
+		response := make(map[string]interface{})
+		err = json.Unmarshal(rec.Body.Bytes(), &response)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// just check for existance of json keys.
+		for _, key := range []string{
+			"room_id",
+			"messages",
+			"messages_size",
+		} {
+			if _, ok := response[key]; !ok {
+				t.Errorf("missing field (%v) in json response", key)
+			}
+		}
 	}
 
-	req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages/unread", query)
-	if err != nil {
-		t.Fatal(err)
-	}
+	// case2: room id is not found
+	{
+		const (
+			NotFoundRoomID = uint64(999)
+			UserID         = uint64(2)
+		)
 
-	rec := httptest.NewRecorder()
+		query := action.QueryUnreadRoomMessages{
+			Limit: 1,
+		}
 
-	c := theEcho.NewContext(req, rec)
-	c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
-	c.SetParamNames("room_id")
-	c.SetParamValues(fmt.Sprint(createMsgRoomID))
+		req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages/unread", query)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	err = RESTHandler.GetUnreadRoomMessages(c)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if expect, got := http.StatusFound, rec.Code; expect != got {
-		t.Errorf("different http status code, expect: %v, got: %v", expect, got)
-	}
+		rec := httptest.NewRecorder()
 
-	response := make(map[string]interface{})
-	err = json.Unmarshal(rec.Body.Bytes(), &response)
-	if err != nil {
-		t.Fatal(err)
-	}
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, UserID)
+		c.SetParamNames("room_id")
+		c.SetParamValues(fmt.Sprint(NotFoundRoomID))
 
-	// just check for existance of json keys.
-	for _, key := range []string{
-		"room_id",
-		"messages",
-		"messages_size",
-	} {
-		if _, ok := response[key]; !ok {
-			t.Errorf("missing field (%v) in json response", key)
+		err = RESTHandler.GetUnreadRoomMessages(c)
+		if err == nil {
+			t.Error("given not found room id but no error")
 		}
 	}
 }

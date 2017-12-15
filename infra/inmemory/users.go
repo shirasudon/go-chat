@@ -2,7 +2,6 @@ package inmemory
 
 import (
 	"context"
-	"errors"
 	"sort"
 	"sync"
 
@@ -14,8 +13,6 @@ import (
 type UserRepository struct {
 	domain.EmptyTxBeginner
 }
-
-var ErrNotFound = errors.New("user not found")
 
 var (
 	DummyUser = domain.User{
@@ -55,6 +52,10 @@ var (
 	}
 )
 
+func errUserNotFound(userID uint64) *chat.NotFoundError {
+	return chat.NewNotFoundError("user (id=%v) is not found")
+}
+
 var userCounter uint64 = uint64(len(userMap))
 
 func (repo UserRepository) FindByNameAndPassword(ctx context.Context, name, password string) (domain.User, error) {
@@ -63,7 +64,7 @@ func (repo UserRepository) FindByNameAndPassword(ctx context.Context, name, pass
 			return u, nil
 		}
 	}
-	return domain.User{}, ErrNotFound
+	return domain.User{}, chat.NewNotFoundError("user name (%v) and password are not matched", name)
 }
 
 func (repo UserRepository) Store(ctx context.Context, u domain.User) (uint64, error) {
@@ -131,13 +132,13 @@ func (repo UserRepository) Find(ctx context.Context, id uint64) (domain.User, er
 	if ok {
 		return u, nil
 	}
-	return DummyUser, ErrNotFound
+	return DummyUser, errUserNotFound(id)
 }
 
 func (repo UserRepository) FindAllByUserID(ctx context.Context, id uint64) ([]domain.User, error) {
 	userIDs, ok := userToUsersMap[id]
 	if !ok || len(userIDs) == 0 {
-		return nil, ErrNotFound
+		return nil, errUserNotFound(id)
 	}
 
 	us := make([]domain.User, 0, len(userIDs))
@@ -148,7 +149,7 @@ func (repo UserRepository) FindAllByUserID(ctx context.Context, id uint64) ([]do
 	}
 
 	if len(us) == 0 {
-		return nil, ErrNotFound
+		return nil, chat.NewNotFoundError("any user id (%v) is not found", userIDs)
 	}
 	sort.Slice(us, func(i, j int) bool { return us[i].ID < us[j].ID })
 	return us, nil
@@ -171,7 +172,7 @@ func (repo UserRepository) FindUserRelation(ctx context.Context, userID uint64) 
 	user, ok := userMap[userID]
 	if !ok {
 		userMapMu.RUnlock()
-		return nil, ErrNotFound
+		return nil, errUserNotFound(userID)
 	}
 
 	friends := make([]queried.UserProfile, 0, 4)

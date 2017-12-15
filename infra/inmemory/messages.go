@@ -36,6 +36,10 @@ type userAndRoomID struct {
 	RoomID uint64
 }
 
+func errMsgNotFound(msgID uint64) *chat.NotFoundError {
+	return chat.NewNotFoundError("message (id=%v) is not found")
+}
+
 type MessageRepository struct {
 	domain.EmptyTxBeginner
 	pubsub chat.Pubsub
@@ -99,7 +103,7 @@ func (repo *MessageRepository) Find(ctx context.Context, msgID uint64) (domain.M
 	if ok {
 		return m, nil
 	}
-	return domain.Message{}, ErrNotFound
+	return domain.Message{}, errMsgNotFound(msgID)
 }
 
 func (repo *MessageRepository) FindRoomMessagesOrderByLatest(ctx context.Context, roomID uint64, before time.Time, limit int) ([]domain.Message, error) {
@@ -147,7 +151,7 @@ func (repo *MessageRepository) FindUnreadRoomMessages(ctx context.Context, userI
 
 	unreadIDs, ok := userAndRoomIDToUnreadMessageIDs[userAndRoomID{userID, roomID}]
 	if !ok {
-		return nil, ErrNotFound
+		return nil, chat.NewNotFoundError("user (id=%v) has no unread messsages for the room (id=%v)", userID, roomID)
 	}
 
 	unreadMsgs := make([]queried.Message, 0, len(unreadIDs))

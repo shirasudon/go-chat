@@ -189,7 +189,17 @@ func TestQueryServiceFindUnreadRoomMessages(t *testing.T) {
 	)
 
 	roomQr := mocks.NewMockRoomQueryer(mockCtrl)
+	roomQr.EXPECT().
+		Find(gomock.Any(), gomock.Any()).
+		Return(domain.Room{}, nil).
+		Times(1)
+
 	userQr := mocks.NewMockUserQueryer(mockCtrl)
+	userQr.EXPECT().
+		Find(gomock.Any(), gomock.Any()).
+		Return(domain.User{}, nil).
+		Times(1)
+
 	msgQr := mocks.NewMockMessageQueryer(mockCtrl)
 
 	query := action.QueryUnreadRoomMessages{

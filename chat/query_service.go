@@ -35,7 +35,11 @@ func NewQueryService(qs *Queryers) *QueryService {
 }
 
 func (s *QueryService) FindEventsByTimeCursor(ctx context.Context, after time.Time, limit int) ([]event.Event, error) {
-	return s.events.FindAllByTimeCursor(ctx, after, limit)
+	evs, err := s.events.FindAllByTimeCursor(ctx, after, limit)
+	if err != nil && IsNotFoundError(err) {
+		return []event.Event{}, nil
+	}
+	return evs, err
 }
 
 // Find detailed room information specified by room ID.
@@ -75,6 +79,11 @@ func (s *QueryService) FindRoomMessages(ctx context.Context, userID uint64, q ac
 
 	msgs, err := s.msgs.FindRoomMessagesOrderByLatest(ctx, q.RoomID, q.Before, q.Limit)
 	if err != nil {
+		if IsNotFoundError(err) {
+			res := queried.EmptyRoomMessages
+			res.RoomID = q.RoomID
+			return &res, nil
+		}
 		return nil, err
 	}
 
@@ -107,7 +116,21 @@ func (s *QueryService) FindRoomMessages(ctx context.Context, userID uint64, q ac
 // Find unread messages from specified room.
 // It returns error if infrastructure raise some errors.
 func (s *QueryService) FindUnreadRoomMessages(ctx context.Context, userID uint64, q action.QueryUnreadRoomMessages) (*queried.UnreadRoomMessages, error) {
+	// check existance of user and room.
+	if _, err := s.users.Find(context.Background(), userID); err != nil {
+		return nil, err
+	}
+	if _, err := s.rooms.Find(context.Background(), q.RoomID); err != nil {
+		return nil, err
+	}
+
 	msgs, err := s.msgs.FindUnreadRoomMessages(ctx, userID, q.RoomID, q.Limit)
+	if err != nil && IsNotFoundError(err) {
+		// return empty result because room exists but message is not yet.
+		res := queried.EmptyUnreadRoomMessages
+		res.RoomID = q.RoomID
+		return &res, nil
+	}
 	// TODO cache
 	return msgs, err
 }
