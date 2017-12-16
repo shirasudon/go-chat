@@ -121,7 +121,11 @@ func (lh *LoginHandler) IsLoggedInRequest(c echo.Context) bool {
 // it returns loginState as session state.
 // the second returned value is true when LoginState exists.
 func (lh *LoginHandler) Session(c echo.Context) (*LoginState, bool) {
-	loginState, ok := session.Default(c).Get(KeyLoginState).(*LoginState)
+	sess := session.Default(c)
+	if sess == nil {
+		return nil, false
+	}
+	loginState, ok := sess.Get(KeyLoginState).(*LoginState)
 	return loginState, ok
 }
 
@@ -147,9 +151,7 @@ func (lh *LoginHandler) Filter() echo.MiddlewareFunc {
 				return handlerFunc(c)
 			}
 			// not logged-in
-			return c.JSON(http.StatusForbidden, struct {
-				ErrorMsg string `json:"error"`
-			}{"you are not logged in"})
+			return NewHTTPError(http.StatusForbidden, "require login firstly")
 		}
 	}
 }

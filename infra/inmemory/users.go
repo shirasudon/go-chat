@@ -153,7 +153,7 @@ func (repo UserRepository) FindByNameAndPassword(ctx context.Context, name, pass
 			}, nil
 		}
 	}
-	return nil, ErrNotFound
+	return nil, chat.NewNotFoundError("user name (%v) and password are not matched", name)
 }
 
 func createUserProfile(u *domain.User) queried.UserProfile {

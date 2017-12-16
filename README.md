@@ -53,13 +53,74 @@ Note that the responses to those commands are indirectly returnd by the events.
 
 ## REST API
 
-* GetUserInfo -- `GET /chat/users/:user_id`
+### Login -- `POST /login`
+
+It login to the chat application.
+The login session is stored to the cookie.
+
+User should login first and use cookie to access chat API.
+
+
+Request JSON: 
+
+```javascript
+{
+    "name": "user name",
+    "password": "password",
+    "remember_me": true or false,
+}
+```
+
+Response JSON:
+
+```javascript
+{
+    "logged_in": true or false,
+    "remember_me": true or false,
+    "user_id": <logged-in user ID>, // number
+    "error": "error message if any",
+}
+```
+
+### GetLoginState `GET /login`
+
+It gets current login state.
+
+Request JSON: `None`
+
+Response JSON:
+
+```javascript
+{
+    "logged_in": true or false,
+    "remember_me": true or false,
+    "user_id": <logged-in user ID>, // number
+    "error": "error message if any",
+}
+```
+
+### Logout `POST /logout`
+
+It logout from the chat application.
+
+Request JSON: `None`
+
+Response JSON:
+
+```javascript
+{
+    "logged_in": false, 
+    "error": "error message if any",
+}
+```
+
+### GetUserInfo -- `GET /chat/users/:user_id`
 
 It returns user information specified by `user_id`.
 
-Request JSON data: `None`.
+Request JSON: `None`.
 
-Responce JSON:
+response JSON:
 
 ```javascript
 {
@@ -92,15 +153,13 @@ Responce JSON:
 }
 ```
 
----
-
-* GetRoomInfo -- `GET /chat/rooms/:room_id`
+### GetRoomInfo -- `GET /chat/rooms/:room_id`
 
 It returns room information specified by `room_id`.
 
-Request JSON data: `None`.
+Request JSON: `None`.
 
-Responce JSON:
+response JSON:
 
 ```javascript
 {
@@ -124,9 +183,7 @@ Responce JSON:
 }
 ```
 
----
-
-* GetUnreadRoomMessage -- `GET /chat/rooms/:room_id/messages/unread`
+### GetUnreadRoomMessage -- `GET /chat/rooms/:room_id/messages/unread`
 
 It returns messages unread by the logged-in user in the room specified by `room_id`.
 
@@ -139,7 +196,7 @@ Request JSON:
 ```
 
 
-Responce JSON:
+response JSON:
 
 ```javascript
 {

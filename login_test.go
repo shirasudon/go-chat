@@ -2,6 +2,8 @@ package chat
 
 import (
 	"encoding/json"
+	"fmt"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
@@ -30,7 +32,7 @@ func withSession(hf echo.HandlerFunc, c echo.Context) error {
 
 func TestLogin(t *testing.T) {
 	// 1. correct user login
-	c, err := doLogin(CorrectName, CorrectPassword)
+	c, err := doLogin(CorrectName, CorrectPassword, true)
 	if err != nil {
 		t.Fatalf("can not login: %v", err)
 	}
@@ -49,6 +51,9 @@ func TestLogin(t *testing.T) {
 	if !loginState.LoggedIn {
 		t.Error("can not logged in")
 	}
+	if !loginState.RememberMe {
+		t.Error("login with RememberMe but not set")
+	}
 	if msg := loginState.ErrorMsg; len(msg) > 0 {
 		t.Errorf("login succeeded but got error: %v", msg)
 	}
@@ -62,7 +67,7 @@ func TestLogin(t *testing.T) {
 		{CorrectName, "wrong"},
 		{"wrong", "wrong"},
 	} {
-		c, err := doLogin(testcase.Name, testcase.Password)
+		c, err := doLogin(testcase.Name, testcase.Password, false)
 		if err != nil {
 			t.Fatalf("got error: login with email: %v password: %v, err: %v", testcase.Name, testcase.Password, err)
 		}
@@ -81,6 +86,9 @@ func TestLogin(t *testing.T) {
 		if loginState.LoggedIn {
 			t.Errorf("LoggedIn is true after login failed with email: %v, password: %v", testcase.Name, testcase.Password)
 		}
+		if loginState.RememberMe {
+			t.Error("login without RememberMe but set")
+		}
 		if msg := loginState.ErrorMsg; len(msg) == 0 {
 			t.Errorf("missing ErrorMsg after login failed with email: %v, password: %v", testcase.Name, testcase.Password)
 		}
@@ -92,11 +100,12 @@ const (
 	CorrectPassword = "password"
 )
 
-func doLogin(name, password string) (echo.Context, error) {
+func doLogin(name, password string, rememberMe bool) (echo.Context, error) {
 	// POST form with email and password
 	f := make(url.Values)
 	f.Set("name", name)
 	f.Set("password", password)
+	f.Set("remember_me", fmt.Sprint(rememberMe))
 	req := httptest.NewRequest(echo.POST, "/login", strings.NewReader(f.Encode()))
 	req.Header.Set(echo.HeaderContentType, echo.MIMEApplicationForm)
 	rec := httptest.NewRecorder()
@@ -131,7 +140,7 @@ func TestLogout(t *testing.T) {
 	}
 
 	// secondary, we try to logout after logged in.
-	c, _ = doLogin(CorrectName, CorrectPassword)
+	c, _ = doLogin(CorrectName, CorrectPassword, false)
 
 	c, err = doLogout(c.Response().Header()["Set-Cookie"])
 	if err != nil {
@@ -185,7 +194,7 @@ func TestGetLoginState(t *testing.T) {
 	}
 
 	// 2. after logged-in, it returns loginState with LoggedIn = true.
-	c, _ = doLogin(CorrectName, CorrectPassword)
+	c, _ = doLogin(CorrectName, CorrectPassword, false)
 
 	c, err = doGetLoginState(c.Response().Header()["Set-Cookie"])
 	if err != nil {
@@ -211,4 +220,51 @@ func doGetLoginState(cookie []string) (echo.Context, error) {
 	rec := httptest.NewRecorder()
 	c := theEcho.NewContext(req, rec)
 	return c, withSession(loginHandler.GetLoginState, c)
+}
+
+func TestIsLoggedinRequest(t *testing.T) {
+	req := httptest.NewRequest(echo.GET, "/", nil)
+	rec := httptest.NewRecorder()
+	c := theEcho.NewContext(req, rec)
+	if loginHandler.IsLoggedInRequest(c) {
+		t.Error("without logged-in request but IsLoggedInRequest returns true")
+	}
+
+	c, _ = doLogin(CorrectName, CorrectPassword, false)
+	if !loginHandler.IsLoggedInRequest(c) {
+		t.Error("with logged-in request but IsLoggedInRequest returns false")
+	}
+}
+
+func TestLoginFilter(t *testing.T) {
+	ErrHandlerPassed := fmt.Errorf("handler passed")
+	filteredHandler := loginHandler.Filter()(func(c echo.Context) error {
+		return ErrHandlerPassed
+	})
+
+	// case1: not logged in
+	req := httptest.NewRequest(echo.GET, "/", nil)
+	rec := httptest.NewRecorder()
+	c := theEcho.NewContext(req, rec)
+	err := filteredHandler(c)
+	if err == nil {
+		t.Fatal("without logged-in request but not filtered")
+	}
+	herr, ok := err.(*echo.HTTPError)
+	if !ok {
+		t.Fatal("filtered error is not a HTTPError")
+	}
+	if herr.Code != http.StatusForbidden {
+		t.Errorf("differenct http status, expect: %v, got: %v", http.StatusText(http.StatusForbidden), http.StatusText(herr.Code))
+	}
+	if len(herr.Error()) == 0 {
+		t.Error("empty error message")
+	}
+
+	// case2: with logged in
+	c, _ = doLogin(CorrectName, CorrectPassword, false)
+	err = filteredHandler(c)
+	if err != ErrHandlerPassed {
+		t.Fatalf("with login request, but handler is not executed: %v", err)
+	}
 }
