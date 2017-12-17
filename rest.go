@@ -127,7 +127,7 @@ func (rest *RESTHandler) GetRoomInfo(e echo.Context) error {
 		return NewHTTPError(http.StatusInternalServerError, err)
 	}
 
-	return e.JSON(http.StatusFound, info)
+	return e.JSON(http.StatusOK, info)
 }
 
 func (rest *RESTHandler) GetUserInfo(e echo.Context) error {
@@ -148,7 +148,7 @@ func (rest *RESTHandler) GetUserInfo(e echo.Context) error {
 		return NewHTTPError(http.StatusInternalServerError, err)
 	}
 
-	return e.JSON(http.StatusFound, relation)
+	return e.JSON(http.StatusOK, relation)
 }
 
 func (rest *RESTHandler) PostRoomMessage(e echo.Context) error {
@@ -205,7 +205,7 @@ func (rest *RESTHandler) GetRoomMessages(e echo.Context) error {
 		return NewHTTPError(http.StatusInternalServerError, err)
 	}
 
-	return e.JSON(http.StatusFound, roomMsg)
+	return e.JSON(http.StatusOK, roomMsg)
 }
 
 func (rest *RESTHandler) GetUnreadRoomMessages(e echo.Context) error {
@@ -229,5 +229,5 @@ func (rest *RESTHandler) GetUnreadRoomMessages(e echo.Context) error {
 		return NewHTTPError(http.StatusInternalServerError, err)
 	}
 
-	return e.JSON(http.StatusFound, unreads)
+	return e.JSON(http.StatusOK, unreads)
 }
