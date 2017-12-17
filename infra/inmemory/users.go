@@ -58,7 +58,7 @@ var (
 )
 
 func errUserNotFound(userID uint64) *chat.NotFoundError {
-	return chat.NewNotFoundError("user (id=%v) is not found")
+	return chat.NewNotFoundError("user (id=%v) is not found", userID)
 }
 
 var userCounter uint64 = uint64(len(userMap))
