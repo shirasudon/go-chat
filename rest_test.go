@@ -306,7 +306,7 @@ func TestRESTGetRoomInfoSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if expect, got := http.StatusFound, rec.Code; expect != got {
+	if expect, got := http.StatusOK, rec.Code; expect != got {
 		t.Errorf("different http status code, expect: %v, got: %v", expect, got)
 	}
 
@@ -410,7 +410,7 @@ func TestRESTGetUserInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if expect, got := http.StatusFound, rec.Code; expect != got {
+	if expect, got := http.StatusOK, rec.Code; expect != got {
 		t.Errorf("different http status code, expect: %v, got: %v", expect, got)
 	}
 
@@ -541,7 +541,7 @@ func TestRESTGetRoomMessages(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if expect, got := http.StatusFound, rec.Code; expect != got {
+		if expect, got := http.StatusOK, rec.Code; expect != got {
 			t.Errorf("different http status code, expect: %v, got: %v", expect, got)
 		}
 
@@ -644,7 +644,7 @@ func TestRESTGetUnreadRoomMessages(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if expect, got := http.StatusFound, rec.Code; expect != got {
+		if expect, got := http.StatusOK, rec.Code; expect != got {
 			t.Errorf("different http status code, expect: %v, got: %v", expect, got)
 		}
 
