@@ -24,7 +24,7 @@ func createRESTHandler() (rest *RESTHandler, doneFunc func()) {
 	}
 	return NewRESTHandler(
 		chat.NewCommandService(repository, ps),
-		chat.NewQueryService(queryers),
+		chat.NewQueryServiceImpl(queryers),
 	), doneFunc
 }
 
@@ -607,7 +607,7 @@ func TestRESTGetUnreadRoomMessages(t *testing.T) {
 	// because updating service uses that.
 	RESTHandler := NewRESTHandler(
 		chat.NewCommandService(repository, globalPubsub),
-		chat.NewQueryService(queryers),
+		chat.NewQueryServiceImpl(queryers),
 	)
 
 	{ // create room messages

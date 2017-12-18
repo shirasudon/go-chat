@@ -27,7 +27,7 @@ type Server struct {
 
 	chatHub   *chat.Hub
 	chatCmd   *chat.CommandService
-	chatQuery *chat.QueryService
+	chatQuery chat.QueryService
 
 	repos domain.Repositories
 
@@ -45,7 +45,7 @@ func NewServer(repos domain.Repositories, qs *chat.Queryers, ps chat.Pubsub, con
 	e.HideBanner = true
 
 	chatCmd := chat.NewCommandService(repos, ps)
-	chatQuery := chat.NewQueryService(qs)
+	chatQuery := chat.NewQueryServiceImpl(qs)
 
 	s := &Server{
 		echo:         e,

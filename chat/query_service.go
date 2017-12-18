@@ -10,11 +10,36 @@ import (
 	"github.com/shirasudon/go-chat/domain/event"
 )
 
+//go:generate mockgen -destination=../internal/mocks/mock_query_service.go -package=mocks github.com/shirasudon/go-chat/chat QueryService
+
+// QueryService is the interface for the querying the information from backend datastore.
+type QueryService interface {
+	// It finds authenticated user profile matched with given user name and password.
+	// It returns queried user profile and nil when the user is found in the data-store, or
+	// returns nil and NotFoundError when the user is not found.
+	FindUserByNameAndPassword(ctx context.Context, name, password string) (*queried.AuthUser, error)
+
+	// Find the relational information of user specified by userID.
+	// It returns queried result and nil, or nil and NotFoundError if the information is not found.
+	FindUserRelation(ctx context.Context, userID uint64) (*queried.UserRelation, error)
+
+	// Find the room information specified by roomID with userID.
+	// It returns queried result and nil, or nil and NotFoundError if the information is not found.
+	FindRoomInfo(ctx context.Context, userID, roomID uint64) (*queried.RoomInfo, error)
+
+	// Find the messages belonging to the room specified by QueryRoomMessages with userID.
+	// It returns queried messages and nil, or nil and InfraError if infrastructure raise some errors.
+	FindRoomMessages(ctx context.Context, userID uint64, q action.QueryRoomMessages) (*queried.RoomMessages, error)
+
+	// Find the unread messages belonging to the room specified by QueryUnreadRoomMessages with userID.
+	// It returns queried messages and nil, or nil and InfraError if infrastructure raise some errors.
+	FindUnreadRoomMessages(ctx context.Context, userID uint64, q action.QueryUnreadRoomMessages) (*queried.UnreadRoomMessages, error)
+}
+
 // TODO cache feature.
 
-// QueryService queries the action message data
-// from the datastores.
-type QueryService struct {
+// QueryServiceImpl implements QueryService interface.
+type QueryServiceImpl struct {
 	users UserQueryer
 	rooms RoomQueryer
 	msgs  MessageQueryer
@@ -22,11 +47,11 @@ type QueryService struct {
 	events EventQueryer
 }
 
-func NewQueryService(qs *Queryers) *QueryService {
+func NewQueryServiceImpl(qs *Queryers) *QueryServiceImpl {
 	if qs == nil {
 		panic("nil Queryers")
 	}
-	return &QueryService{
+	return &QueryServiceImpl{
 		users:  qs.UserQueryer,
 		rooms:  qs.RoomQueryer,
 		msgs:   qs.MessageQueryer,
@@ -35,7 +60,7 @@ func NewQueryService(qs *Queryers) *QueryService {
 }
 
 // TODO event permittion in for user id,
-func (s *QueryService) FindEventsByTimeCursor(ctx context.Context, after time.Time, limit int) ([]event.Event, error) {
+func (s *QueryServiceImpl) FindEventsByTimeCursor(ctx context.Context, after time.Time, limit int) ([]event.Event, error) {
 	evs, err := s.events.FindAllByTimeCursor(ctx, after, limit)
 	if err != nil && IsNotFoundError(err) {
 		return []event.Event{}, nil
@@ -46,7 +71,7 @@ func (s *QueryService) FindEventsByTimeCursor(ctx context.Context, after time.Ti
 // Find user profile matched with user name and password.
 // It returns queried user profile and nil when found in the data-store.
 // It returns nil and error when the user is not found.
-func (s *QueryService) FindUserByNameAndPassword(ctx context.Context, name, password string) (*queried.AuthUser, error) {
+func (s *QueryServiceImpl) FindUserByNameAndPassword(ctx context.Context, name, password string) (*queried.AuthUser, error) {
 	user, err := s.users.FindByNameAndPassword(ctx, name, password)
 	// TODO cache?
 	return user, err
@@ -54,7 +79,7 @@ func (s *QueryService) FindUserByNameAndPassword(ctx context.Context, name, pass
 
 // Find abstract information associated with the User.
 // It returns queried result and error if the information is not found.
-func (s *QueryService) FindUserRelation(ctx context.Context, userID uint64) (*queried.UserRelation, error) {
+func (s *QueryServiceImpl) FindUserRelation(ctx context.Context, userID uint64) (*queried.UserRelation, error) {
 	relation, err := s.users.FindUserRelation(ctx, userID)
 	// TODO cache?
 	return relation, err
@@ -64,7 +89,7 @@ func (s *QueryService) FindUserRelation(ctx context.Context, userID uint64) (*qu
 // It also requires userID to query the information which
 // can be permmited to the user.
 // It returns queried room information and error if not found.
-func (s *QueryService) FindRoomInfo(ctx context.Context, userID, roomID uint64) (*queried.RoomInfo, error) {
+func (s *QueryServiceImpl) FindRoomInfo(ctx context.Context, userID, roomID uint64) (*queried.RoomInfo, error) {
 	info, err := s.rooms.FindRoomInfo(ctx, userID, roomID)
 	// TODO cache?
 	return info, err
@@ -76,7 +101,7 @@ const (
 
 // Find messages from specified room.
 // It returns error if infrastructure raise some errors.
-func (s *QueryService) FindRoomMessages(ctx context.Context, userID uint64, q action.QueryRoomMessages) (*queried.RoomMessages, error) {
+func (s *QueryServiceImpl) FindRoomMessages(ctx context.Context, userID uint64, q action.QueryRoomMessages) (*queried.RoomMessages, error) {
 	// check query paramnter
 	if q.Limit > MaxRoomMessagesLimit {
 		q.Limit = MaxRoomMessagesLimit
@@ -141,7 +166,7 @@ func (s *QueryService) FindRoomMessages(ctx context.Context, userID uint64, q ac
 
 // Find unread messages from specified room.
 // It returns error if infrastructure raise some errors.
-func (s *QueryService) FindUnreadRoomMessages(ctx context.Context, userID uint64, q action.QueryUnreadRoomMessages) (*queried.UnreadRoomMessages, error) {
+func (s *QueryServiceImpl) FindUnreadRoomMessages(ctx context.Context, userID uint64, q action.QueryUnreadRoomMessages) (*queried.UnreadRoomMessages, error) {
 	// check existance of user and room.
 	if _, err := s.users.Find(context.Background(), userID); err != nil {
 		return nil, err

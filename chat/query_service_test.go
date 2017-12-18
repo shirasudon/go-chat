@@ -13,6 +13,12 @@ import (
 	"github.com/shirasudon/go-chat/internal/mocks"
 )
 
+func TestQueryServiceImplement(t *testing.T) {
+	// just check implementing interface at build time.
+	var qs QueryService = &QueryServiceImpl{}
+	_ = qs
+}
+
 func TestQueryServiceFindUserByNameAndPassword(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -31,7 +37,7 @@ func TestQueryServiceFindUserByNameAndPassword(t *testing.T) {
 		Return(user, nil).
 		Times(1)
 
-	qservice := NewQueryService(&Queryers{
+	qservice := NewQueryServiceImpl(&Queryers{
 		UserQueryer: userQr,
 	})
 
@@ -70,7 +76,7 @@ func TestQueryServiceFindRoomInfo(t *testing.T) {
 		RoomQueryer: roomQr,
 	}
 
-	qservice := NewQueryService(queryers)
+	qservice := NewQueryServiceImpl(queryers)
 
 	_, err := qservice.FindRoomInfo(context.Background(), roomInfo.CreatorID, roomInfo.RoomID)
 	if err != nil {
@@ -132,7 +138,7 @@ func TestQueryServiceFindRoomMessagesSuccess(t *testing.T) {
 		UserQueryer:    userQr,
 	}
 
-	qservice := NewQueryService(queryers)
+	qservice := NewQueryServiceImpl(queryers)
 
 	msgs, err := qservice.FindRoomMessages(context.Background(), user.ID, queryRMsgs)
 	if err != nil {
@@ -152,6 +158,7 @@ func TestQueryServiceFindRoomMessagesSuccess(t *testing.T) {
 		t.Errorf("different messages content, expect: %v, got: %v", expect, got)
 	}
 }
+
 func TestQueryServiceFindRoomMessagesInvalidParameter(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -254,7 +261,7 @@ func TestQueryServiceFindRoomMessagesFail(t *testing.T) {
 		UserQueryer:    userQr,
 	}
 
-	qservice := NewQueryService(queryers)
+	qservice := NewQueryServiceImpl(queryers)
 
 	_, err := qservice.FindRoomMessages(context.Background(), user.ID, queryRMsgs)
 	if err == nil {
@@ -310,7 +317,7 @@ func TestQueryServiceFindUnreadRoomMessages(t *testing.T) {
 		UserQueryer:    userQr,
 	}
 
-	qservice := NewQueryService(queryers)
+	qservice := NewQueryServiceImpl(queryers)
 
 	got, err := qservice.FindUnreadRoomMessages(context.Background(), user.ID, query)
 	if err != nil {
