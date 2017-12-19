@@ -5,6 +5,11 @@ package queried
 
 import "time"
 
+// EmptyRoomInfo is RoomInfo having empty fields rather than nil.
+var EmptyRoomInfo = RoomInfo{
+	Members: []UserProfile{},
+}
+
 // RoomInfo is a detailed room information.
 // creator
 type RoomInfo struct {
@@ -13,6 +18,12 @@ type RoomInfo struct {
 	CreatorID   uint64        `json:"room_creator_id"`
 	Members     []UserProfile `json:"room_members"`
 	MembersSize int           `json:"room_members_size"`
+}
+
+// EmptyUserRelation is UserRelation having empty fields rather than nil.
+var EmptyUserRelation = UserRelation{
+	Friends: []UserProfile{},
+	Rooms:   []UserRoom{},
 }
 
 // UserRelation is the abstarct information associated with specified User.

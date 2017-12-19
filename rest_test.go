@@ -2,7 +2,6 @@ package chat
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,9 +11,13 @@ import (
 
 	"github.com/labstack/echo"
 
+	"github.com/golang/mock/gomock"
+
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/chat/action"
+	"github.com/shirasudon/go-chat/chat/queried"
 	"github.com/shirasudon/go-chat/infra/pubsub"
+	"github.com/shirasudon/go-chat/internal/mocks"
 )
 
 func createRESTHandler() (rest *RESTHandler, doneFunc func()) {
@@ -287,12 +290,28 @@ func TestRESTDeleteRoomFail(t *testing.T) {
 }
 
 func TestRESTGetRoomInfoSuccess(t *testing.T) {
+	t.Parallel()
+
 	const (
 		getRoomID   = uint64(3)
 		loginUserID = uint64(2)
 	)
 	RESTHandler, done := createRESTHandler()
 	defer done()
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	var emptyMsgs = queried.EmptyRoomInfo
+	emptyMsgs.RoomID = getRoomID
+
+	qs := mocks.NewMockQueryService(mockCtrl)
+	qs.EXPECT().
+		FindRoomInfo(gomock.Any(), loginUserID, getRoomID).
+		Return(&emptyMsgs, nil).
+		Times(1)
+
+	RESTHandler.chatQuery = qs
 
 	req := httptest.NewRequest(echo.GET, "/rooms/:room_id", nil)
 	rec := httptest.NewRecorder()
@@ -348,16 +367,29 @@ func TestRESTGetRoomInfoSuccess(t *testing.T) {
 }
 
 func TestRESTGetRoomInfoFail(t *testing.T) {
-	RESTHandler, done := createRESTHandler()
-	defer done()
+	t.Parallel()
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
 
 	// case 1: invalid request for resource parameter
 	{
+		const (
+			loginUserID = uint64(2)
+		)
+
+		qs := mocks.NewMockQueryService(mockCtrl)
+		qs.EXPECT().
+			FindRoomInfo(gomock.Any(), gomock.Any(), gomock.Any()).
+			Times(0)
+
+		RESTHandler := &RESTHandler{chatQuery: qs}
+
 		req := httptest.NewRequest(echo.GET, "/rooms/:room_id", nil)
 		rec := httptest.NewRecorder()
 
 		c := theEcho.NewContext(req, rec)
-		c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
+		c.Set(KeyLoggedInUserID, loginUserID)
 		c.SetParamNames("room_id")
 		c.SetParamValues("room_id_string")
 
@@ -375,6 +407,14 @@ func TestRESTGetRoomInfoFail(t *testing.T) {
 			loginUserID    = uint64(2)
 		)
 
+		qs := mocks.NewMockQueryService(mockCtrl)
+		qs.EXPECT().
+			FindRoomInfo(gomock.Any(), loginUserID, NotFoundRoomID).
+			Return(nil, chat.NewNotFoundError("not found")).
+			Times(1)
+
+		RESTHandler := &RESTHandler{chatQuery: qs}
+
 		req := httptest.NewRequest(echo.GET, "/rooms/:room_id", nil)
 		rec := httptest.NewRecorder()
 
@@ -391,12 +431,25 @@ func TestRESTGetRoomInfoFail(t *testing.T) {
 }
 
 func TestRESTGetUserInfo(t *testing.T) {
-	RESTHandler, done := createRESTHandler()
-	defer done()
+	t.Parallel()
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
 
 	const (
 		TestUserID = uint64(2)
 	)
+
+	ur := queried.EmptyUserRelation
+	ur.UserID = TestUserID
+
+	qs := mocks.NewMockQueryService(mockCtrl)
+	qs.EXPECT().
+		FindUserRelation(gomock.Any(), TestUserID).
+		Return(&ur, nil).
+		Times(1)
+
+	RESTHandler := &RESTHandler{chatQuery: qs}
 
 	req := httptest.NewRequest(echo.GET, "/users/2", nil)
 	rec := httptest.NewRecorder()
@@ -427,16 +480,26 @@ func TestRESTGetUserInfo(t *testing.T) {
 }
 
 func TestRESTGetUserInfoFail(t *testing.T) {
-	RESTHandler, done := createRESTHandler()
-	defer done()
+	t.Parallel()
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
 
 	// case 1: invalid request for resource parameter
 	{
+		const (
+			TestUserID = uint64(2)
+		)
+		qs := mocks.NewMockQueryService(mockCtrl)
+		qs.EXPECT().FindUserRelation(gomock.Any(), gomock.Any()).Times(0)
+
+		RESTHandler := &RESTHandler{chatQuery: qs}
+
 		req := httptest.NewRequest(echo.GET, "/users/:user_id", nil)
 		rec := httptest.NewRecorder()
 
 		c := theEcho.NewContext(req, rec)
-		c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
+		c.Set(KeyLoggedInUserID, TestUserID)
 		c.SetParamNames("user_id")
 		c.SetParamValues("user_id_string")
 
@@ -453,6 +516,14 @@ func TestRESTGetUserInfoFail(t *testing.T) {
 			NotFoundUserID = uint64(99)
 			loginUserID    = uint64(2)
 		)
+
+		qs := mocks.NewMockQueryService(mockCtrl)
+		qs.EXPECT().
+			FindUserRelation(gomock.Any(), NotFoundUserID).
+			Return(nil, chat.NewNotFoundError("")).
+			Times(1)
+
+		RESTHandler := &RESTHandler{chatQuery: qs}
 
 		req := httptest.NewRequest(echo.GET, "/users/:user_id", nil)
 		rec := httptest.NewRecorder()
@@ -515,27 +586,44 @@ func TestRESTPostRoomMessage(t *testing.T) {
 }
 
 func TestRESTGetRoomMessages(t *testing.T) {
-	RESTHandler, done := createRESTHandler()
-	defer done()
+	t.Parallel()
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
 
 	// case 1: found resource
 	{
+		const (
+			LoginUserID = uint64(1)
+			RoomID      = uint64(2)
+		)
+
+		res := queried.EmptyRoomMessages
+		res.RoomID = RoomID
+		res.Msgs = []queried.Message{queried.Message{}}
+
+		qs := mocks.NewMockQueryService(mockCtrl)
+		qs.EXPECT().
+			FindRoomMessages(gomock.Any(), LoginUserID, gomock.Any()).
+			Return(&res, nil).
+			Times(1)
+
+		RESTHandler := &RESTHandler{chatQuery: qs}
+
 		query := action.QueryRoomMessages{
 			Before: time.Now(),
 			Limit:  1,
 		}
-
 		req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages", query)
 		if err != nil {
 			t.Fatal(err)
 		}
-
 		rec := httptest.NewRecorder()
 
 		c := theEcho.NewContext(req, rec)
-		c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
+		c.Set(KeyLoggedInUserID, LoginUserID)
 		c.SetParamNames("room_id")
-		c.SetParamValues(fmt.Sprint(createMsgRoomID))
+		c.SetParamValues(fmt.Sprint(RoomID))
 
 		err = RESTHandler.GetRoomMessages(c)
 		if err != nil {
@@ -558,15 +646,11 @@ func TestRESTGetRoomMessages(t *testing.T) {
 		if len(msgs) != 1 {
 			t.Fatalf("different messages size, expect: %v, got: %v", 1, len(msgs))
 		}
-		msg, ok := msgs[0].(map[string]interface{})
-		if !ok {
+		if _, ok := msgs[0].(map[string]interface{}); !ok {
 			t.Fatalf("response.messages has invalid structure, %#v", msgs)
 		}
-		if expect, got := createMsgContent, msg["content"]; expect != got {
-			t.Errorf("different message content, expect: %v, got: %v", expect, got)
-		}
 
-		if roomID := uint64(response["room_id"].(float64)); roomID == 0 {
+		if roomID := uint64(response["room_id"].(float64)); roomID != RoomID {
 			t.Errorf("message created but target room id is invalid")
 		}
 	}
@@ -574,15 +658,22 @@ func TestRESTGetRoomMessages(t *testing.T) {
 	// case 2: not found resource
 	{
 		const (
-			UserID         = uint64(2)
+			LoginUserID    = uint64(2)
 			NotFoundRoomID = uint64(999)
 		)
+
+		qs := mocks.NewMockQueryService(mockCtrl)
+		qs.EXPECT().
+			FindRoomMessages(gomock.Any(), LoginUserID, gomock.Any()).
+			Return(nil, chat.NewNotFoundError("")).
+			Times(1)
+
+		RESTHandler := &RESTHandler{chatQuery: qs}
 
 		query := action.QueryRoomMessages{
 			Before: time.Now(),
 			Limit:  1,
 		}
-
 		req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages", query)
 		if err != nil {
 			t.Fatal(err)
@@ -591,7 +682,7 @@ func TestRESTGetRoomMessages(t *testing.T) {
 		rec := httptest.NewRecorder()
 
 		c := theEcho.NewContext(req, rec)
-		c.Set(KeyLoggedInUserID, UserID)
+		c.Set(KeyLoggedInUserID, LoginUserID)
 		c.SetParamNames("room_id")
 		c.SetParamValues(fmt.Sprint(NotFoundRoomID))
 
@@ -603,42 +694,40 @@ func TestRESTGetRoomMessages(t *testing.T) {
 }
 
 func TestRESTGetUnreadRoomMessages(t *testing.T) {
-	// The consistent pubsub should be used here,
-	// because updating service uses that.
-	RESTHandler := NewRESTHandler(
-		chat.NewCommandService(repository, globalPubsub),
-		chat.NewQueryServiceImpl(queryers),
-	)
+	t.Parallel()
 
-	{ // create room messages
-		chatMsg := action.ChatMessage{}
-		chatMsg.RoomID = createMsgRoomID
-		chatMsg.SenderID = createOrDeleteByUserID
-		chatMsg.Content = "hello"
-		_, err := RESTHandler.chatCmd.PostRoomMessage(context.Background(), chatMsg)
-		if err != nil {
-			t.Fatal(err)
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
 
 	// case1: found
 	{
+		const (
+			LoginUserID = uint64(2)
+			RoomID      = uint64(3)
+		)
+
 		query := action.QueryUnreadRoomMessages{
 			Limit: 1,
 		}
+
+		qs := mocks.NewMockQueryService(mockCtrl)
+		qs.EXPECT().
+			FindUnreadRoomMessages(gomock.Any(), LoginUserID, gomock.Any()).
+			Return(&queried.EmptyUnreadRoomMessages, nil).
+			Times(1)
+
+		RESTHandler := &RESTHandler{chatQuery: qs}
 
 		req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages/unread", query)
 		if err != nil {
 			t.Fatal(err)
 		}
-
 		rec := httptest.NewRecorder()
 
 		c := theEcho.NewContext(req, rec)
-		c.Set(KeyLoggedInUserID, createOrDeleteByUserID)
+		c.Set(KeyLoggedInUserID, LoginUserID)
 		c.SetParamNames("room_id")
-		c.SetParamValues(fmt.Sprint(createMsgRoomID))
+		c.SetParamValues(fmt.Sprint(RoomID))
 
 		err = RESTHandler.GetUnreadRoomMessages(c)
 		if err != nil {
@@ -670,8 +759,16 @@ func TestRESTGetUnreadRoomMessages(t *testing.T) {
 	{
 		const (
 			NotFoundRoomID = uint64(999)
-			UserID         = uint64(2)
+			LoginUserID    = uint64(2)
 		)
+
+		qs := mocks.NewMockQueryService(mockCtrl)
+		qs.EXPECT().
+			FindUnreadRoomMessages(gomock.Any(), LoginUserID, gomock.Any()).
+			Return(nil, chat.NewNotFoundError("")).
+			Times(1)
+
+		RESTHandler := &RESTHandler{chatQuery: qs}
 
 		query := action.QueryUnreadRoomMessages{
 			Limit: 1,
@@ -685,7 +782,7 @@ func TestRESTGetUnreadRoomMessages(t *testing.T) {
 		rec := httptest.NewRecorder()
 
 		c := theEcho.NewContext(req, rec)
-		c.Set(KeyLoggedInUserID, UserID)
+		c.Set(KeyLoggedInUserID, LoginUserID)
 		c.SetParamNames("room_id")
 		c.SetParamValues(fmt.Sprint(NotFoundRoomID))
 
