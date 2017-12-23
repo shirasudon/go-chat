@@ -70,9 +70,24 @@ func (s *QueryService) FindRoomInfo(ctx context.Context, userID, roomID uint64) 
 	return info, err
 }
 
+const (
+	MaxRoomMessagesLimit = 50
+)
+
 // Find messages from specified room.
 // It returns error if infrastructure raise some errors.
 func (s *QueryService) FindRoomMessages(ctx context.Context, userID uint64, q action.QueryRoomMessages) (*queried.RoomMessages, error) {
+	// check query paramnter
+	if q.Limit > MaxRoomMessagesLimit {
+		q.Limit = MaxRoomMessagesLimit
+	} else if q.Limit < 0 {
+		q.Limit = 0
+	}
+
+	if q.Before == (time.Time{}) {
+		q.Before = time.Now()
+	}
+
 	// TODO create specific queried data, messages associated with room ID and user ID,
 	// to remove domain logic in the QueryService.
 	r, err := s.rooms.Find(ctx, q.RoomID)

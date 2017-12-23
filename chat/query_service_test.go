@@ -152,6 +152,61 @@ func TestQueryServiceFindRoomMessagesSuccess(t *testing.T) {
 		t.Errorf("different messages content, expect: %v, got: %v", expect, got)
 	}
 }
+func TestQueryServiceFindRoomMessagesInvalidParameter(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	var (
+		user = domain.User{ID: 1}
+		room = domain.Room{
+			ID:          1,
+			MemberIDSet: domain.NewUserIDSet(user.ID),
+		}
+	)
+
+	invalidQueries := []action.QueryRoomMessages{
+		{RoomID: room.ID, Limit: -1},   // Limit: under Min, Before: Empty
+		{RoomID: room.ID, Limit: 1000}, // Limit: Over Max. Before: Empty
+	}
+
+	roomQr := mocks.NewMockRoomQueryer(mockCtrl)
+	roomQr.EXPECT().
+		Find(gomock.Any(), room.ID).
+		Return(room, nil).
+		Times(len(invalidQueries))
+
+	userQr := mocks.NewMockUserQueryer(mockCtrl)
+	userQr.EXPECT().
+		Find(gomock.Any(), user.ID).
+		Return(user, nil).
+		Times(len(invalidQueries))
+
+	queryers := &Queryers{
+		MessageQueryer: nil,
+		RoomQueryer:    roomQr,
+		UserQueryer:    userQr,
+	}
+
+	qservice := NewQueryService(queryers)
+
+	for _, q := range invalidQueries {
+		msgQr := mocks.NewMockMessageQueryer(mockCtrl)
+		msgQr.EXPECT().
+			FindRoomMessagesOrderByLatest(
+				gomock.Any(),
+				q.RoomID,
+				gomock.Not(q.Before),
+				gomock.Not(q.Limit),
+			).
+			Times(1)
+		qservice.msgs = msgQr
+
+		_, err := qservice.FindRoomMessages(context.Background(), user.ID, q)
+		if err != nil {
+			t.Errorf("failed to FindRoomMessages with param: Error: %v, Param: %#v", err, q)
+		}
+	}
+}
 
 func TestQueryServiceFindRoomMessagesFail(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
