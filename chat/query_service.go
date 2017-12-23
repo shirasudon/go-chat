@@ -113,7 +113,7 @@ func (s *QueryService) FindRoomMessages(ctx context.Context, userID uint64, q ac
 	for _, m := range msgs {
 		qm := queried.Message{
 			MessageID: m.ID,
-            UserID:    m.UserID,
+			UserID:    m.UserID,
 			Content:   m.Content,
 			CreatedAt: m.CreatedAt,
 		}
