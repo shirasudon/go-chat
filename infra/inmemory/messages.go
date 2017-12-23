@@ -159,6 +159,7 @@ func (repo *MessageRepository) FindUnreadRoomMessages(ctx context.Context, userI
 		if m, ok := messageMap[id]; ok {
 			qm := queried.Message{
 				MessageID: m.ID,
+				UserID:    m.UserID,
 				Content:   m.Content,
 				CreatedAt: m.CreatedAt,
 			}
