@@ -12,6 +12,12 @@ import (
 	"github.com/shirasudon/go-chat/internal/mocks"
 )
 
+func TestHubImplement(t *testing.T) {
+	// just check implementing interface at build time.
+	var h Hub = &HubImpl{}
+	_ = h
+}
+
 func TestHubEventSendingServiceAtMessageCreated(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -110,7 +116,7 @@ func TestHubEventSendingServiceAtMessageCreated(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
 
-	hub := NewHub(commandService)
+	hub := NewHubImpl(commandService)
 	go hub.Listen(ctx)
 	defer hub.Shutdown()
 

@@ -25,7 +25,7 @@ type Server struct {
 	loginHandler    *LoginHandler
 	restHandler     *RESTHandler
 
-	chatHub   *chat.Hub
+	chatHub   *chat.HubImpl
 	chatCmd   *chat.CommandServiceImpl
 	chatQuery chat.QueryService
 
@@ -51,7 +51,7 @@ func NewServer(repos domain.Repositories, qs *chat.Queryers, ps chat.Pubsub, con
 		echo:         e,
 		loginHandler: NewLoginHandler(qs.UserQueryer),
 		restHandler:  NewRESTHandler(chatCmd, chatQuery),
-		chatHub:      chat.NewHub(chatCmd),
+		chatHub:      chat.NewHubImpl(chatCmd),
 		chatCmd:      chatCmd,
 		chatQuery:    chatQuery,
 

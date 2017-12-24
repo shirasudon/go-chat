@@ -10,9 +10,31 @@ import (
 	"github.com/shirasudon/go-chat/domain/event"
 )
 
-// Hub accepts any user connections to
+// Conn is exported at the chat package so that the higher layer need not to import domain package.
+type Conn = domain.Conn
+
+// Hub is a interface for a hub which conmmunicates the event/action messages
+// between the active client connections.
+type Hub interface {
+	// Connect accepts new connection to the hub.
+	// If conection is invalid then return error.
+	Connect(ctx context.Context, c Conn) error
+
+	// Send sends ActionMessage with the connection which sent the message, to the hub.
+	// The Conn is used to verify that the message is exactlly
+	// sent by the connected user.
+	// The error is sent to given conn when the message is invalid.
+	Send(conn Conn, message action.ActionMessage)
+
+	// Disconnect disconnects the given connection from the hub.
+	// it will no-operation when non-connected connection is given.
+	Disconnect(conn Conn)
+}
+
+// HubImpl accepts any user connections to
 // propagates domain events for those connections.
-type Hub struct {
+// It implements Hub interface.
+type HubImpl struct {
 	messages chan actionMessageRequest
 	events   chan event.Event
 	shutdown chan struct{}
@@ -30,12 +52,12 @@ type actionMessageRequest struct {
 	Conn domain.Conn
 }
 
-func NewHub(cmd *CommandServiceImpl) *Hub {
+func NewHubImpl(cmd *CommandServiceImpl) *HubImpl {
 	if cmd == nil {
 		panic("passed nil arguments")
 	}
 
-	return &Hub{
+	return &HubImpl{
 		messages: make(chan actionMessageRequest, 1),
 		events:   make(chan event.Event, 1),
 		shutdown: make(chan struct{}),
@@ -49,7 +71,7 @@ func NewHub(cmd *CommandServiceImpl) *Hub {
 // Stop handling messages from the connections and
 // sending events to connections.
 // Multiple calling will cause panic.
-func (hub *Hub) Shutdown() {
+func (hub *HubImpl) Shutdown() {
 	close(hub.shutdown)
 }
 
@@ -57,7 +79,7 @@ func (hub *Hub) Shutdown() {
 // sending events to connections.
 // It will blocks untill
 // called Shutdown() or context is done.
-func (hub *Hub) Listen(ctx context.Context) {
+func (hub *HubImpl) Listen(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -82,7 +104,7 @@ func (hub *Hub) Listen(ctx context.Context) {
 	}
 }
 
-func (hub *Hub) broadcastEvent(ev event.Event, targetIDs ...uint64) error {
+func (hub *HubImpl) broadcastEvent(ev event.Event, targetIDs ...uint64) error {
 	if len(targetIDs) == 0 {
 		return nil
 	}
@@ -99,7 +121,7 @@ func (hub *Hub) broadcastEvent(ev event.Event, targetIDs ...uint64) error {
 	return nil
 }
 
-func (hub *Hub) eventSendingService(ctx context.Context) {
+func (hub *HubImpl) eventSendingService(ctx context.Context) {
 	events := hub.pubsub.Sub(
 		event.TypeMessageCreated,
 		event.TypeActiveClientActivated,
@@ -173,7 +195,7 @@ func (hub *Hub) eventSendingService(ctx context.Context) {
 	} // ... for
 }
 
-func (hub *Hub) handleMessage(ctx context.Context, req actionMessageRequest) error {
+func (hub *HubImpl) handleMessage(ctx context.Context, req actionMessageRequest) error {
 	var err error = nil
 
 	if !hub.activeClients.ExistByConn(req.Conn) {
@@ -198,7 +220,7 @@ func (hub *Hub) handleMessage(ctx context.Context, req actionMessageRequest) err
 // the connection is used to verify that the message is exactlly
 // sent by the connected user.
 // The error is sent to given conn when the message is invalid.
-func (hub *Hub) Send(conn domain.Conn, message action.ActionMessage) {
+func (hub *HubImpl) Send(conn Conn, message action.ActionMessage) {
 	select {
 	case <-hub.shutdown:
 		return
@@ -207,7 +229,7 @@ func (hub *Hub) Send(conn domain.Conn, message action.ActionMessage) {
 }
 
 // Connect new websocket connection to the hub.
-func (hub *Hub) Connect(ctx context.Context, c domain.Conn) error {
+func (hub *HubImpl) Connect(ctx context.Context, c Conn) error {
 	userID := c.UserID()
 	user, err := hub.chatCommand.users.Find(ctx, userID)
 	if err != nil {
@@ -236,7 +258,7 @@ func (hub *Hub) Connect(ctx context.Context, c domain.Conn) error {
 
 // Disconnect the given websocket connection from the hub.
 // it will no-operation when non-connected connection is given.
-func (hub *Hub) Disconnect(conn domain.Conn) {
+func (hub *HubImpl) Disconnect(conn Conn) {
 	ac, err := hub.activeClients.Find(conn.UserID())
 	if err != nil {
 		// not connected, no operations
