@@ -38,12 +38,19 @@ func (a AnyMessage) Number(key string) float64 {
 	return n
 }
 
+func (a AnyMessage) SetNumber(key string, val float64) {
+	a[key] = val
+}
+
 func (a AnyMessage) UInt64(key string) uint64 {
 	return uint64(a.Number(key))
 }
 
-func (a AnyMessage) SetNumber(key string, val float64) {
-	a[key] = val
+func (a AnyMessage) Time(key string) time.Time {
+	if t, ok := a[key].(time.Time); ok {
+		return t
+	}
+	return time.Time{}
 }
 
 func (a AnyMessage) Array(key string) []interface{} {
@@ -237,8 +244,11 @@ func ParseChatMessage(m AnyMessage, action Action) (ChatMessage, error) {
 // any user.
 // it implements ChatActionMessage interface.
 type ReadMessage struct {
-	ChatActionFields
-	MessageIDs []uint64 `json:"message_ids"`
+	EmbdFields
+	RoomID     uint64    `json:"room_id,omitempty"`
+	SenderID   uint64    `json:"sender_id,omitempty"` // it is overwritten by the server
+	ReadAt     time.Time `json:"read_at"`
+	MessageIDs []uint64  `json:"message_ids"`
 }
 
 func ParseReadMessage(m AnyMessage, action Action) (ReadMessage, error) {
@@ -247,7 +257,9 @@ func ParseReadMessage(m AnyMessage, action Action) (ReadMessage, error) {
 	}
 	rm := ReadMessage{}
 	rm.ActionName = action
-	rm.ChatActionFields.ParseFields(m)
+	rm.RoomID = m.UInt64(KeyRoomID)
+	rm.SenderID = m.UInt64(KeySenderID)
+	rm.ReadAt = m.Time("read_at")
 	rm.MessageIDs = m.UInt64s("message_ids")
 	return rm, nil
 }
