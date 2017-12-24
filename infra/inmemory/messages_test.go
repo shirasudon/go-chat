@@ -164,13 +164,15 @@ func TestMessageRepoFindUnreadRoomMessages(t *testing.T) {
 	defer cancel()
 
 	const (
-		TargetRoomID = 999
-		TargetUserID = 1
-		Content      = "hello"
+		TargetRoomID  = 999
+		TargetUserID  = 1
+		ContentUnread = "hello1"
+		ContentRead   = "hello2"
 	)
 
-	id, _ := messageRepository.Store(ctx, domain.Message{Content: Content})
-	ev := event.MessageCreated{MessageID: id, CreatedBy: TargetUserID, RoomID: TargetRoomID}
+	messageRepository.Store(ctx, domain.Message{Content: ContentUnread, RoomID: TargetRoomID})
+	id, _ := messageRepository.Store(ctx, domain.Message{Content: ContentRead, RoomID: TargetRoomID})
+	ev := event.MessageReadByUser{MessageID: id, UserID: TargetUserID, RoomID: TargetRoomID}
 	messageRepository.updateByEvent(ev)
 
 	unreads, err := messageRepository.FindUnreadRoomMessages(ctx, TargetUserID, TargetRoomID, 1)
@@ -184,7 +186,7 @@ func TestMessageRepoFindUnreadRoomMessages(t *testing.T) {
 	if unreads.MsgsSize != 1 {
 		t.Errorf("different unread messages size, expect: %v, got: %v", 1, unreads.MsgsSize)
 	}
-	if unreads.Msgs[0].Content != Content {
-		t.Errorf("different queried messages content, expect: %v, got: %v", Content, unreads.Msgs[0].Content)
+	if unreads.Msgs[0].Content != ContentUnread {
+		t.Errorf("different queried messages content, expect: %v, got: %v", ContentUnread, unreads.Msgs[0].Content)
 	}
 }

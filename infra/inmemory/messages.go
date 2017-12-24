@@ -28,7 +28,7 @@ var (
 	messageCounter uint64 = uint64(len(messageMap))
 
 	// key: user-room ID, value: message id map
-	userAndRoomIDToUnreadMessageIDs = map[userAndRoomID]map[uint64]bool{}
+	userAndRoomIDToReadMessageIDs = map[userAndRoomID]map[uint64]bool{}
 )
 
 type userAndRoomID struct {
@@ -76,25 +76,17 @@ func (repo *MessageRepository) UpdatingService(ctx context.Context) {
 
 func (repo *MessageRepository) updateByEvent(ev event.Event) {
 	switch ev := ev.(type) {
-	case event.MessageCreated:
-		messageMapMu.Lock()
-		defer messageMapMu.Unlock()
-
-		key := userAndRoomID{ev.CreatedBy, ev.RoomID}
-		msgIDs, ok := userAndRoomIDToUnreadMessageIDs[key]
-		if !ok {
-			msgIDs = make(map[uint64]bool)
-			userAndRoomIDToUnreadMessageIDs[key] = msgIDs
-		}
-		msgIDs[ev.MessageID] = true
-
 	case event.MessageReadByUser:
 		messageMapMu.Lock()
 		defer messageMapMu.Unlock()
 
-		if msgIDs, ok := userAndRoomIDToUnreadMessageIDs[userAndRoomID{ev.UserID, ev.RoomID}]; ok {
-			delete(msgIDs, ev.MessageID)
+		key := userAndRoomID{ev.UserID, ev.RoomID}
+		msgIDs, ok := userAndRoomIDToReadMessageIDs[key]
+		if !ok {
+			msgIDs = make(map[uint64]bool)
+			userAndRoomIDToReadMessageIDs[key] = msgIDs
 		}
+		msgIDs[ev.MessageID] = true
 	}
 }
 
@@ -149,14 +141,31 @@ func (repo *MessageRepository) FindUnreadRoomMessages(ctx context.Context, userI
 	messageMapMu.RLock()
 	defer messageMapMu.RUnlock()
 
-	unreadIDs, ok := userAndRoomIDToUnreadMessageIDs[userAndRoomID{userID, roomID}]
+	key := userAndRoomID{userID, roomID}
+	readIDs, ok := userAndRoomIDToReadMessageIDs[key]
 	if !ok {
-		return nil, chat.NewNotFoundError("user (id=%v) has no unread messsages for the room (id=%v)", userID, roomID)
+		msgIDs := make(map[uint64]bool)
+		userAndRoomIDToReadMessageIDs[key] = msgIDs
 	}
 
-	unreadMsgs := make([]queried.Message, 0, len(unreadIDs))
-	for id, _ := range unreadIDs {
-		if m, ok := messageMap[id]; ok {
+	unreadMsgs := make([]queried.Message, 0)
+
+	// TODO: this operation is very inefficient! Takes O(M * R), where M is # of messages and R is # of read messages
+	for _, m := range messageMap {
+		if m.RoomID == roomID {
+			contain := false
+
+			for id, _ := range readIDs {
+				if id == m.ID {
+					contain = true
+					break
+				}
+			}
+
+			if contain {
+				continue
+			}
+
 			qm := queried.Message{
 				MessageID: m.ID,
 				UserID:    m.UserID,
