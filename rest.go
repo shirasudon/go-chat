@@ -17,11 +17,11 @@ var (
 )
 
 type RESTHandler struct {
-	chatCmd   *chat.CommandService
+	chatCmd   *chat.CommandServiceImpl
 	chatQuery chat.QueryService
 }
 
-func NewRESTHandler(chatCmd *chat.CommandService, chatQuery chat.QueryService) *RESTHandler {
+func NewRESTHandler(chatCmd *chat.CommandServiceImpl, chatQuery chat.QueryService) *RESTHandler {
 	return &RESTHandler{
 		chatCmd:   chatCmd,
 		chatQuery: chatQuery,

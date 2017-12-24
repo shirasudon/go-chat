@@ -194,7 +194,7 @@ func TestQueryServiceFindRoomMessagesInvalidParameter(t *testing.T) {
 		UserQueryer:    userQr,
 	}
 
-	qservice := NewQueryService(queryers)
+	qservice := NewQueryServiceImpl(queryers)
 
 	for _, q := range invalidQueries {
 		msgQr := mocks.NewMockMessageQueryer(mockCtrl)

@@ -8,10 +8,31 @@ import (
 	"github.com/shirasudon/go-chat/domain/event"
 )
 
-// CommandService provides the usecases for
-// creating/updating/editing/deleting the application
-// data.
-type CommandService struct {
+// CommandService is the interface for sending the command
+// to the chat application.
+type CommandService interface {
+	// It creates room specified by given actiom.CreateRoom.
+	// It returns created Room's ID and InfraError if any.
+	CreateRoom(ctx context.Context, m action.CreateRoom) (roomID uint64, err error)
+
+	// It deletes room specified by given actiom message.
+	// It returns deleted Room's ID and InfraError if any.
+	DeleteRoom(ctx context.Context, m action.DeleteRoom) (roomID uint64, err error)
+
+	// Mark the message is read by the specified user.
+	// It returns InfraError when the message can not be marked to read.
+	ReadRoomMessage(ctx context.Context, m action.ReadMessage) error
+
+	// Post the message to the specified room.
+	// It returns posted message id and nil or InfraError
+	// which indicates the message can not be posted.
+	PostRoomMessage(ctx context.Context, m action.ChatMessage) (msgID uint64, err error)
+}
+
+// CommandServiceImpl provides the usecases for
+// creating/updating/editing/deleting the application data.
+// It implements CommandService interface.
+type CommandServiceImpl struct {
 	msgs         domain.MessageRepository
 	users        domain.UserRepository
 	rooms        domain.RoomRepository
@@ -20,8 +41,8 @@ type CommandService struct {
 	updateCancel chan struct{}
 }
 
-func NewCommandService(repos domain.Repositories, pubsub Pubsub) *CommandService {
-	return &CommandService{
+func NewCommandServiceImpl(repos domain.Repositories, pubsub Pubsub) *CommandServiceImpl {
+	return &CommandServiceImpl{
 		msgs:         repos.Messages(),
 		users:        repos.Users(),
 		rooms:        repos.Rooms(),
@@ -33,7 +54,7 @@ func NewCommandService(repos domain.Repositories, pubsub Pubsub) *CommandService
 
 // Run updating service for the domain events.
 // It blocks until calling CancelUpdate() or context is done.
-func (s *CommandService) RunUpdateService(ctx context.Context) {
+func (s *CommandServiceImpl) RunUpdateService(ctx context.Context) {
 	roomDeleted := s.pubsub.Sub(event.TypeRoomDeleted)
 	for {
 		select {
@@ -55,13 +76,13 @@ func (s *CommandService) RunUpdateService(ctx context.Context) {
 
 // Stop RunUpdateService(). Multiple calling will
 // occurs panic.
-func (s *CommandService) CancelUpdateService() {
+func (s *CommandServiceImpl) CancelUpdateService() {
 	close(s.updateCancel)
 }
 
 // Do function on the context of the transaction.
 // It also commits the some domain events returned from txFunc.
-func (s *CommandService) withEventTransaction(
+func (s *CommandServiceImpl) withEventTransaction(
 	ctx context.Context,
 	txBeginner domain.TxBeginner,
 	txFunc func(ctx context.Context) ([]event.Event, error),
@@ -102,7 +123,7 @@ func withTransaction(ctx context.Context, txBeginner domain.TxBeginner, txFunc f
 
 // It creates room specified by given actiom message.
 // It returns created Room's ID and error if any.
-func (s *CommandService) CreateRoom(ctx context.Context, m action.CreateRoom) (roomID uint64, err error) {
+func (s *CommandServiceImpl) CreateRoom(ctx context.Context, m action.CreateRoom) (roomID uint64, err error) {
 	user, err := s.users.Find(ctx, m.SenderID)
 	if err != nil {
 		return 0, err
@@ -125,7 +146,7 @@ func (s *CommandService) CreateRoom(ctx context.Context, m action.CreateRoom) (r
 
 // It deletes room specified by given actiom message. It returns deleted Room's ID and
 // error if any.
-func (s *CommandService) DeleteRoom(ctx context.Context, m action.DeleteRoom) (roomID uint64, err error) {
+func (s *CommandServiceImpl) DeleteRoom(ctx context.Context, m action.DeleteRoom) (roomID uint64, err error) {
 	user, err := s.users.Find(ctx, m.SenderID)
 	if err != nil {
 		return 0, err
@@ -152,7 +173,7 @@ func (s *CommandService) DeleteRoom(ctx context.Context, m action.DeleteRoom) (r
 // Post the message to the specified room.
 // It returns posted message id and nil or error
 // which indicates the message can not be posted.
-func (s *CommandService) PostRoomMessage(ctx context.Context, m action.ChatMessage) (msgID uint64, err error) {
+func (s *CommandServiceImpl) PostRoomMessage(ctx context.Context, m action.ChatMessage) (msgID uint64, err error) {
 	room, err := s.rooms.Find(ctx, m.RoomID)
 	if err != nil {
 		return 0, err
@@ -177,7 +198,7 @@ func (s *CommandService) PostRoomMessage(ctx context.Context, m action.ChatMessa
 
 // Mark the message is read by the specified user.
 // It returns error when the message can not be marked to read.
-func (s *CommandService) ReadRoomMessage(ctx context.Context, m action.ReadMessage) error {
+func (s *CommandServiceImpl) ReadRoomMessage(ctx context.Context, m action.ReadMessage) error {
 	user, err := s.users.Find(ctx, m.SenderID)
 	if err != nil {
 		return err

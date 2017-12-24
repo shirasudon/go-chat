@@ -38,6 +38,10 @@ func (a AnyMessage) Number(key string) float64 {
 	return n
 }
 
+func (a AnyMessage) UInt64(key string) uint64 {
+	return uint64(a.Number(key))
+}
+
 func (a AnyMessage) SetNumber(key string, val float64) {
 	a[key] = val
 }
@@ -129,18 +133,10 @@ func (ef *EmbdFields) ParseFields(m AnyMessage) {
 	ef.ActionName = m.Action()
 }
 
-// ChatActionMessage is used for chat context, which has
-// roomID and senderID(userID) for destination.
-// it also implements ActionMessage interface.
-type ChatActionMessage interface {
-	ActionMessage
-	GetRoomID() uint64
-	GetSenderID() uint64
-}
-
 // common fields for the websocket message to be
 // used to chat context.
 // it implements ChatActionMessage interface.
+// TODO: remove
 type ChatActionFields struct {
 	EmbdFields
 	RoomID   uint64 `json:"room_id,omitempty"`
@@ -219,9 +215,10 @@ func NewUserDisconnect(userID uint64) UserDisconnect {
 // client and sends to other clients in the same room.
 // it implements ChatActionMessage interface.
 type ChatMessage struct {
-	ChatActionFields
-	ID      uint64 `json:"id,omitempty"` // used only server->client
-	Content string `json:"content,omitempty"`
+	EmbdFields
+	RoomID   uint64 `json:"room_id,omitempty"`
+	SenderID uint64 `json:"sender_id,omitempty"` // it is overwritten by the server
+	Content  string `json:"content,omitempty"`
 }
 
 func ParseChatMessage(m AnyMessage, action Action) (ChatMessage, error) {
@@ -230,8 +227,9 @@ func ParseChatMessage(m AnyMessage, action Action) (ChatMessage, error) {
 	}
 	cm := ChatMessage{}
 	cm.ActionName = action
+	cm.RoomID = m.UInt64(KeyRoomID)
+	cm.SenderID = m.UInt64(KeySenderID)
 	cm.Content = m.String("content")
-	cm.ChatActionFields.ParseFields(m)
 	return cm, nil
 }
 

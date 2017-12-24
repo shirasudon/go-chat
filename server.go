@@ -26,7 +26,7 @@ type Server struct {
 	restHandler     *RESTHandler
 
 	chatHub   *chat.Hub
-	chatCmd   *chat.CommandService
+	chatCmd   *chat.CommandServiceImpl
 	chatQuery chat.QueryService
 
 	repos domain.Repositories
@@ -44,7 +44,7 @@ func NewServer(repos domain.Repositories, qs *chat.Queryers, ps chat.Pubsub, con
 	e := echo.New()
 	e.HideBanner = true
 
-	chatCmd := chat.NewCommandService(repos, ps)
+	chatCmd := chat.NewCommandServiceImpl(repos, ps)
 	chatQuery := chat.NewQueryServiceImpl(qs)
 
 	s := &Server{

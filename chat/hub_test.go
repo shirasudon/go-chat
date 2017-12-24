@@ -104,7 +104,7 @@ func TestHubEventSendingServiceAtMessageCreated(t *testing.T) {
 		})
 
 	// build Hub
-	commandService := NewCommandService(repos, pubsub)
+	commandService := NewCommandServiceImpl(repos, pubsub)
 
 	// set timeout 10ms for testing.
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)

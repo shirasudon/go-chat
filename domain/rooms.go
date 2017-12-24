@@ -91,7 +91,7 @@ func (r *Room) Delete(ctx context.Context, repo RoomRepository, user *User) erro
 		return fmt.Errorf("the user not in the datastore, can not delete the room")
 	}
 	if r.OwnerID != user.ID {
-		return fmt.Errorf("the user not be owner for the room, can not delete the room")
+		return fmt.Errorf("the user is not the owner of the room, can not delete the room")
 	}
 
 	err := repo.Remove(ctx, *r)

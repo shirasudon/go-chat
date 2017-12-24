@@ -17,7 +17,7 @@ type Hub struct {
 	events   chan event.Event
 	shutdown chan struct{}
 
-	chatCommand   *CommandService
+	chatCommand   *CommandServiceImpl
 	activeClients *domain.ActiveClientRepository
 	pubsub        Pubsub
 }
@@ -30,9 +30,9 @@ type actionMessageRequest struct {
 	Conn domain.Conn
 }
 
-func NewHub(cmdService *CommandService) *Hub {
-	if cmdService == nil {
-		panic("passed nil service")
+func NewHub(cmd *CommandServiceImpl) *Hub {
+	if cmd == nil {
+		panic("passed nil arguments")
 	}
 
 	return &Hub{
@@ -40,9 +40,9 @@ func NewHub(cmdService *CommandService) *Hub {
 		events:   make(chan event.Event, 1),
 		shutdown: make(chan struct{}),
 
-		chatCommand:   cmdService,
+		chatCommand:   cmd,
 		activeClients: domain.NewActiveClientRepository(64),
-		pubsub:        cmdService.pubsub,
+		pubsub:        cmd.pubsub,
 	}
 }
 
@@ -129,7 +129,7 @@ func (hub *Hub) eventSendingService(ctx context.Context) {
 					continue
 				}
 
-				err = hub.broadcastEvent(ev, room.MemberIDs()...)
+				err = hub.broadcastEvent(ev, room.MemberIDSet.List()...)
 				if err != nil {
 					// TODO error handling
 					log.Println(err)

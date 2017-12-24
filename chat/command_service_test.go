@@ -2,6 +2,8 @@ package chat
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -12,6 +14,30 @@ import (
 	"github.com/shirasudon/go-chat/domain/event"
 	"github.com/shirasudon/go-chat/internal/mocks"
 )
+
+// EventMathcher matches type of the internal Event.
+// It implements gomock.Matcher interface.
+type EventMathcher struct {
+	Event event.Event
+}
+
+func IsEvType(ev event.Event) EventMathcher {
+	return EventMathcher{ev}
+}
+
+func (em EventMathcher) Matches(x interface{}) bool {
+	return reflect.ValueOf(em.Event).Type() == reflect.ValueOf(x).Type()
+}
+
+func (em EventMathcher) String() string {
+	return fmt.Sprintf("type %T", em.Event)
+}
+
+func TestCommandServiceImplement(t *testing.T) {
+	// just check implementing interface at build time.
+	var cs CommandService = &CommandServiceImpl{}
+	_ = cs
+}
 
 func TestChatUpdateServiceAtRoomDeleted(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
@@ -49,7 +75,7 @@ func TestChatUpdateServiceAtRoomDeleted(t *testing.T) {
 			doneCh <- struct{}{}
 		})
 
-	commandService := NewCommandService(domain.SimpleRepositories{
+	commandService := NewCommandServiceImpl(domain.SimpleRepositories{
 		MessageRepository: messages,
 	}, pubsub)
 
@@ -85,7 +111,7 @@ func TestCommandServiceCreateRoom(t *testing.T) {
 
 	pubsub := mocks.NewMockPubsub(mockCtrl)
 	pubsub.EXPECT().
-		Pub(gomock.Any()).
+		Pub(IsEvType(event.RoomCreated{})).
 		Times(1)
 
 	rooms := mocks.NewMockRoomRepository(mockCtrl)
@@ -111,7 +137,7 @@ func TestCommandServiceCreateRoom(t *testing.T) {
 		Return([]uint64{1}, nil).
 		Times(1)
 
-	cmdService := NewCommandService(domain.SimpleRepositories{
+	cmdService := NewCommandServiceImpl(domain.SimpleRepositories{
 		UserRepository:  users,
 		RoomRepository:  rooms,
 		EventRepository: events,
@@ -124,5 +150,152 @@ func TestCommandServiceCreateRoom(t *testing.T) {
 	}
 	if roomID != RoomID {
 		t.Errorf("different room id for create room, expect: %v, got: %v", RoomID, roomID)
+	}
+}
+
+func TestCommandServiceDeleteRoom(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	var (
+		DeleteRoom = action.DeleteRoom{
+			SenderID: 1,
+			RoomID:   1,
+		}
+
+		User = domain.User{ID: DeleteRoom.SenderID}
+		Room = domain.Room{ID: DeleteRoom.RoomID, OwnerID: User.ID}
+	)
+
+	pubsub := mocks.NewMockPubsub(mockCtrl)
+	publishEv := pubsub.EXPECT().
+		Pub(IsEvType(event.RoomDeleted{})).
+		Times(1)
+
+	rooms := mocks.NewMockRoomRepository(mockCtrl)
+	roomFind := rooms.EXPECT().
+		Find(gomock.Any(), DeleteRoom.RoomID).
+		Return(Room, nil).
+		Times(1)
+
+	beginTx := rooms.EXPECT().
+		BeginTx(gomock.Any(), gomock.Nil()).
+		Return(domain.EmptyTxBeginner{}, nil).
+		Times(1)
+
+	roomRemove := rooms.EXPECT().
+		Remove(gomock.Any(), Room).
+		Return(nil).
+		Times(1)
+
+	gomock.InOrder(
+		beginTx,
+		roomFind,
+		roomRemove,
+		publishEv,
+	)
+
+	users := mocks.NewMockUserRepository(mockCtrl)
+	users.EXPECT().
+		Find(gomock.Any(), DeleteRoom.SenderID).
+		Return(User, nil).
+		Times(1)
+
+	events := mocks.NewMockEventRepository(mockCtrl)
+	events.EXPECT().
+		Store(gomock.Any(), gomock.Any()).
+		Return([]uint64{1}, nil).
+		Times(1)
+
+	cmdService := NewCommandServiceImpl(domain.SimpleRepositories{
+		UserRepository:  users,
+		RoomRepository:  rooms,
+		EventRepository: events,
+	}, pubsub)
+
+	// do test function.
+	roomID, err := cmdService.DeleteRoom(context.Background(), DeleteRoom)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if roomID != Room.ID {
+		t.Errorf("different room id for deleting room, expect: %v, got: %v", Room.ID, roomID)
+	}
+}
+
+func TestCommandServicePostRoomMessage(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	var (
+		ChatMessage = action.ChatMessage{
+			SenderID: 1,
+			RoomID:   1,
+			Content:  "hello",
+		}
+
+		User = domain.User{ID: ChatMessage.SenderID}
+		Room = domain.Room{ID: ChatMessage.RoomID, OwnerID: User.ID,
+			MemberIDSet: domain.NewUserIDSet(User.ID)}
+	)
+
+	const (
+		NewMsgID = uint64(1)
+	)
+
+	rooms := mocks.NewMockRoomRepository(mockCtrl)
+	rooms.EXPECT().
+		Find(gomock.Any(), ChatMessage.RoomID).
+		Return(Room, nil).
+		Times(1)
+
+	users := mocks.NewMockUserRepository(mockCtrl)
+	users.EXPECT().
+		Find(gomock.Any(), ChatMessage.SenderID).
+		Return(User, nil).
+		Times(1)
+
+	msgs := mocks.NewMockMessageRepository(mockCtrl)
+	beginTx := msgs.EXPECT().
+		BeginTx(gomock.Any(), gomock.Nil()).
+		Return(domain.EmptyTxBeginner{}, nil).
+		Times(1)
+
+	msgStore := msgs.EXPECT().
+		Store(gomock.Any(), gomock.Any()).
+		Return(NewMsgID, nil).
+		Times(1)
+
+	pubsub := mocks.NewMockPubsub(mockCtrl)
+	publishEv := pubsub.EXPECT().
+		Pub(IsEvType(event.MessageCreated{})).
+		Times(1)
+
+	gomock.InOrder(
+		beginTx,
+		msgStore,
+		publishEv,
+	)
+
+	events := mocks.NewMockEventRepository(mockCtrl)
+	events.EXPECT().
+		Store(gomock.Any(), gomock.Any()).
+		Return([]uint64{1}, nil).
+		Times(1)
+
+	cmdService := NewCommandServiceImpl(domain.SimpleRepositories{
+		UserRepository:    users,
+		RoomRepository:    rooms,
+		MessageRepository: msgs,
+		EventRepository:   events,
+	}, pubsub)
+
+	// do test function.
+	msgID, err := cmdService.PostRoomMessage(context.Background(), ChatMessage)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if msgID != NewMsgID {
+		t.Errorf("different new message id for post room message, expect: %v, got: %v", NewMsgID, msgID)
 	}
 }
