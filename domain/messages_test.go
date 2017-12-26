@@ -116,6 +116,9 @@ func TestMessageReadByUser(t *testing.T) {
 	if got := ev.RoomID; got != room.ID {
 		t.Errorf("MessageReadByUser has different room id, expect: %d, got: %d", room.ID, got)
 	}
+	if got := ev.ReadAt; got == (time.Time{}) {
+		t.Error("MessageReadByUser has no readAt time, expect time.Now()")
+	}
 	if got := ev.Timestamp(); got == (time.Time{}) {
 		t.Error("MessageReadByUser has no timestamp")
 	}

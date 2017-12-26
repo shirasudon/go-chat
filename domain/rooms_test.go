@@ -62,6 +62,9 @@ func TestRoomCreated(t *testing.T) {
 	if got := ev.Name; got != "test" {
 		t.Errorf("RoomCreated has different room name, expect: %s, got: %s", "test", got)
 	}
+	if got := ev.RoomID; got != r.ID {
+		t.Errorf("RoomCreated has different room id, expect: %v, got: %v", r.ID, got)
+	}
 	if got, expect := len(ev.MemberIDs), len(r.MemberIDs()); got != expect {
 		t.Errorf("RoomCreated has dieffrent room members size, expect: %d, got: %d", expect, got)
 	}

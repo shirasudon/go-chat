@@ -93,6 +93,8 @@ func (m *Message) NotExist() bool {
 // ReadBy marks the message to read by specified user.
 // It returns such event, which is contained the message,
 // and error if any.
+//
+// TODO change API for Room with ReadAt time.Time.
 func (m *Message) ReadBy(u User) (event.MessageReadByUser, error) {
 	if u.NotExist() {
 		return event.MessageReadByUser{}, errors.New("the user not in the datastore, can not read any message")
@@ -101,6 +103,7 @@ func (m *Message) ReadBy(u User) (event.MessageReadByUser, error) {
 		MessageID: m.ID,
 		UserID:    u.ID,
 		RoomID:    m.RoomID,
+		ReadAt:    time.Now(), // TODO readAt is set by argument.
 	}
 	ev.Occurs()
 	m.AddEvent(ev)

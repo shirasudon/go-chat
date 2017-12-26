@@ -15,6 +15,7 @@ func (RoomEventEmbd) StreamID() StreamID { return RoomStream }
 type RoomCreated struct {
 	RoomEventEmbd
 	CreatedBy  uint64 `json:"created_by"`
+	RoomID     uint64 `json:"room_id"`
 	Name       string `json:"name"`
 	IsTalkRoom bool
 	MemberIDs  []uint64 `json:"member_ids"`

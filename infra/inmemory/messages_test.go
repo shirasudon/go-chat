@@ -169,8 +169,10 @@ func TestMessageRepoFindUnreadRoomMessages(t *testing.T) {
 		Content      = "hello"
 	)
 
-	id, _ := messageRepository.Store(ctx, domain.Message{Content: Content})
-	ev := event.MessageCreated{MessageID: id, CreatedBy: TargetUserID, RoomID: TargetRoomID}
+	id, _ := messageRepository.Store(ctx, domain.Message{RoomID: TargetRoomID, UserID: TargetUserID, Content: Content})
+
+	// allow read messages by TargetUser
+	ev := event.RoomCreated{CreatedBy: TargetUserID, RoomID: TargetRoomID, MemberIDs: []uint64{TargetUserID}}
 	messageRepository.updateByEvent(ev)
 
 	unreads, err := messageRepository.FindUnreadRoomMessages(ctx, TargetUserID, TargetRoomID, 1)
@@ -182,9 +184,24 @@ func TestMessageRepoFindUnreadRoomMessages(t *testing.T) {
 		t.Errorf("different RoomID, expect: %v, got: %v", TargetRoomID, unreads.RoomID)
 	}
 	if unreads.MsgsSize != 1 {
-		t.Errorf("different unread messages size, expect: %v, got: %v", 1, unreads.MsgsSize)
+		t.Fatalf("different unread messages size, expect: %v, got: %v", 1, unreads.MsgsSize)
 	}
 	if unreads.Msgs[0].Content != Content {
 		t.Errorf("different queried messages content, expect: %v, got: %v", Content, unreads.Msgs[0].Content)
+	}
+
+	// after read by user, unreadMsgs is empty.
+	createdMsg, _ := messageRepository.Find(ctx, id)
+	t.Log(id)
+	messageRepository.updateByEvent(event.MessageReadByUser{
+		UserID: TargetUserID, RoomID: TargetRoomID, ReadAt: createdMsg.CreatedAt,
+	})
+
+	unreads, err = messageRepository.FindUnreadRoomMessages(ctx, TargetUserID, TargetRoomID, 1)
+	if err != nil {
+		t.Errorf("expect empty result with no error, but got error: %v", err)
+	}
+	if len(unreads.Msgs) != 0 {
+		t.Errorf("expect empty result, but got result: %#v", unreads.Msgs)
 	}
 }

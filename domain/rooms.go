@@ -71,6 +71,7 @@ func NewRoom(ctx context.Context, roomRepo RoomRepository, name string, user *Us
 
 	ev := event.RoomCreated{
 		CreatedBy:  user.ID,
+		RoomID:     id,
 		Name:       name,
 		IsTalkRoom: false,
 		MemberIDs:  memberIDs.List(),

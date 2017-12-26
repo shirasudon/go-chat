@@ -27,9 +27,20 @@ var (
 
 	messageCounter uint64 = uint64(len(messageMap))
 
-	// key: user-room ID, value: message id map
-	userAndRoomIDToUnreadMessageIDs = map[userAndRoomID]map[uint64]bool{}
+	// key: user-room ID, value: read time for Room
+	// It holds user read time for the Room,
+	// and user permmition to access room messages
+	userAndRoomIDToReadTime = make(map[userAndRoomID]time.Time, 64)
 )
+
+func init() {
+	// TODO remove below, and call methods for the repository insteadly.
+	for roomID, userIDs := range roomToUsersMap {
+		for userID, _ := range userIDs {
+			userAndRoomIDToReadTime[userAndRoomID{userID, roomID}] = time.Time{}
+		}
+	}
+}
 
 type userAndRoomID struct {
 	UserID uint64
@@ -56,7 +67,8 @@ func NewMessageRepository(pubsub chat.Pubsub) *MessageRepository {
 // It must be called to be updated to latest query data.
 func (repo *MessageRepository) UpdatingService(ctx context.Context) {
 	evCh := repo.pubsub.Sub(
-		event.TypeMessageCreated,
+		event.TypeRoomCreated,
+		event.TypeRoomAddedMember,
 		event.TypeMessageReadByUser,
 	)
 	for {
@@ -76,25 +88,29 @@ func (repo *MessageRepository) UpdatingService(ctx context.Context) {
 
 func (repo *MessageRepository) updateByEvent(ev event.Event) {
 	switch ev := ev.(type) {
-	case event.MessageCreated:
+	case event.RoomCreated:
 		messageMapMu.Lock()
 		defer messageMapMu.Unlock()
-
-		key := userAndRoomID{ev.CreatedBy, ev.RoomID}
-		msgIDs, ok := userAndRoomIDToUnreadMessageIDs[key]
-		if !ok {
-			msgIDs = make(map[uint64]bool)
-			userAndRoomIDToUnreadMessageIDs[key] = msgIDs
+		for _, memberID := range ev.MemberIDs {
+			userAndRoomIDToReadTime[userAndRoomID{memberID, ev.RoomID}] = time.Time{}
 		}
-		msgIDs[ev.MessageID] = true
+
+	case event.RoomDeleted:
+		messageMapMu.Lock()
+		defer messageMapMu.Unlock()
+		for _, memberID := range ev.MemberIDs {
+			delete(userAndRoomIDToReadTime, userAndRoomID{memberID, ev.RoomID})
+		}
+
+	case event.RoomAddedMember:
+		messageMapMu.Lock()
+		defer messageMapMu.Unlock()
+		userAndRoomIDToReadTime[userAndRoomID{ev.AddedUserID, ev.RoomID}] = time.Time{}
 
 	case event.MessageReadByUser:
 		messageMapMu.Lock()
 		defer messageMapMu.Unlock()
-
-		if msgIDs, ok := userAndRoomIDToUnreadMessageIDs[userAndRoomID{ev.UserID, ev.RoomID}]; ok {
-			delete(msgIDs, ev.MessageID)
-		}
+		userAndRoomIDToReadTime[userAndRoomID{ev.UserID, ev.RoomID}] = ev.ReadAt
 	}
 }
 
@@ -149,14 +165,21 @@ func (repo *MessageRepository) FindUnreadRoomMessages(ctx context.Context, userI
 	messageMapMu.RLock()
 	defer messageMapMu.RUnlock()
 
-	unreadIDs, ok := userAndRoomIDToUnreadMessageIDs[userAndRoomID{userID, roomID}]
+	key := userAndRoomID{userID, roomID}
+	readTime, ok := userAndRoomIDToReadTime[key]
 	if !ok {
+		// missing readTime indicates user not exist in the room
 		return nil, chat.NewNotFoundError("user (id=%v) has no unread messsages for the room (id=%v)", userID, roomID)
 	}
 
-	unreadMsgs := make([]queried.Message, 0, len(unreadIDs))
-	for id, _ := range unreadIDs {
-		if m, ok := messageMap[id]; ok {
+	if limit == 0 {
+		ret := queried.EmptyUnreadRoomMessages
+		return &ret, nil // return copy to prevent modifying original.
+	}
+
+	unreadMsgs := make([]queried.Message, 0, limit)
+	for _, m := range messageMap {
+		if m.RoomID == roomID && m.CreatedAt.After(readTime) {
 			qm := queried.Message{
 				MessageID: m.ID,
 				UserID:    m.UserID,
@@ -164,6 +187,10 @@ func (repo *MessageRepository) FindUnreadRoomMessages(ctx context.Context, userI
 				CreatedAt: m.CreatedAt,
 			}
 			unreadMsgs = append(unreadMsgs, qm)
+
+			if len(unreadMsgs) >= limit {
+				break
+			}
 		}
 	}
 
