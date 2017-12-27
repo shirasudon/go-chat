@@ -207,8 +207,8 @@ func (hub *HubImpl) handleMessage(ctx context.Context, req actionMessageRequest)
 		_, err = hub.chatCommand.PostRoomMessage(ctx, m)
 	// TODO case action.EditChatMessage:
 	// TODO case action.DeleteChatMessage:
-	case action.ReadMessage:
-		err = hub.chatCommand.ReadRoomMessage(ctx, m)
+	case action.ReadMessages:
+		_, err = hub.chatCommand.ReadRoomMessages(ctx, m)
 	case action.TypeStart, action.TypeEnd:
 		// TODO convert acitionMessage to event then publish in chatCommand
 	}

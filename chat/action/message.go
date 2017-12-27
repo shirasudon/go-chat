@@ -240,27 +240,25 @@ func ParseChatMessage(m AnyMessage, action Action) (ChatMessage, error) {
 	return cm, nil
 }
 
-// ReadMessage indicates notification which some chat messages are read by
+// ReadMessages indicates notification which some chat messages are read by
 // any user.
 // it implements ChatActionMessage interface.
-type ReadMessage struct {
+type ReadMessages struct {
 	EmbdFields
-	RoomID     uint64    `json:"room_id,omitempty"`
-	SenderID   uint64    `json:"sender_id,omitempty"` // it is overwritten by the server
-	ReadAt     time.Time `json:"read_at"`
-	MessageIDs []uint64  `json:"message_ids"`
+	RoomID   uint64    `json:"room_id,omitempty"`
+	SenderID uint64    `json:"sender_id,omitempty"` // it is overwritten by the server
+	ReadAt   time.Time `json:"read_at"`
 }
 
-func ParseReadMessage(m AnyMessage, action Action) (ReadMessage, error) {
+func ParseReadMessage(m AnyMessage, action Action) (ReadMessages, error) {
 	if action != ActionReadMessage {
-		return ReadMessage{}, errors.New("ParseReadMessage: invalid action")
+		return ReadMessages{}, errors.New("ParseReadMessage: invalid action")
 	}
-	rm := ReadMessage{}
+	rm := ReadMessages{}
 	rm.ActionName = action
 	rm.RoomID = m.UInt64(KeyRoomID)
 	rm.SenderID = m.UInt64(KeySenderID)
 	rm.ReadAt = m.Time("read_at")
-	rm.MessageIDs = m.UInt64s("message_ids")
 	return rm, nil
 }
 

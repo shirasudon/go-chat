@@ -19,9 +19,10 @@ type CommandService interface {
 	// It returns deleted Room's ID and InfraError if any.
 	DeleteRoom(ctx context.Context, m action.DeleteRoom) (roomID uint64, err error)
 
-	// Mark the message is read by the specified user.
-	// It returns InfraError when the message can not be marked to read.
-	ReadRoomMessage(ctx context.Context, m action.ReadMessage) error
+	// Mark that the room messages are read by the specified user.
+	// It returns updated room ID and nil, or
+	// returns InfraError when the message can not be marked to read.
+	ReadRoomMessages(ctx context.Context, m action.ReadMessages) (roomID uint64, err error)
 
 	// Post the message to the specified room.
 	// It returns posted message id and nil or InfraError
@@ -197,33 +198,26 @@ func (s *CommandServiceImpl) PostRoomMessage(ctx context.Context, m action.ChatM
 }
 
 // Mark the message is read by the specified user.
-// It returns error when the message can not be marked to read.
-func (s *CommandServiceImpl) ReadRoomMessage(ctx context.Context, m action.ReadMessage) error {
+// It returns updated room ID or error when the message can not be marked to read.
+func (s *CommandServiceImpl) ReadRoomMessages(ctx context.Context, m action.ReadMessages) (uint64, error) {
 	user, err := s.users.Find(ctx, m.SenderID)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	_ = user
 
-	txErr := s.withEventTransaction(ctx, s.msgs, func(ctx context.Context) ([]event.Event, error) {
-		// TODO implement FindAllByMessageIDs.
-		msg, err := s.msgs.Find(ctx, m.MessageIDs[0])
+	txErr := s.withEventTransaction(ctx, s.rooms, func(ctx context.Context) ([]event.Event, error) {
+		room, err := s.rooms.Find(ctx, m.RoomID)
 		if err != nil {
 			return nil, err
 		}
 
-		// TODO remove
-		// _, err = msg.ReadBy(user)
-		// if err != nil {
-		// 	return nil, err
-		// }
-
-		_, err = s.msgs.Store(ctx, msg)
-		if err != nil {
+		if _, err := room.ReadMessagesBy(&user, m.ReadAt); err != nil {
 			return nil, err
 		}
-
-		return msg.Events(), nil
+		if _, err := s.rooms.Store(ctx, room); err != nil {
+			return nil, err
+		}
+		return room.Events(), nil
 	})
-	return txErr
+	return m.RoomID, txErr
 }

@@ -299,3 +299,77 @@ func TestCommandServicePostRoomMessage(t *testing.T) {
 		t.Errorf("different new message id for post room message, expect: %v, got: %v", NewMsgID, msgID)
 	}
 }
+
+func TestCommandServiceReadRoomMessages(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	var (
+		RoomCreated = time.Now()
+
+		ReadMessages = action.ReadMessages{
+			SenderID: 1,
+			RoomID:   1,
+			ReadAt:   RoomCreated.Add(24 * time.Hour),
+		}
+
+		User = domain.User{ID: ReadMessages.SenderID}
+		Room = domain.Room{ID: ReadMessages.RoomID, OwnerID: User.ID, CreatedAt: RoomCreated,
+			MemberIDSet: domain.NewUserIDSet(User.ID), MemberReadTimes: map[uint64]time.Time{}}
+	)
+
+	users := mocks.NewMockUserRepository(mockCtrl)
+	users.EXPECT().
+		Find(gomock.Any(), ReadMessages.SenderID).
+		Return(User, nil).
+		Times(1)
+
+	rooms := mocks.NewMockRoomRepository(mockCtrl)
+	beginTx := rooms.EXPECT().
+		BeginTx(gomock.Any(), gomock.Nil()).
+		Return(domain.EmptyTxBeginner{}, nil).
+		Times(1)
+
+	roomsFind := rooms.EXPECT().
+		Find(gomock.Any(), ReadMessages.RoomID).
+		Return(Room, nil).
+		Times(1)
+
+	roomsStore := rooms.EXPECT().
+		Store(gomock.Any(), gomock.Any()).
+		Return(ReadMessages.RoomID, nil).
+		Times(1)
+
+	pubsub := mocks.NewMockPubsub(mockCtrl)
+	publishEv := pubsub.EXPECT().
+		Pub(IsEvType(event.RoomMessagesReadByUser{})).
+		Times(1)
+
+	gomock.InOrder(
+		beginTx,
+		roomsFind,
+		roomsStore,
+		publishEv,
+	)
+
+	events := mocks.NewMockEventRepository(mockCtrl)
+	events.EXPECT().
+		Store(gomock.Any(), gomock.Any()).
+		Return([]uint64{1}, nil).
+		Times(1)
+
+	cmdService := NewCommandServiceImpl(domain.SimpleRepositories{
+		UserRepository:  users,
+		RoomRepository:  rooms,
+		EventRepository: events,
+	}, pubsub)
+
+	// do test function.
+	roomID, err := cmdService.ReadRoomMessages(context.Background(), ReadMessages)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if roomID != ReadMessages.RoomID {
+		t.Errorf("different updated room id for read room message, expect: %v, got: %v", ReadMessages.RoomID, roomID)
+	}
+}
