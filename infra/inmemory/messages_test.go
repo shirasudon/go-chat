@@ -17,7 +17,7 @@ var (
 
 func TestMessageRepoUpdatingService(t *testing.T) {
 	// with timeout to quit correctly
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
 
 	// run service for updating query data
