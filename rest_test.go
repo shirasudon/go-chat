@@ -57,6 +57,7 @@ func TestRESTRequireLoggeinUserID(t *testing.T) {
 		{"PostRoomMessage", RESTHandler.PostRoomMessage},
 		{"GetRoomMessages", RESTHandler.GetRoomMessages},
 		{"GetUnreadRoomMessages", RESTHandler.GetUnreadRoomMessages},
+		{"ReadRoomMessages", RESTHandler.ReadRoomMessages},
 	}
 
 	// expect to return LoginError.
@@ -286,6 +287,66 @@ func TestRESTDeleteRoomFail(t *testing.T) {
 			t.Fatal("requesting not found room, but no error")
 		}
 		testAssertHTTPError(t, err, http.StatusInternalServerError, true)
+	}
+}
+
+// TODO rewrite test function with gomock, which other tests depends on command service
+
+func TestRESTReadRoomMessages(t *testing.T) {
+	t.Parallel()
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	{
+		// case 1: success
+		var (
+			ReadMessages = action.ReadMessages{
+				ReadAt: time.Now(),
+			}
+		)
+
+		cmdService := mocks.NewMockCommandService(mockCtrl)
+		cmdService.EXPECT().
+			ReadRoomMessages(gomock.Any(), gomock.Not(action.ReadMessages{ReadAt: time.Time{}})).
+			Return(ReadMessages.RoomID, nil).
+			Times(1)
+
+		req, err := newJSONRequest(echo.POST, "/rooms/:room_id/messages/read", ReadMessages)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rec := httptest.NewRecorder()
+
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, ReadMessages.SenderID)
+		c.SetParamNames("room_id")
+		c.SetParamValues(fmt.Sprint(ReadMessages.RoomID))
+
+		RESTHandler := &RESTHandler{chatCmd: cmdService}
+		err = RESTHandler.ReadRoomMessages(c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if expect, got := http.StatusOK, rec.Code; expect != got {
+			t.Errorf("different http status code, expect: %v, got: %v", expect, got)
+		}
+
+		response := make(map[string]interface{})
+		err = json.Unmarshal(rec.Body.Bytes(), &response)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if roomID := uint64(response["updated_room_id"].(float64)); roomID != ReadMessages.RoomID {
+			t.Errorf("returned room ID is invalid, expect: %v, got: %v", ReadMessages.RoomID, roomID)
+		}
+		if userID := uint64(response["read_user_id"].(float64)); userID != ReadMessages.SenderID {
+			t.Errorf("returned user ID is invalid, expect: %v, got: %v", ReadMessages.SenderID, userID)
+		}
+		if ok, assertionOK := response["ok"].(bool); !assertionOK || !ok {
+			t.Errorf("read room messages succeeded but not ok status")
+		}
 	}
 }
 

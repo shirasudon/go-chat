@@ -17,11 +17,11 @@ var (
 )
 
 type RESTHandler struct {
-	chatCmd   *chat.CommandServiceImpl
+	chatCmd   chat.CommandService
 	chatQuery chat.QueryService
 }
 
-func NewRESTHandler(chatCmd *chat.CommandServiceImpl, chatQuery chat.QueryService) *RESTHandler {
+func NewRESTHandler(chatCmd chat.CommandService, chatQuery chat.QueryService) *RESTHandler {
 	return &RESTHandler{
 		chatCmd:   chatCmd,
 		chatQuery: chatQuery,
@@ -230,4 +230,38 @@ func (rest *RESTHandler) GetUnreadRoomMessages(e echo.Context) error {
 	}
 
 	return e.JSON(http.StatusOK, unreads)
+}
+
+func (rest *RESTHandler) ReadRoomMessages(e echo.Context) error {
+	userID, ok := LoggedInUserID(e)
+	if !ok {
+		return ErrAPIRequireLoginFirst
+	}
+	roomID, err := validateParamRoomID(e)
+	if err != nil {
+		return err
+	}
+
+	readMessages := action.ReadMessages{}
+	if err := e.Bind(&readMessages); err != nil {
+		return err
+	}
+	readMessages.SenderID = userID
+	readMessages.RoomID = roomID
+
+	updatedRoomID, err := rest.chatCmd.ReadRoomMessages(e.Request().Context(), readMessages)
+	if err != nil {
+		return NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	response := struct {
+		RoomID uint64 `json:"updated_room_id"`
+		UserID uint64 `json:"read_user_id"`
+		OK     bool   `json:"ok"`
+	}{
+		RoomID: updatedRoomID,
+		UserID: readMessages.SenderID,
+		OK:     true,
+	}
+	return e.JSON(http.StatusOK, response)
 }

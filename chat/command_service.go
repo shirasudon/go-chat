@@ -8,6 +8,8 @@ import (
 	"github.com/shirasudon/go-chat/domain/event"
 )
 
+//go:generate mockgen -destination=../internal/mocks/mock_command_service.go -package=mocks github.com/shirasudon/go-chat/chat CommandService
+
 // CommandService is the interface for sending the command
 // to the chat application.
 type CommandService interface {
