@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/chat/queried"
@@ -19,9 +20,11 @@ func NewRoomRepository() *RoomRepository {
 }
 
 var (
-	DummyRoom1 = domain.Room{ID: 1, Name: "title1", MemberIDSet: domain.NewUserIDSet()}
-	DummyRoom2 = domain.Room{ID: 2, Name: "title2", MemberIDSet: domain.NewUserIDSet(2, 3)}
-	DummyRoom3 = domain.Room{ID: 3, Name: "title3", MemberIDSet: domain.NewUserIDSet(2)}
+	DummyRoom1 = domain.Room{ID: 1, Name: "title1", MemberIDSet: domain.NewUserIDSet(), MemberReadTimes: map[uint64]time.Time{}}
+	DummyRoom2 = domain.Room{ID: 2, Name: "title2", MemberIDSet: domain.NewUserIDSet(2, 3),
+		MemberReadTimes: map[uint64]time.Time{2: time.Time{}, 3: time.Time{}}}
+	DummyRoom3 = domain.Room{ID: 3, Name: "title3", MemberIDSet: domain.NewUserIDSet(2),
+		MemberReadTimes: map[uint64]time.Time{2: time.Time{}}}
 
 	roomMapMu *sync.RWMutex = new(sync.RWMutex)
 

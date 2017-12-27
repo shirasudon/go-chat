@@ -2,7 +2,9 @@ package domain
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/shirasudon/go-chat/domain/event"
 )
@@ -38,8 +40,13 @@ type Room struct {
 	Name       string
 	IsTalkRoom bool
 
+	CreatedAt time.Time
+
 	OwnerID     uint64
 	MemberIDSet UserIDSet
+
+	// key: userID, value: ReadTime
+	MemberReadTimes map[uint64]time.Time
 }
 
 // create new Room entity into the repository. It retruns room holding RoomCreated event
@@ -54,13 +61,21 @@ func NewRoom(ctx context.Context, roomRepo RoomRepository, name string, user *Us
 		memberIDs.Add(user.ID)
 	}
 
+	now := time.Now()
+	memberReadTimes := make(map[uint64]time.Time, len(memberIDs.idMap))
+	for id, _ := range memberIDs.idMap {
+		memberReadTimes[id] = now
+	}
+
 	r := &Room{
-		EventHolder: NewEventHolder(),
-		ID:          0, // 0 means new entity
-		Name:        name,
-		IsTalkRoom:  false,
-		OwnerID:     user.ID,
-		MemberIDSet: memberIDs,
+		EventHolder:     NewEventHolder(),
+		ID:              0, // 0 means new entity
+		Name:            name,
+		IsTalkRoom:      false,
+		CreatedAt:       now,
+		OwnerID:         user.ID,
+		MemberIDSet:     memberIDs,
+		MemberReadTimes: memberReadTimes,
 	}
 	id, err := roomRepo.Store(ctx, *r)
 	if err != nil {
@@ -141,6 +156,7 @@ func (r *Room) AddMember(user User) (event.RoomAddedMember, error) {
 	}
 
 	r.MemberIDSet.Add(user.ID)
+	r.setMemberReatTime(user.ID, r.CreatedAt)
 
 	ev := event.RoomAddedMember{
 		RoomID:      r.ID,
@@ -155,4 +171,58 @@ func (r *Room) AddMember(user User) (event.RoomAddedMember, error) {
 // in the room, otherwise returns false.
 func (r *Room) HasMember(member User) bool {
 	return r.MemberIDSet.Has(member.ID)
+}
+
+// ReadMessagesBy marks that the room messages before time readAt
+// are read by the specified user.
+//
+// It returns MessageReadByUser event and error if any.
+func (r *Room) ReadMessagesBy(u *User, readAt time.Time) (event.MessageReadByUser, error) {
+	if r.NotExist() {
+		return event.MessageReadByUser{}, errors.New("newly room can not be read messages by user")
+	}
+	if u.NotExist() {
+		return event.MessageReadByUser{}, errors.New("the user not in the datastore, can not read any message")
+	}
+	if !r.HasMember(*u) {
+		return event.MessageReadByUser{}, fmt.Errorf("user (id=%d) is not a member of the room (id=%d)", u.ID, r.ID)
+	}
+
+	// TODO raise error if the messages between prevRead and readAt not exist.
+	// how we check the existance of the messages then?
+	prevRead, ok := r.getMemberReadTime(u.ID)
+	if !ok {
+		// room has a member with u.ID, but ReadTime not set.
+		// reset default here.
+		prevRead = r.CreatedAt
+	}
+	if prevRead.Equal(readAt) || prevRead.After(readAt) {
+		return event.MessageReadByUser{}, fmt.Errorf("message read time (%v) must be after previous read time (%v)", readAt.Format(time.Stamp), prevRead.Format(time.Stamp))
+	}
+	r.setMemberReatTime(u.ID, readAt)
+
+	ev := event.MessageReadByUser{
+		UserID: u.ID,
+		RoomID: r.ID,
+		ReadAt: readAt,
+	}
+	ev.Occurs()
+	r.AddEvent(ev)
+	return ev, nil
+}
+
+// TODO move to type ReadTimeSet?
+func (r *Room) getMemberReadTime(userID uint64) (time.Time, bool) {
+	if r.MemberReadTimes == nil {
+		return time.Time{}, false
+	}
+	t, ok := r.MemberReadTimes[userID]
+	return t, ok
+}
+
+func (r *Room) setMemberReatTime(userID uint64, t time.Time) {
+	if r.MemberReadTimes == nil {
+		r.MemberReadTimes = make(map[uint64]time.Time)
+	}
+	r.MemberReadTimes[userID] = t
 }

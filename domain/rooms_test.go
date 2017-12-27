@@ -47,6 +47,12 @@ func TestRoomCreated(t *testing.T) {
 	if !r.MemberIDSet.Has(owner.ID) {
 		t.Fatalf("created room does not have owner id as room member, expect id: %d", owner.ID)
 	}
+	if r.CreatedAt == (time.Time{}) {
+		t.Errorf("created room does not have created time, got: %v", r.CreatedAt)
+	}
+	if read, ok := r.MemberReadTimes[owner.ID]; !ok || read == (time.Time{}) {
+		t.Errorf("created room missed read time for owner of the Room")
+	}
 
 	// check whether room has one event,
 	events := r.Events()
@@ -148,6 +154,9 @@ func TestRoomAddMember(t *testing.T) {
 	if !r.HasMember(u) {
 		t.Errorf("AddMember does not add any member to the room")
 	}
+	if _, ok := r.MemberReadTimes[u.ID]; !ok {
+		t.Errorf("AddMember missed read time of the added member")
+	}
 
 	// room has two events: Created, AddedMember.
 	if got := len(r.Events()); got != 2 {
@@ -155,5 +164,79 @@ func TestRoomAddMember(t *testing.T) {
 	}
 	if _, ok := r.Events()[1].(event.RoomAddedMember); !ok {
 		t.Errorf("invalid event is added")
+	}
+}
+
+func TestRoomReadMessagesByUser(t *testing.T) {
+	ctx := context.Background()
+	owner := &User{ID: 3}
+	r, _ := NewRoom(ctx, roomRepo, "test", owner, NewUserIDSet())
+	r.ID = 1 // it may not be allowed at application side.
+
+	// case1: success.
+	{
+		now := time.Now()
+		ev, err := r.ReadMessagesBy(owner, now)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := ev.RoomID; got != r.ID {
+			t.Errorf("MessageReadByUser has different room id, expect: %d, got: %d", r.ID, got)
+		}
+		if got := ev.UserID; got != owner.ID {
+			t.Errorf("MessageReadByUser has different user id, expect: %d, got: %d", owner.ID, got)
+		}
+		if got := ev.Timestamp(); got == (time.Time{}) {
+			t.Error("MessageReadByUser has no timestamp")
+		}
+
+		if got := r.MemberReadTimes[owner.ID]; !got.Equal(now) {
+			t.Errorf("ReadMessagesByUser does not set new read time, expect: %v, got: %v", now, got)
+		}
+
+		// room has two events: Created, MessageReadByUser
+		if got := len(r.Events()); got != 2 {
+			t.Errorf("room has no event")
+		}
+		if _, ok := r.Events()[1].(event.MessageReadByUser); !ok {
+			t.Errorf("invalid event is added")
+		}
+	}
+
+	// case2: past read
+	{
+		past := time.Now().Add(-24 * time.Hour)
+		_, err := r.ReadMessagesBy(owner, past)
+		if err == nil {
+			t.Error("passing past time as read time, but no error")
+		}
+	}
+
+	// case3: read by not a room member
+	{
+		const NotExistUserID = uint64(999)
+		_, err := r.ReadMessagesBy(&User{ID: NotExistUserID}, time.Now())
+		if err == nil {
+			t.Error("read by not a room member, but no error")
+		}
+	}
+}
+
+func TestGetSetReadTime(t *testing.T) {
+	r := Room{}
+	_, ok := r.getMemberReadTime(1)
+	if ok {
+		t.Error("no entry but get returned ok")
+	}
+
+	now := time.Now()
+	r.setMemberReatTime(1, now)
+
+	readTime, ok := r.getMemberReadTime(1)
+	if !ok {
+		t.Error("set entry but get returned not-ok")
+	}
+	if !readTime.Equal(now) {
+		t.Error("different time")
 	}
 }
