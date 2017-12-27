@@ -215,3 +215,27 @@ response JSON:
 }
 ```
 
+### ReadRoomMessages -- `POST /chat/rooms/:room_id/messages/read`
+
+It notifies to the server that the messages in the room specified by the `room_id` are
+read by the user.
+
+Request JSON: 
+
+```javascript
+{
+    "read_at": <messages read time> // time format
+}
+```
+
+
+response JSON:
+
+```javascript
+{
+    "updated_room_id": room_id,
+    "read_user_id": user_id,
+    "ok": true or false,
+}
+```
+
