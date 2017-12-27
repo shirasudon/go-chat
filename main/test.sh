@@ -18,11 +18,29 @@ echo "# get room info"
 curl http://localhost:8080/chat/rooms/4 -b $COOKIE
 echo ""
 
-echo "# get room messages"
+echo "# post new message"
+curl http://localhost:8080/chat/rooms/4/messages -b $COOKIE \
+  -XPOST -d '{ "content": "hello! new room!"}' -H "Content-type: application/json"
+echo ""
+
+echo "# get room messages (1)"
 curl http://localhost:8080/chat/rooms/4/messages -b $COOKIE
 echo ""
 
-echo "# get unread room messages"
+echo "# get unread room messages (1)"
+curl http://localhost:8080/chat/rooms/4/messages/unread -b $COOKIE
+echo ""
+
+echo "# read new message"
+curl http://localhost:8080/chat/rooms/4/messages/read -b $COOKIE \
+  -XPOST -d '{}' -H "Content-type: application/json"
+echo ""
+
+echo "# get room messages (2)"
+curl http://localhost:8080/chat/rooms/4/messages -b $COOKIE
+echo ""
+
+echo "# get unread room messages (2)"
 curl http://localhost:8080/chat/rooms/4/messages/unread -b $COOKIE
 echo ""
 

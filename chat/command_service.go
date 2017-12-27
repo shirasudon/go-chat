@@ -2,6 +2,7 @@ package chat
 
 import (
 	"context"
+	"time"
 
 	"github.com/shirasudon/go-chat/chat/action"
 	"github.com/shirasudon/go-chat/domain"
@@ -202,6 +203,11 @@ func (s *CommandServiceImpl) PostRoomMessage(ctx context.Context, m action.ChatM
 // Mark the message is read by the specified user.
 // It returns updated room ID or error when the message can not be marked to read.
 func (s *CommandServiceImpl) ReadRoomMessages(ctx context.Context, m action.ReadMessages) (uint64, error) {
+	// set default value insteadly.
+	if m.ReadAt.Equal(time.Time{}) {
+		m.ReadAt = time.Now()
+	}
+
 	user, err := s.users.Find(ctx, m.SenderID)
 	if err != nil {
 		return 0, err

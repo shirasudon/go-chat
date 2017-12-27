@@ -3,6 +3,7 @@ package chat
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/shirasudon/go-chat/chat/action"
@@ -103,10 +104,8 @@ const (
 // It returns error if infrastructure raise some errors.
 func (s *QueryServiceImpl) FindRoomMessages(ctx context.Context, userID uint64, q action.QueryRoomMessages) (*queried.RoomMessages, error) {
 	// check query paramnter
-	if q.Limit > MaxRoomMessagesLimit {
+	if q.Limit > MaxRoomMessagesLimit || q.Limit <= 0 {
 		q.Limit = MaxRoomMessagesLimit
-	} else if q.Limit < 0 {
-		q.Limit = 0
 	}
 
 	if q.Before == (time.Time{}) {
@@ -130,6 +129,8 @@ func (s *QueryServiceImpl) FindRoomMessages(ctx context.Context, userID uint64, 
 	msgs, err := s.msgs.FindRoomMessagesOrderByLatest(ctx, q.RoomID, q.Before, q.Limit)
 	if err != nil {
 		if IsNotFoundError(err) {
+			// TODO use logger
+			log.Println("FindRoomMessages(): error:", err)
 			res := queried.EmptyRoomMessages
 			res.RoomID = q.RoomID
 			return &res, nil
@@ -167,6 +168,10 @@ func (s *QueryServiceImpl) FindRoomMessages(ctx context.Context, userID uint64, 
 // Find unread messages from specified room.
 // It returns error if infrastructure raise some errors.
 func (s *QueryServiceImpl) FindUnreadRoomMessages(ctx context.Context, userID uint64, q action.QueryUnreadRoomMessages) (*queried.UnreadRoomMessages, error) {
+	// check query paramnter
+	if q.Limit > MaxRoomMessagesLimit || q.Limit <= 0 {
+		q.Limit = MaxRoomMessagesLimit
+	}
 	// check existance of user and room.
 	if _, err := s.users.Find(context.Background(), userID); err != nil {
 		return nil, err
@@ -177,6 +182,8 @@ func (s *QueryServiceImpl) FindUnreadRoomMessages(ctx context.Context, userID ui
 
 	msgs, err := s.msgs.FindUnreadRoomMessages(ctx, userID, q.RoomID, q.Limit)
 	if err != nil && IsNotFoundError(err) {
+		// TODO use logger
+		log.Println("FindUnreadRoomMessages(): error:", err)
 		// return empty result because room exists but message is not yet.
 		res := queried.EmptyUnreadRoomMessages
 		res.RoomID = q.RoomID
