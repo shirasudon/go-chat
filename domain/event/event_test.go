@@ -17,9 +17,9 @@ func TestEventEmbd(t *testing.T) {
 		{"RoomCreated", RoomCreated{}, TypeRoomCreated, RoomStream},
 		{"RoomDeleted", RoomDeleted{}, TypeRoomDeleted, RoomStream},
 		{"RoomAddedMember", RoomAddedMember{}, TypeRoomAddedMember, RoomStream},
+		{"RoomMessagesReadByUser", RoomMessagesReadByUser{}, TypeRoomMessagesReadByUser, RoomStream},
 		{"MessageEventEmbd", MessageEventEmbd{}, TypeNone, MessageStream},
 		{"MessageCreated", MessageCreated{}, TypeMessageCreated, MessageStream},
-		{"MessageReadByUser", MessageReadByUser{}, TypeMessageReadByUser, MessageStream},
 		{"ActiveClientActivated", ActiveClientActivated{}, TypeActiveClientActivated, NoneStream},
 		{"ActiveClientInactivated", ActiveClientInactivated{}, TypeActiveClientInactivated, NoneStream},
 	} {

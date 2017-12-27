@@ -193,7 +193,7 @@ func TestMessageRepoFindUnreadRoomMessages(t *testing.T) {
 	// after read by user, unreadMsgs is empty.
 	createdMsg, _ := messageRepository.Find(ctx, id)
 	t.Log(id)
-	messageRepository.updateByEvent(event.MessageReadByUser{
+	messageRepository.updateByEvent(event.RoomMessagesReadByUser{
 		UserID: TargetUserID, RoomID: TargetRoomID, ReadAt: createdMsg.CreatedAt,
 	})
 

@@ -69,7 +69,7 @@ func (repo *MessageRepository) UpdatingService(ctx context.Context) {
 	evCh := repo.pubsub.Sub(
 		event.TypeRoomCreated,
 		event.TypeRoomAddedMember,
-		event.TypeMessageReadByUser,
+		event.TypeRoomMessagesReadByUser,
 	)
 	for {
 		select {
@@ -107,7 +107,7 @@ func (repo *MessageRepository) updateByEvent(ev event.Event) {
 		defer messageMapMu.Unlock()
 		userAndRoomIDToReadTime[userAndRoomID{ev.AddedUserID, ev.RoomID}] = time.Time{}
 
-	case event.MessageReadByUser:
+	case event.RoomMessagesReadByUser:
 		messageMapMu.Lock()
 		defer messageMapMu.Unlock()
 		userAndRoomIDToReadTime[userAndRoomID{ev.UserID, ev.RoomID}] = ev.ReadAt

@@ -46,8 +46,8 @@ const (
 	TypeRoomPostedMessage
 	TypeRoomUpdatedMessage
 	TypeRoomDeletedMessage
+	TypeRoomMessagesReadByUser
 	TypeMessageCreated
-	TypeMessageReadByUser
 	TypeActiveClientActivated
 	TypeActiveClientInactivated
 )

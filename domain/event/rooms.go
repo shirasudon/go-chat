@@ -1,5 +1,7 @@
 package event
 
+import "time"
+
 // -----------------------
 // Room events
 // -----------------------
@@ -43,3 +45,13 @@ type RoomAddedMember struct {
 }
 
 func (RoomAddedMember) Type() Type { return TypeRoomAddedMember }
+
+// Event for the room messages are read by the user.
+type RoomMessagesReadByUser struct {
+	RoomEventEmbd
+	RoomID uint64    `json:"room_id"`
+	UserID uint64    `json:"user_id"`
+	ReadAt time.Time `json:"read_at"`
+}
+
+func (RoomMessagesReadByUser) Type() Type { return TypeRoomMessagesReadByUser }

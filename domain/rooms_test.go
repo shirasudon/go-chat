@@ -198,7 +198,7 @@ func TestRoomReadMessagesByUser(t *testing.T) {
 		if got := len(r.Events()); got != 2 {
 			t.Errorf("room has no event")
 		}
-		if _, ok := r.Events()[1].(event.MessageReadByUser); !ok {
+		if _, ok := r.Events()[1].(event.RoomMessagesReadByUser); !ok {
 			t.Errorf("invalid event is added")
 		}
 	}

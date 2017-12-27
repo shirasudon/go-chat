@@ -177,15 +177,15 @@ func (r *Room) HasMember(member User) bool {
 // are read by the specified user.
 //
 // It returns MessageReadByUser event and error if any.
-func (r *Room) ReadMessagesBy(u *User, readAt time.Time) (event.MessageReadByUser, error) {
+func (r *Room) ReadMessagesBy(u *User, readAt time.Time) (event.RoomMessagesReadByUser, error) {
 	if r.NotExist() {
-		return event.MessageReadByUser{}, errors.New("newly room can not be read messages by user")
+		return event.RoomMessagesReadByUser{}, errors.New("newly room can not be read messages by user")
 	}
 	if u.NotExist() {
-		return event.MessageReadByUser{}, errors.New("the user not in the datastore, can not read any message")
+		return event.RoomMessagesReadByUser{}, errors.New("the user not in the datastore, can not read any message")
 	}
 	if !r.HasMember(*u) {
-		return event.MessageReadByUser{}, fmt.Errorf("user (id=%d) is not a member of the room (id=%d)", u.ID, r.ID)
+		return event.RoomMessagesReadByUser{}, fmt.Errorf("user (id=%d) is not a member of the room (id=%d)", u.ID, r.ID)
 	}
 
 	// TODO raise error if the messages between prevRead and readAt not exist.
@@ -197,11 +197,11 @@ func (r *Room) ReadMessagesBy(u *User, readAt time.Time) (event.MessageReadByUse
 		prevRead = r.CreatedAt
 	}
 	if prevRead.Equal(readAt) || prevRead.After(readAt) {
-		return event.MessageReadByUser{}, fmt.Errorf("message read time (%v) must be after previous read time (%v)", readAt.Format(time.Stamp), prevRead.Format(time.Stamp))
+		return event.RoomMessagesReadByUser{}, fmt.Errorf("message read time (%v) must be after previous read time (%v)", readAt.Format(time.Stamp), prevRead.Format(time.Stamp))
 	}
 	r.setMemberReatTime(u.ID, readAt)
 
-	ev := event.MessageReadByUser{
+	ev := event.RoomMessagesReadByUser{
 		UserID: u.ID,
 		RoomID: r.ID,
 		ReadAt: readAt,

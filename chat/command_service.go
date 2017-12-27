@@ -203,6 +203,7 @@ func (s *CommandServiceImpl) ReadRoomMessage(ctx context.Context, m action.ReadM
 	if err != nil {
 		return err
 	}
+	_ = user
 
 	txErr := s.withEventTransaction(ctx, s.msgs, func(ctx context.Context) ([]event.Event, error) {
 		// TODO implement FindAllByMessageIDs.
@@ -211,10 +212,11 @@ func (s *CommandServiceImpl) ReadRoomMessage(ctx context.Context, m action.ReadM
 			return nil, err
 		}
 
-		_, err = msg.ReadBy(user)
-		if err != nil {
-			return nil, err
-		}
+		// TODO remove
+		// _, err = msg.ReadBy(user)
+		// if err != nil {
+		// 	return nil, err
+		// }
 
 		_, err = s.msgs.Store(ctx, msg)
 		if err != nil {
