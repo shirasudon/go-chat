@@ -42,10 +42,7 @@ const (
 	TypeRoomCreated
 	TypeRoomDeleted
 	TypeRoomAddedMember
-	TypeRoomRemoveMember
-	TypeRoomPostedMessage
-	TypeRoomUpdatedMessage
-	TypeRoomDeletedMessage
+	TypeRoomRemoveMember // TODO
 	TypeRoomMessagesReadByUser
 	TypeMessageCreated
 	TypeActiveClientActivated

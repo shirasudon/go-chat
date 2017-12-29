@@ -18,6 +18,111 @@ func TestHubImplement(t *testing.T) {
 	_ = h
 }
 
+// SendRecorder records that the event is sent by
+// using Send() method.
+// It implements Conn interface.
+type SendRecorder struct {
+	IsSent bool
+	userID uint64
+}
+
+func (s *SendRecorder) UserID() uint64      { return s.userID }
+func (s *SendRecorder) Send(ev event.Event) { s.IsSent = true }
+
+func TestHubSendEvent(t *testing.T) {
+	t.Parallel()
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	var (
+		RoomID        = uint64(1)
+		UserID        = uint64(1)
+		RoomMemberIDs = []uint64{1, 2, 3}
+		UserFriendIDs = []uint64{4, 5, 6}
+	)
+
+	// Firstly build Hub
+
+	// declare mocks which returns always same object
+	// except that ID is same as the argument.
+	rooms := mocks.NewMockRoomRepository(mockCtrl)
+	rooms.EXPECT().Find(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, roomID uint64) (domain.Room, error) {
+			return domain.Room{ID: roomID, MemberIDSet: domain.NewUserIDSet(RoomMemberIDs...)}, nil
+		}).AnyTimes()
+
+	users := mocks.NewMockUserRepository(mockCtrl)
+	users.EXPECT().Find(gomock.Any(), gomock.Any()).
+		DoAndReturn(func(ctx context.Context, userID uint64) (domain.User, error) {
+			return domain.User{ID: userID, FriendIDs: domain.NewUserIDSet(UserFriendIDs...)}, nil
+		}).AnyTimes()
+
+	repos := domain.SimpleRepositories{
+		RoomRepository: rooms,
+		UserRepository: users,
+	}
+	pubsub := mocks.NewMockPubsub(mockCtrl)
+	pubsub.EXPECT().Pub(gomock.Any()).AnyTimes()
+	commandService := NewCommandServiceImpl(repos, pubsub)
+
+	hub := NewHubImpl(commandService)
+
+	for _, testcase := range []struct {
+		Event       event.Event
+		SendUserIDs []uint64
+	}{
+		{
+			Event:       event.MessageCreated{RoomID: RoomID},
+			SendUserIDs: RoomMemberIDs,
+		},
+		{
+			Event:       event.RoomCreated{RoomID: RoomID},
+			SendUserIDs: RoomMemberIDs,
+		},
+		{
+			Event:       event.RoomDeleted{RoomID: RoomID},
+			SendUserIDs: RoomMemberIDs,
+		},
+		{
+			Event:       event.RoomMessagesReadByUser{RoomID: RoomID},
+			SendUserIDs: RoomMemberIDs,
+		},
+		{
+			Event:       event.ActiveClientActivated{UserID: UserID},
+			SendUserIDs: append([]uint64{1}, UserFriendIDs...), // contains UserID itself
+		},
+		{
+			Event:       event.ActiveClientInactivated{UserID: UserID},
+			SendUserIDs: UserFriendIDs,
+		},
+	} {
+		// register user connections to Hub.
+		conns := make([]*SendRecorder, 0, len(testcase.SendUserIDs))
+		for _, id := range testcase.SendUserIDs {
+			conn := &SendRecorder{userID: id}
+			if err := hub.Connect(context.Background(), conn); err != nil {
+				t.Fatalf("can not connect user id=%d, err=%v", id, err)
+			}
+			conns = append(conns, conn)
+		}
+
+		// send event to hub and underlying user connections..
+		if err := hub.sendEvent(context.Background(), testcase.Event); err != nil {
+			t.Fatalf("sending event %#v, got error: %v", testcase.Event, err)
+		}
+
+		// check every connection is sent event.
+		for _, c := range conns {
+			if !c.IsSent {
+				t.Errorf("send %T, but user (id=%d) does not received", testcase.Event, c.UserID())
+			}
+			// unregister user connection which is no longer used here.
+			hub.Disconnect(c)
+		}
+	}
+}
+
 func TestHubEventSendingServiceAtMessageCreated(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()

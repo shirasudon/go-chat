@@ -126,9 +126,10 @@ func (hub *HubImpl) eventSendingService(ctx context.Context) {
 		event.TypeMessageCreated,
 		event.TypeActiveClientActivated,
 		event.TypeActiveClientInactivated,
+		event.TypeRoomCreated,
+		event.TypeRoomDeleted,
+		event.TypeRoomMessagesReadByUser,
 	)
-
-	chatCommand := hub.chatCommand
 
 	for {
 		select {
@@ -140,59 +141,69 @@ func (hub *HubImpl) eventSendingService(ctx context.Context) {
 			if !chAlived {
 				return
 			}
-
-			switch ev := ev.(type) {
-			case event.MessageCreated:
-				// send activate event for all friends.
-				room, err := chatCommand.rooms.Find(ctx, ev.RoomID)
+			if ev, ok := ev.(event.Event); ok {
+				err := hub.sendEvent(ctx, ev)
 				if err != nil {
 					// TODO error handling
 					log.Println(err)
-					continue
-				}
-
-				err = hub.broadcastEvent(ev, room.MemberIDSet.List()...)
-				if err != nil {
-					// TODO error handling
-					log.Println(err)
-					continue
-				}
-
-			case event.ActiveClientActivated:
-				// send activate event for all friends.
-				user, err := chatCommand.users.Find(ctx, ev.UserID)
-				if err != nil {
-					// TODO error handling
-					log.Println(err)
-					continue
-				}
-
-				targetIDs := append(user.FriendIDs.List(), user.ID) // contains user-self.
-				err = hub.broadcastEvent(ev, targetIDs...)
-				if err != nil {
-					// TODO error handling
-					log.Println(err)
-					continue
-				}
-
-			case event.ActiveClientInactivated:
-				// send inactivate event for all friends.
-				user, err := chatCommand.users.Find(ctx, ev.UserID)
-				if err != nil {
-					// TODO error handling
-					log.Println(err)
-					continue
-				}
-
-				err = hub.broadcastEvent(ev, user.FriendIDs.List()...)
-				if err != nil {
-					// TODO error handling
-					log.Println(err)
-					continue
 				}
 			}
 		}
 	} // ... for
+}
+
+func (hub *HubImpl) sendEvent(ctx context.Context, ev event.Event) error {
+	var (
+		chatCommand = hub.chatCommand
+		targetIDs   = []uint64{}
+	)
+
+	// TODO: integrates these into interfaces, RoomMemberSender and UserFriendSender?
+	switch ev := ev.(type) {
+	case event.MessageCreated:
+		room, err := chatCommand.rooms.Find(ctx, ev.RoomID)
+		if err != nil {
+			return err
+		}
+		targetIDs = room.MemberIDSet.List()
+
+	case event.RoomCreated:
+		room, err := chatCommand.rooms.Find(ctx, ev.RoomID)
+		if err != nil {
+			return err
+		}
+		targetIDs = room.MemberIDSet.List()
+
+	case event.RoomDeleted:
+		room, err := chatCommand.rooms.Find(ctx, ev.RoomID)
+		if err != nil {
+			return err
+		}
+		targetIDs = room.MemberIDSet.List()
+
+	case event.RoomMessagesReadByUser:
+		room, err := chatCommand.rooms.Find(ctx, ev.RoomID)
+		if err != nil {
+			return err
+		}
+		targetIDs = room.MemberIDSet.List()
+
+	case event.ActiveClientActivated:
+		user, err := chatCommand.users.Find(ctx, ev.UserID)
+		if err != nil {
+			return err
+		}
+		targetIDs = append(user.FriendIDs.List(), user.ID) // contains user-self.
+
+	case event.ActiveClientInactivated:
+		user, err := chatCommand.users.Find(ctx, ev.UserID)
+		if err != nil {
+			return err
+		}
+		targetIDs = user.FriendIDs.List()
+	}
+
+	return hub.broadcastEvent(ev, targetIDs...)
 }
 
 func (hub *HubImpl) handleMessage(ctx context.Context, req actionMessageRequest) error {
