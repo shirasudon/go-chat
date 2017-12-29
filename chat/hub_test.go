@@ -123,6 +123,101 @@ func TestHubSendEvent(t *testing.T) {
 	}
 }
 
+func TestHubSendEventFail(t *testing.T) {
+	t.Parallel()
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	var (
+		notFoundError = NewNotFoundError("not found")
+		RoomID        = uint64(1)
+		UserID        = uint64(1)
+		RoomMemberIDs = []uint64{1, 2, 3}
+		UserFriendIDs = []uint64{4, 5, 6}
+	)
+
+	// Firstly build Hub
+
+	// declare mocks which returns always error.
+	rooms := mocks.NewMockRoomRepository(mockCtrl)
+	rooms.EXPECT().Find(gomock.Any(), gomock.Any()).Return(domain.Room{}, notFoundError).AnyTimes()
+
+	users := mocks.NewMockUserRepository(mockCtrl)
+	users.EXPECT().Find(gomock.Any(), gomock.Any()).Return(domain.User{}, notFoundError).AnyTimes()
+
+	repos := domain.SimpleRepositories{
+		RoomRepository: rooms,
+		UserRepository: users,
+	}
+	// only inactivate event is allowed.
+	pubsub := mocks.NewMockPubsub(mockCtrl)
+	pubsub.EXPECT().Pub(IsEvType(event.ActiveClientInactivated{})).AnyTimes()
+	commandService := NewCommandServiceImpl(repos, pubsub)
+
+	hub := NewHubImpl(commandService)
+
+	for _, testcase := range []struct {
+		Event       event.Event
+		SendUserIDs []uint64
+	}{
+		{
+			Event:       event.MessageCreated{RoomID: RoomID},
+			SendUserIDs: RoomMemberIDs,
+		},
+		{
+			Event:       event.RoomCreated{RoomID: RoomID},
+			SendUserIDs: RoomMemberIDs,
+		},
+		{
+			Event:       event.RoomDeleted{RoomID: RoomID},
+			SendUserIDs: RoomMemberIDs,
+		},
+		{
+			Event:       event.RoomMessagesReadByUser{RoomID: RoomID},
+			SendUserIDs: RoomMemberIDs,
+		},
+		{
+			Event:       event.ActiveClientActivated{UserID: UserID},
+			SendUserIDs: append([]uint64{1}, UserFriendIDs...), // contains UserID itself
+		},
+		{
+			Event:       event.ActiveClientInactivated{UserID: UserID},
+			SendUserIDs: UserFriendIDs,
+		},
+	} {
+		// register user connections to Hub.
+		conns := make([]*SendRecorder, 0, len(testcase.SendUserIDs))
+		for _, id := range testcase.SendUserIDs {
+			conn := &SendRecorder{userID: id}
+			// Connect() can not be used due to mock always returns error,
+			// instead of that, use Store() directly.
+			ac, _, err := domain.NewActiveClient(hub.activeClients, conn, domain.User{ID: conn.UserID()})
+			if err != nil {
+				t.Fatalf("can not create activeClient with user id %d", conn.UserID())
+			}
+			if err := hub.activeClients.Store(ac); err != nil {
+				t.Fatalf("can not connect user id=%d, err=%v", conn.UserID(), err)
+			}
+			conns = append(conns, conn)
+		}
+
+		// send event to hub and underlying user connections..
+		if err := hub.sendEvent(context.Background(), testcase.Event); err == nil || err != notFoundError {
+			t.Fatalf("sending event %#v, got no error or invalid error type, expect %T, got: %#v", testcase.Event, notFoundError, err)
+		}
+
+		// check every connection is sent event.
+		for _, c := range conns {
+			if c.IsSent {
+				t.Errorf("sending %T ends error, but user (id=%d) received event", testcase.Event, c.UserID())
+			}
+			// unregister user connection which is no longer used here.
+			hub.Disconnect(c)
+		}
+	}
+}
+
 func TestHubEventSendingServiceAtMessageCreated(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
