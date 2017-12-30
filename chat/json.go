@@ -10,6 +10,9 @@ const (
 	EventNameMessageCreated          = "message_created"
 	EventNameActiveClientActivated   = "client_activated"
 	EventNameActiveClientInactivated = "client_inactivated"
+	EventNameRoomCreated             = "room_crated"
+	EventNameRoomDeleted             = "room_deleted"
+	EventNameRoomMessagesReadByUser  = "room_messages_read_by_user"
 	EventNameUnknown                 = "unknown"
 )
 
@@ -17,6 +20,9 @@ var eventEncodeNames = map[event.Type]string{
 	event.TypeMessageCreated:          EventNameMessageCreated,
 	event.TypeActiveClientActivated:   EventNameActiveClientActivated,
 	event.TypeActiveClientInactivated: EventNameActiveClientInactivated,
+	event.TypeRoomCreated:             EventNameRoomCreated,
+	event.TypeRoomDeleted:             EventNameRoomDeleted,
+	event.TypeRoomMessagesReadByUser:  EventNameRoomMessagesReadByUser,
 }
 
 // EventJSON is a data-transfer-object

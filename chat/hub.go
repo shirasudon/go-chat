@@ -121,15 +121,19 @@ func (hub *HubImpl) broadcastEvent(ev event.Event, targetIDs ...uint64) error {
 	return nil
 }
 
+// HubHandlingEventTypes a list of event types to be handled
+// by the Hub interface.
+var HubHandlingEventTypes = []event.Type{
+	event.TypeMessageCreated,
+	event.TypeActiveClientActivated,
+	event.TypeActiveClientInactivated,
+	event.TypeRoomCreated,
+	event.TypeRoomDeleted,
+	event.TypeRoomMessagesReadByUser,
+}
+
 func (hub *HubImpl) eventSendingService(ctx context.Context) {
-	events := hub.pubsub.Sub(
-		event.TypeMessageCreated,
-		event.TypeActiveClientActivated,
-		event.TypeActiveClientInactivated,
-		event.TypeRoomCreated,
-		event.TypeRoomDeleted,
-		event.TypeRoomMessagesReadByUser,
-	)
+	events := hub.pubsub.Sub(HubHandlingEventTypes...)
 
 	for {
 		select {
