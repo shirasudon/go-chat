@@ -8,6 +8,7 @@ import (
 	context "context"
 	gomock "github.com/golang/mock/gomock"
 	action "github.com/shirasudon/go-chat/chat/action"
+	result "github.com/shirasudon/go-chat/chat/result"
 	reflect "reflect"
 )
 
@@ -32,6 +33,19 @@ func NewMockCommandService(ctrl *gomock.Controller) *MockCommandService {
 // EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockCommandService) EXPECT() *MockCommandServiceMockRecorder {
 	return m.recorder
+}
+
+// AddRoomMember mocks base method
+func (m *MockCommandService) AddRoomMember(arg0 context.Context, arg1 action.AddRoomMember) (*result.AddRoomMember, error) {
+	ret := m.ctrl.Call(m, "AddRoomMember", arg0, arg1)
+	ret0, _ := ret[0].(*result.AddRoomMember)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddRoomMember indicates an expected call of AddRoomMember
+func (mr *MockCommandServiceMockRecorder) AddRoomMember(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddRoomMember", reflect.TypeOf((*MockCommandService)(nil).AddRoomMember), arg0, arg1)
 }
 
 // CreateRoom mocks base method

@@ -230,7 +230,7 @@ func TestGetSetReadTime(t *testing.T) {
 	}
 
 	now := time.Now()
-	r.setMemberReatTime(1, now)
+	r.setMemberReadTime(1, now)
 
 	readTime, ok := r.getMemberReadTime(1)
 	if !ok {

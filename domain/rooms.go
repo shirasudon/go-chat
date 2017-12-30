@@ -156,7 +156,7 @@ func (r *Room) AddMember(user User) (event.RoomAddedMember, error) {
 	}
 
 	r.MemberIDSet.Add(user.ID)
-	r.setMemberReatTime(user.ID, r.CreatedAt)
+	r.setMemberReadTime(user.ID, r.CreatedAt)
 
 	ev := event.RoomAddedMember{
 		RoomID:      r.ID,
@@ -199,7 +199,7 @@ func (r *Room) ReadMessagesBy(u *User, readAt time.Time) (event.RoomMessagesRead
 	if prevRead.Equal(readAt) || prevRead.After(readAt) {
 		return event.RoomMessagesReadByUser{}, fmt.Errorf("message read time (%v) must be after previous read time (%v)", readAt.Format(time.Stamp), prevRead.Format(time.Stamp))
 	}
-	r.setMemberReatTime(u.ID, readAt)
+	r.setMemberReadTime(u.ID, readAt)
 
 	ev := event.RoomMessagesReadByUser{
 		UserID: u.ID,
@@ -220,7 +220,7 @@ func (r *Room) getMemberReadTime(userID uint64) (time.Time, bool) {
 	return t, ok
 }
 
-func (r *Room) setMemberReatTime(userID uint64, t time.Time) {
+func (r *Room) setMemberReadTime(userID uint64, t time.Time) {
 	if r.MemberReadTimes == nil {
 		r.MemberReadTimes = make(map[uint64]time.Time)
 	}

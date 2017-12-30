@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/shirasudon/go-chat/chat/action"
+	"github.com/shirasudon/go-chat/chat/result"
 	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/domain/event"
 )
@@ -21,6 +22,10 @@ type CommandService interface {
 	// It deletes room specified by given actiom message.
 	// It returns deleted Room's ID and InfraError if any.
 	DeleteRoom(ctx context.Context, m action.DeleteRoom) (roomID uint64, err error)
+
+	// AddRoomMember adds the new room member to the specified room.
+	// It returns affected room result and InfraError if any.
+	AddRoomMember(ctx context.Context, m action.AddRoomMember) (*result.AddRoomMember, error)
 
 	// Mark that the room messages are read by the specified user.
 	// It returns updated room ID and nil, or
@@ -172,6 +177,41 @@ func (s *CommandServiceImpl) DeleteRoom(ctx context.Context, m action.DeleteRoom
 		return room.Events(), nil
 	})
 	return roomID, err
+}
+
+// implements AddRoomMember for CommandService interface.
+func (s *CommandServiceImpl) AddRoomMember(ctx context.Context, m action.AddRoomMember) (*result.AddRoomMember, error) {
+	var err = s.withEventTransaction(ctx, s.rooms, func(ctx context.Context) ([]event.Event, error) {
+		room, err := s.rooms.Find(ctx, m.RoomID)
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO use FindAll?
+		// use commander to verify the AddRoomMember is performed by owner of the room
+		commander, err := s.users.Find(ctx, m.SenderID)
+		if err != nil {
+			return nil, err
+		}
+		_ = commander
+		addUser, err := s.users.Find(ctx, m.AddUserID)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, err := room.AddMember(addUser); err != nil {
+			return nil, err
+		}
+		if _, err := s.rooms.Store(ctx, room); err != nil {
+			return nil, err
+		}
+		return room.Events(), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return &result.AddRoomMember{RoomID: m.RoomID, UserID: m.AddUserID}, nil
 }
 
 // Post the message to the specified room.
