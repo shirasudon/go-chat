@@ -167,6 +167,75 @@ func TestRoomAddMember(t *testing.T) {
 	}
 }
 
+func TestRoomRemoveMember(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	owner := &User{ID: 3}
+	r, _ := NewRoom(ctx, roomRepo, "test", owner, NewUserIDSet())
+	r.ID = 1 // it may not be allowed at application side.
+	u := User{ID: 1}
+	_, err := r.AddMember(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// do test function
+	ev, err := r.RemoveMember(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := ev.RoomID; got != r.ID {
+		t.Errorf("RoomRemovedMember has different room id, expect: %d, got: %d", r.ID, got)
+	}
+	if got := ev.RemovedUserID; got != u.ID {
+		t.Errorf("RoomRemovedMember has different removed user id, expect: %d, got: %d", u.ID, got)
+	}
+	if got := ev.Timestamp(); got == (time.Time{}) {
+		t.Error("RoomRemovedMember has no timestamp")
+	}
+
+	if r.HasMember(u) {
+		t.Errorf("RemoveMember does not remove a member from the room")
+	}
+	if _, ok := r.MemberReadTimes[u.ID]; ok {
+		t.Errorf("RemoveMember missed removing read time of the removed member")
+	}
+
+	// room has three events: Created, AddedMember, RemovedMember
+	if got := len(r.Events()); got != 3 {
+		t.Errorf("room has different events")
+	}
+	gotEv, ok := r.Events()[2].(event.RoomRemovedMember)
+	if !ok {
+		t.Fatalf("invalid event is added, expect: %T, got: %T", event.RoomRemovedMember{}, gotEv)
+	}
+	if ev != gotEv {
+		t.Errorf("different event fields on RoomRemovedMember")
+	}
+}
+
+func TestRoomRemoveMemberFail(t *testing.T) {
+	t.Parallel()
+
+	{ // case1: removed member is not found.
+		ctx := context.Background()
+		owner := &User{ID: 3}
+		r, _ := NewRoom(ctx, roomRepo, "test", owner, NewUserIDSet())
+		r.ID = 1 // it may not be allowed at application side.
+		u := User{ID: 1}
+		_, err := r.RemoveMember(u)
+		if err == nil {
+			t.Error("removed not found user, but no error")
+		}
+		// currently events: created only
+		if got := len(r.Events()); got != 1 {
+			t.Error("RemoveMember failed, but event is added to the room")
+		}
+	}
+}
+
 func TestRoomReadMessagesByUser(t *testing.T) {
 	ctx := context.Background()
 	owner := &User{ID: 3}
