@@ -402,7 +402,7 @@ func TestCommandServiceReadRoomMessages(t *testing.T) {
 
 			User = domain.User{ID: ReadMessages.SenderID}
 			Room = domain.Room{ID: ReadMessages.RoomID, OwnerID: User.ID, CreatedAt: RoomCreated,
-				MemberIDSet: domain.NewUserIDSet(User.ID), MemberReadTimes: map[uint64]time.Time{}}
+				MemberIDSet: domain.NewUserIDSet(User.ID), MemberReadTimes: domain.NewTimeSet(User.ID)}
 		)
 
 		users := mocks.NewMockUserRepository(mockCtrl)
@@ -473,7 +473,7 @@ func TestCommandServiceReadRoomMessages(t *testing.T) {
 
 			User = domain.User{ID: ReadMessages.SenderID}
 			Room = domain.Room{ID: ReadMessages.RoomID, OwnerID: User.ID, CreatedAt: RoomCreated,
-				MemberIDSet: domain.NewUserIDSet(User.ID), MemberReadTimes: map[uint64]time.Time{}}
+				MemberIDSet: domain.NewUserIDSet(User.ID), MemberReadTimes: domain.NewTimeSet(User.ID)}
 		)
 
 		users := mocks.NewMockUserRepository(mockCtrl)
@@ -505,7 +505,7 @@ func TestCommandServiceReadRoomMessages(t *testing.T) {
 		if roomID != ReadMessages.RoomID {
 			t.Errorf("different updated room id for read room message, expect: %v, got: %v", ReadMessages.RoomID, roomID)
 		}
-		if Room.MemberReadTimes[User.ID] == (time.Time{}) {
+		if got, ok := Room.MemberReadTimes.Get(User.ID); !ok || got == (time.Time{}) {
 			t.Errorf("after read by user, the read time in the room is not changed")
 		}
 	}
