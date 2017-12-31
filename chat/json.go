@@ -10,7 +10,7 @@ const (
 	EventNameMessageCreated          = "message_created"
 	EventNameActiveClientActivated   = "client_activated"
 	EventNameActiveClientInactivated = "client_inactivated"
-	EventNameRoomCreated             = "room_crated"
+	EventNameRoomCreated             = "room_created"
 	EventNameRoomDeleted             = "room_deleted"
 	EventNameRoomMessagesReadByUser  = "room_messages_read_by_user"
 	EventNameUnknown                 = "unknown"
