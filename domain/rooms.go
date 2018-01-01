@@ -46,7 +46,47 @@ type Room struct {
 	MemberIDSet UserIDSet
 
 	// key: userID, value: ReadTime
-	MemberReadTimes map[uint64]time.Time
+	MemberReadTimes TimeSet
+}
+
+// TimeSet is a set for the time.Time.
+// empty value is valid for use.
+type TimeSet struct {
+	set map[uint64]time.Time
+}
+
+func NewTimeSet(ids ...uint64) TimeSet {
+	set := make(map[uint64]time.Time, len(ids))
+	for _, id := range ids {
+		set[id] = time.Time{}
+	}
+	return TimeSet{
+		set: set,
+	}
+}
+
+func (set *TimeSet) getMap() map[uint64]time.Time {
+	if set.set == nil {
+		set.set = make(map[uint64]time.Time, 8) // TODO arbitrary value 8
+	}
+	return set.set
+}
+
+// Get returns time.Time corresponding to the id and true.
+// If id not found It's second returned value is false.
+func (set *TimeSet) Get(id uint64) (time.Time, bool) {
+	t, ok := set.getMap()[id]
+	return t, ok
+}
+
+// Set sets time.Time with corresponding id to the internal map.
+func (set *TimeSet) Set(id uint64, t time.Time) {
+	set.getMap()[id] = t
+}
+
+// Delete deletes id from the internal map.
+func (set *TimeSet) Delete(id uint64) {
+	delete(set.getMap(), id)
 }
 
 // create new Room entity into the repository. It retruns room holding RoomCreated event
@@ -62,9 +102,9 @@ func NewRoom(ctx context.Context, roomRepo RoomRepository, name string, user *Us
 	}
 
 	now := time.Now()
-	memberReadTimes := make(map[uint64]time.Time, len(memberIDs.idMap))
+	timeSet := NewTimeSet()
 	for id, _ := range memberIDs.idMap {
-		memberReadTimes[id] = now
+		timeSet.Set(id, now)
 	}
 
 	r := &Room{
@@ -75,7 +115,7 @@ func NewRoom(ctx context.Context, roomRepo RoomRepository, name string, user *Us
 		CreatedAt:       now,
 		OwnerID:         user.ID,
 		MemberIDSet:     memberIDs,
-		MemberReadTimes: memberReadTimes,
+		MemberReadTimes: timeSet,
 	}
 	id, err := roomRepo.Store(ctx, *r)
 	if err != nil {
@@ -156,7 +196,7 @@ func (r *Room) AddMember(user User) (event.RoomAddedMember, error) {
 	}
 
 	r.MemberIDSet.Add(user.ID)
-	r.setMemberReatTime(user.ID, r.CreatedAt)
+	r.MemberReadTimes.Set(user.ID, r.CreatedAt)
 
 	ev := event.RoomAddedMember{
 		RoomID:      r.ID,
@@ -171,6 +211,35 @@ func (r *Room) AddMember(user User) (event.RoomAddedMember, error) {
 // in the room, otherwise returns false.
 func (r *Room) HasMember(member User) bool {
 	return r.MemberIDSet.Has(member.ID)
+}
+
+// RoomRemovedMember removes the member from the room.
+// It returns the event the room member is removed or
+// returns error when the user already does not exist in the room.
+func (r *Room) RemoveMember(user User) (event.RoomRemovedMember, error) {
+	if r.NotExist() {
+		return event.RoomRemovedMember{}, fmt.Errorf("newly room can not remove a member")
+	}
+	if user.NotExist() {
+		return event.RoomRemovedMember{}, fmt.Errorf("the user not in the datastore, can not be removed from the room")
+	}
+	if !r.HasMember(user) {
+		return event.RoomRemovedMember{}, fmt.Errorf("user(id=%d) is not a member of the room(id=%d)", user.ID, r.ID)
+	}
+	if r.OwnerID == user.ID {
+		return event.RoomRemovedMember{}, fmt.Errorf("the room owner(id=%d) can not removed from the room(id=%d)", r.OwnerID, r.ID)
+	}
+
+	r.MemberIDSet.Remove(user.ID)
+	r.MemberReadTimes.Delete(user.ID)
+
+	ev := event.RoomRemovedMember{
+		RoomID:        r.ID,
+		RemovedUserID: user.ID,
+	}
+	ev.Occurs()
+	r.AddEvent(ev)
+	return ev, nil
 }
 
 // ReadMessagesBy marks that the room messages before time readAt
@@ -190,7 +259,7 @@ func (r *Room) ReadMessagesBy(u *User, readAt time.Time) (event.RoomMessagesRead
 
 	// TODO raise error if the messages between prevRead and readAt not exist.
 	// how we check the existance of the messages then?
-	prevRead, ok := r.getMemberReadTime(u.ID)
+	prevRead, ok := r.MemberReadTimes.Get(u.ID)
 	if !ok {
 		// room has a member with u.ID, but ReadTime not set.
 		// reset default here.
@@ -199,7 +268,7 @@ func (r *Room) ReadMessagesBy(u *User, readAt time.Time) (event.RoomMessagesRead
 	if prevRead.Equal(readAt) || prevRead.After(readAt) {
 		return event.RoomMessagesReadByUser{}, fmt.Errorf("message read time (%v) must be after previous read time (%v)", readAt.Format(time.Stamp), prevRead.Format(time.Stamp))
 	}
-	r.setMemberReatTime(u.ID, readAt)
+	r.MemberReadTimes.Set(u.ID, readAt)
 
 	ev := event.RoomMessagesReadByUser{
 		UserID: u.ID,
@@ -209,20 +278,4 @@ func (r *Room) ReadMessagesBy(u *User, readAt time.Time) (event.RoomMessagesRead
 	ev.Occurs()
 	r.AddEvent(ev)
 	return ev, nil
-}
-
-// TODO move to type ReadTimeSet?
-func (r *Room) getMemberReadTime(userID uint64) (time.Time, bool) {
-	if r.MemberReadTimes == nil {
-		return time.Time{}, false
-	}
-	t, ok := r.MemberReadTimes[userID]
-	return t, ok
-}
-
-func (r *Room) setMemberReatTime(userID uint64, t time.Time) {
-	if r.MemberReadTimes == nil {
-		r.MemberReadTimes = make(map[uint64]time.Time)
-	}
-	r.MemberReadTimes[userID] = t
 }

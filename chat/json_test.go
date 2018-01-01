@@ -22,6 +22,7 @@ func TestNewEventJSON(t *testing.T) {
 		event.ActiveClientInactivated{},
 		event.RoomCreated{},
 		event.RoomDeleted{},
+		event.RoomAddedMember{},
 		event.RoomMessagesReadByUser{},
 	} {
 		evJSON := NewEventJSON(ev)

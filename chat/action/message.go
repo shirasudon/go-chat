@@ -80,6 +80,7 @@ func (a AnyMessage) Object(key string) map[string]interface{} {
 func ConvertAnyMessage(m AnyMessage) (ActionMessage, error) {
 	a := m.Action()
 	switch a {
+	// TODO support other Actions?
 	case ActionChatMessage:
 		return ParseChatMessage(m, a)
 	case ActionReadMessage:
@@ -108,8 +109,10 @@ const (
 	ActionUserConnect    Action = "USER_CONNECT"
 	ActionUserDisconnect Action = "USER_DISCONNECT"
 
-	ActionCreateRoom Action = "CREATE_ROOM"
-	ActionDeleteRoom Action = "DELETE_ROOM"
+	ActionCreateRoom       Action = "CREATE_ROOM"
+	ActionDeleteRoom       Action = "DELETE_ROOM"
+	ActionAddRoomMember    Action = "ADD_ROOM_MEMBER"
+	ActionRemoveRoomMember Action = "REMOVE_ROOM_MEMBER"
 
 	// server from/to front-end client
 	ActionReadMessage Action = "READ_MESSAGE"
@@ -342,4 +345,48 @@ func ParseDeleteRoom(m AnyMessage, action Action) (DeleteRoom, error) {
 	dr.SenderID = uint64(m.Number("sender_id"))
 	dr.RoomID = uint64(m.Number("room_id"))
 	return dr, nil
+}
+
+// AddRoomMember indicates action for adding new room member
+// it implements ActionMessage interface.
+type AddRoomMember struct {
+	EmbdFields
+
+	SenderID  uint64 `json:"sender_id"`
+	RoomID    uint64 `json:"room_id"`
+	AddUserID uint64 `json:"add_user_id"`
+}
+
+func ParseAddRoomMember(m AnyMessage, action Action) (AddRoomMember, error) {
+	if action != ActionAddRoomMember {
+		return AddRoomMember{}, errors.New("AddRoomMenber: invalid action")
+	}
+	arm := AddRoomMember{}
+	arm.ActionName = action
+	arm.SenderID = uint64(m.Number("sender_id"))
+	arm.RoomID = uint64(m.Number("room_id"))
+	arm.AddUserID = uint64(m.Number("add_user_id"))
+	return arm, nil
+}
+
+// RemoveRoomMember indicates action for removing room member.
+// it implements ActionMessage interface.
+type RemoveRoomMember struct {
+	EmbdFields
+
+	SenderID     uint64 `json:"sender_id"`
+	RoomID       uint64 `json:"room_id"`
+	RemoveUserID uint64 `json:"remove_user_id"`
+}
+
+func ParseRemoveRoomMember(m AnyMessage, action Action) (RemoveRoomMember, error) {
+	if action != ActionRemoveRoomMember {
+		return RemoveRoomMember{}, errors.New("RemoveRoomMenber: invalid action")
+	}
+	rrm := RemoveRoomMember{}
+	rrm.ActionName = action
+	rrm.SenderID = uint64(m.Number("sender_id"))
+	rrm.RoomID = uint64(m.Number("room_id"))
+	rrm.RemoveUserID = uint64(m.Number("remove_user_id"))
+	return rrm, nil
 }

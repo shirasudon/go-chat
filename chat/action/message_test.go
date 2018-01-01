@@ -65,3 +65,75 @@ func TestAnyMessage(t *testing.T) {
 }
 
 // TODO add test for ParseXXX
+
+func TestParseAddRoomMember(t *testing.T) {
+	const (
+		SenderID  = uint64(1)
+		RoomID    = uint64(2)
+		AddUserID = uint64(3)
+	)
+	origin := AddRoomMember{
+		SenderID:  SenderID,
+		RoomID:    RoomID,
+		AddUserID: AddUserID,
+	}
+	bs, err := json.Marshal(origin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var any AnyMessage
+	if err := json.Unmarshal(bs, &any); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := ParseAddRoomMember(any, ActionAddRoomMember)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.RoomID != RoomID {
+		t.Errorf("different room id")
+	}
+	if got.AddUserID != AddUserID {
+		t.Errorf("different add user id")
+	}
+	if got.SenderID != SenderID {
+		t.Errorf("different sender id")
+	}
+}
+
+func TestParseRemoveRoomMember(t *testing.T) {
+	const (
+		SenderID     = uint64(1)
+		RoomID       = uint64(2)
+		RemoveUserID = uint64(3)
+	)
+	origin := RemoveRoomMember{
+		SenderID:     SenderID,
+		RoomID:       RoomID,
+		RemoveUserID: RemoveUserID,
+	}
+	bs, err := json.Marshal(origin)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var any AnyMessage
+	if err := json.Unmarshal(bs, &any); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := ParseRemoveRoomMember(any, ActionRemoveRoomMember)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.RoomID != RoomID {
+		t.Errorf("different room id")
+	}
+	if got.RemoveUserID != RemoveUserID {
+		t.Errorf("different remove user id")
+	}
+	if got.SenderID != SenderID {
+		t.Errorf("different sender id")
+	}
+}

@@ -50,7 +50,7 @@ func TestRoomCreated(t *testing.T) {
 	if r.CreatedAt == (time.Time{}) {
 		t.Errorf("created room does not have created time, got: %v", r.CreatedAt)
 	}
-	if read, ok := r.MemberReadTimes[owner.ID]; !ok || read == (time.Time{}) {
+	if read, ok := r.MemberReadTimes.Get(owner.ID); !ok || read == (time.Time{}) {
 		t.Errorf("created room missed read time for owner of the Room")
 	}
 
@@ -154,7 +154,7 @@ func TestRoomAddMember(t *testing.T) {
 	if !r.HasMember(u) {
 		t.Errorf("AddMember does not add any member to the room")
 	}
-	if _, ok := r.MemberReadTimes[u.ID]; !ok {
+	if _, ok := r.MemberReadTimes.Get(u.ID); !ok {
 		t.Errorf("AddMember missed read time of the added member")
 	}
 
@@ -164,6 +164,91 @@ func TestRoomAddMember(t *testing.T) {
 	}
 	if _, ok := r.Events()[1].(event.RoomAddedMember); !ok {
 		t.Errorf("invalid event is added")
+	}
+}
+
+func TestRoomRemoveMember(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	owner := &User{ID: 3}
+	r, _ := NewRoom(ctx, roomRepo, "test", owner, NewUserIDSet())
+	r.ID = 1 // it may not be allowed at application side.
+	u := User{ID: 1}
+	_, err := r.AddMember(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// do test function
+	ev, err := r.RemoveMember(u)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got := ev.RoomID; got != r.ID {
+		t.Errorf("RoomRemovedMember has different room id, expect: %d, got: %d", r.ID, got)
+	}
+	if got := ev.RemovedUserID; got != u.ID {
+		t.Errorf("RoomRemovedMember has different removed user id, expect: %d, got: %d", u.ID, got)
+	}
+	if got := ev.Timestamp(); got == (time.Time{}) {
+		t.Error("RoomRemovedMember has no timestamp")
+	}
+
+	if r.HasMember(u) {
+		t.Errorf("RemoveMember does not remove a member from the room")
+	}
+	if _, ok := r.MemberReadTimes.Get(u.ID); ok {
+		t.Errorf("RemoveMember missed removing read time of the removed member")
+	}
+
+	// room has three events: Created, AddedMember, RemovedMember
+	if got := len(r.Events()); got != 3 {
+		t.Errorf("room has different events")
+	}
+	gotEv, ok := r.Events()[2].(event.RoomRemovedMember)
+	if !ok {
+		t.Fatalf("invalid event is added, expect: %T, got: %T", event.RoomRemovedMember{}, gotEv)
+	}
+	if ev != gotEv {
+		t.Errorf("different event fields on RoomRemovedMember")
+	}
+}
+
+func TestRoomRemoveMemberFail(t *testing.T) {
+	t.Parallel()
+
+	{ // case1: removed member is not found.
+		ctx := context.Background()
+		owner := &User{ID: 3}
+		r, _ := NewRoom(ctx, roomRepo, "test", owner, NewUserIDSet())
+		r.ID = 1 // it may not be allowed at application side.
+		u := User{ID: 1}
+		_, err := r.RemoveMember(u)
+		if err == nil {
+			t.Error("removed not found user, but no error")
+		}
+		// currently events: created only
+		if got := len(r.Events()); got != 1 {
+			t.Error("RemoveMember failed, but event is added to the room")
+		}
+	}
+
+	{ // case2: removed member is same as owner.
+		ctx := context.Background()
+		owner := &User{ID: 3}
+		r, _ := NewRoom(ctx, roomRepo, "test", owner, NewUserIDSet())
+		r.ID = 1 // it may not be allowed at application side.
+
+		_, err := r.RemoveMember(*owner)
+		if err == nil {
+			t.Error("removed owner self, but no error")
+		}
+		// currently events: created only
+		if got := len(r.Events()); got != 1 {
+			t.Error("RemoveMember failed, but event is added to the room")
+		}
 	}
 }
 
@@ -190,7 +275,7 @@ func TestRoomReadMessagesByUser(t *testing.T) {
 			t.Error("MessageReadByUser has no timestamp")
 		}
 
-		if got := r.MemberReadTimes[owner.ID]; !got.Equal(now) {
+		if got, _ := r.MemberReadTimes.Get(owner.ID); !got.Equal(now) {
 			t.Errorf("ReadMessagesByUser does not set new read time, expect: %v, got: %v", now, got)
 		}
 
@@ -223,20 +308,27 @@ func TestRoomReadMessagesByUser(t *testing.T) {
 }
 
 func TestGetSetReadTime(t *testing.T) {
-	r := Room{}
-	_, ok := r.getMemberReadTime(1)
+	set := NewTimeSet()
+	_, ok := set.Get(1)
 	if ok {
 		t.Error("no entry but get returned ok")
 	}
 
 	now := time.Now()
-	r.setMemberReatTime(1, now)
+	set.Set(1, now)
 
-	readTime, ok := r.getMemberReadTime(1)
+	readTime, ok := set.Get(1)
 	if !ok {
 		t.Error("set entry but get returned not-ok")
 	}
 	if !readTime.Equal(now) {
 		t.Error("different time")
+	}
+
+	set.Delete(1)
+
+	_, ok = set.Get(1)
+	if ok {
+		t.Error("after delete, get returned ok")
 	}
 }

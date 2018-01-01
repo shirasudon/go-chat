@@ -129,6 +129,8 @@ var HubHandlingEventTypes = []event.Type{
 	event.TypeActiveClientInactivated,
 	event.TypeRoomCreated,
 	event.TypeRoomDeleted,
+	event.TypeRoomAddedMember,
+	event.TypeRoomRemovedMember,
 	event.TypeRoomMessagesReadByUser,
 }
 
@@ -179,6 +181,20 @@ func (hub *HubImpl) sendEvent(ctx context.Context, ev event.Event) error {
 		targetIDs = room.MemberIDSet.List()
 
 	case event.RoomDeleted:
+		room, err := chatCommand.rooms.Find(ctx, ev.RoomID)
+		if err != nil {
+			return err
+		}
+		targetIDs = room.MemberIDSet.List()
+
+	case event.RoomAddedMember:
+		room, err := chatCommand.rooms.Find(ctx, ev.RoomID)
+		if err != nil {
+			return err
+		}
+		targetIDs = room.MemberIDSet.List()
+
+	case event.RoomRemovedMember:
 		room, err := chatCommand.rooms.Find(ctx, ev.RoomID)
 		if err != nil {
 			return err

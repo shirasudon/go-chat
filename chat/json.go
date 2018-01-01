@@ -12,6 +12,8 @@ const (
 	EventNameActiveClientInactivated = "client_inactivated"
 	EventNameRoomCreated             = "room_created"
 	EventNameRoomDeleted             = "room_deleted"
+	EventNameRoomAddedMember         = "room_added_member"
+	EventNameRoomRemovedMember       = "room_removed_member"
 	EventNameRoomMessagesReadByUser  = "room_messages_read_by_user"
 	EventNameUnknown                 = "unknown"
 )
@@ -22,6 +24,8 @@ var eventEncodeNames = map[event.Type]string{
 	event.TypeActiveClientInactivated: EventNameActiveClientInactivated,
 	event.TypeRoomCreated:             EventNameRoomCreated,
 	event.TypeRoomDeleted:             EventNameRoomDeleted,
+	event.TypeRoomAddedMember:         EventNameRoomAddedMember,
+	event.TypeRoomRemovedMember:       EventNameRoomRemovedMember,
 	event.TypeRoomMessagesReadByUser:  EventNameRoomMessagesReadByUser,
 }
 

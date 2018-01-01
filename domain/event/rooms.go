@@ -46,6 +46,15 @@ type RoomAddedMember struct {
 
 func (RoomAddedMember) Type() Type { return TypeRoomAddedMember }
 
+// Event for Room removed a member.
+type RoomRemovedMember struct {
+	RoomEventEmbd
+	RoomID        uint64 `json:"room_id"`
+	RemovedUserID uint64 `json:"removed_user_id"`
+}
+
+func (RoomRemovedMember) Type() Type { return TypeRoomRemovedMember }
+
 // Event for the room messages are read by the user.
 type RoomMessagesReadByUser struct {
 	RoomEventEmbd
