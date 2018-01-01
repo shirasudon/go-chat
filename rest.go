@@ -147,6 +147,43 @@ func (rest *RESTHandler) AddRoomMember(e echo.Context) error {
 	return e.JSON(http.StatusOK, response)
 }
 
+func (rest *RESTHandler) RemoveRoomMember(e echo.Context) error {
+	userID, ok := LoggedInUserID(e)
+	if !ok {
+		return ErrAPIRequireLoginFirst
+	}
+	roomID, err := validateParamRoomID(e)
+	if err != nil {
+		return err
+	}
+
+	removeRoomMember := action.RemoveRoomMember{}
+	if err := e.Bind(&removeRoomMember); err != nil {
+		return err // default Bind returns *echo.NewHTTPError
+	}
+	removeRoomMember.SenderID = userID
+	removeRoomMember.RoomID = roomID
+
+	res, err := rest.chatCmd.RemoveRoomMember(e.Request().Context(), removeRoomMember)
+	if err != nil {
+		if chat.IsNotFoundError(err) {
+			return NewHTTPError(http.StatusNotFound, err)
+		}
+		return NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	response := struct {
+		RoomID        uint64 `json:"removed_room_id"`
+		RemovedUserID uint64 `json:"removed_user_id"`
+		OK            bool   `json:"ok"`
+	}{
+		RoomID:        res.RoomID,
+		RemovedUserID: res.UserID,
+		OK:            true,
+	}
+	return e.JSON(http.StatusOK, response)
+}
+
 func (rest *RESTHandler) GetRoomInfo(e echo.Context) error {
 	userID, ok := LoggedInUserID(e)
 	if !ok {

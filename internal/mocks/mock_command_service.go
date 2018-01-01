@@ -99,3 +99,16 @@ func (m *MockCommandService) ReadRoomMessages(arg0 context.Context, arg1 action.
 func (mr *MockCommandServiceMockRecorder) ReadRoomMessages(arg0, arg1 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadRoomMessages", reflect.TypeOf((*MockCommandService)(nil).ReadRoomMessages), arg0, arg1)
 }
+
+// RemoveRoomMember mocks base method
+func (m *MockCommandService) RemoveRoomMember(arg0 context.Context, arg1 action.RemoveRoomMember) (*result.RemoveRoomMember, error) {
+	ret := m.ctrl.Call(m, "RemoveRoomMember", arg0, arg1)
+	ret0, _ := ret[0].(*result.RemoveRoomMember)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RemoveRoomMember indicates an expected call of RemoveRoomMember
+func (mr *MockCommandServiceMockRecorder) RemoveRoomMember(arg0, arg1 interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveRoomMember", reflect.TypeOf((*MockCommandService)(nil).RemoveRoomMember), arg0, arg1)
+}

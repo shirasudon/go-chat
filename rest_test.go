@@ -54,6 +54,7 @@ func TestRESTRequireLoggeinUserID(t *testing.T) {
 		{"CreateRoom", RESTHandler.CreateRoom},
 		{"DeleteRoom", RESTHandler.DeleteRoom},
 		{"AddRoomMember", RESTHandler.AddRoomMember},
+		{"RemoveRoomMember", RESTHandler.RemoveRoomMember},
 		{"GetRoomInfo", RESTHandler.GetRoomInfo},
 		{"GetUserInfo", RESTHandler.GetUserInfo},
 		{"PostRoomMessage", RESTHandler.PostRoomMessage},
@@ -298,7 +299,7 @@ func TestRESTAddRoomMember(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	// case 1: invalid request for resource parameter
+	// case 1: success
 	{
 		const (
 			UserID    = uint64(1)
@@ -413,6 +414,134 @@ func TestRESTAddRoomMember(t *testing.T) {
 		c.SetParamValues("invalid_room_id")
 
 		err = RESTHandler.AddRoomMember(c)
+		if err == nil {
+			t.Fatal("requesting bad arguments, but no error")
+		}
+		testAssertHTTPError(t, err, http.StatusBadRequest, true)
+	}
+}
+
+func TestRESTRemoveRoomMember(t *testing.T) {
+	t.Parallel()
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	// case 1: success
+	{
+		const (
+			UserID       = uint64(1)
+			RoomID       = uint64(2)
+			RemoveUserID = uint64(3)
+		)
+		RemoveRoomMember := action.RemoveRoomMember{
+			SenderID:     UserID,
+			RoomID:       RoomID,
+			RemoveUserID: RemoveUserID,
+		}
+
+		cmdService := mocks.NewMockCommandService(mockCtrl)
+		cmdService.EXPECT().RemoveRoomMember(gomock.Any(), RemoveRoomMember).
+			Return(&result.RemoveRoomMember{
+				RoomID: RoomID,
+				UserID: UserID,
+			}, nil).Times(1)
+		RESTHandler := &RESTHandler{chatCmd: cmdService}
+
+		req, err := newJSONRequest(echo.DELETE, "/rooms/:room_id/members", RemoveRoomMember)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rec := httptest.NewRecorder()
+
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, UserID)
+		c.SetParamNames("room_id")
+		c.SetParamValues(fmt.Sprint(RoomID))
+
+		err = RESTHandler.RemoveRoomMember(c)
+		if err != nil {
+			t.Fatalf("RemoveRoomMember returns error: %v", err)
+		}
+
+		response := make(map[string]interface{})
+		err = json.Unmarshal(rec.Body.Bytes(), &response)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		for _, expect := range []struct {
+			Key   string
+			Value interface{}
+			Equal func(x, y interface{}) bool
+		}{
+			{"removed_room_id", RoomID, func(x, y interface{}) bool { return x.(uint64) == uint64(y.(float64)) }},
+			{"removed_user_id", UserID, func(x, y interface{}) bool { return x.(uint64) == uint64(y.(float64)) }},
+			{"ok", true, func(x, y interface{}) bool { return x.(bool) == y.(bool) }},
+		} {
+			if !expect.Equal(expect.Value, response[expect.Key]) {
+				t.Errorf("differenct value for key(%v), expect: %v, got: %v", expect.Key, expect.Value, response[expect.Key])
+			}
+		}
+	}
+
+	// case 2: referring not found resource
+	{
+		const (
+			NotFoundUserID = uint64(1)
+			NotFoundRoomID = uint64(2)
+		)
+		RemoveRoomMember := action.RemoveRoomMember{
+			SenderID:     NotFoundUserID,
+			RoomID:       NotFoundRoomID,
+			RemoveUserID: NotFoundUserID,
+		}
+
+		cmdService := mocks.NewMockCommandService(mockCtrl)
+		cmdService.EXPECT().RemoveRoomMember(gomock.Any(), RemoveRoomMember).
+			Return(nil, chat.NewNotFoundError("not found")).Times(1)
+		RESTHandler := &RESTHandler{chatCmd: cmdService}
+
+		req, err := newJSONRequest(echo.DELETE, "/rooms/:room_id/members", RemoveRoomMember)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rec := httptest.NewRecorder()
+
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, NotFoundUserID)
+		c.SetParamNames("room_id")
+		c.SetParamValues(fmt.Sprint(NotFoundRoomID))
+
+		err = RESTHandler.RemoveRoomMember(c)
+		if err == nil {
+			t.Fatal("requesting not found user and room, but no error")
+		}
+		testAssertHTTPError(t, err, http.StatusNotFound, true)
+	}
+
+	// case 3: bad request
+	{
+		const (
+			UserID = uint64(1)
+		)
+		RemoveRoomMember := action.RemoveRoomMember{}
+
+		cmdService := mocks.NewMockCommandService(mockCtrl)
+		RESTHandler := &RESTHandler{chatCmd: cmdService}
+
+		req, err := newJSONRequest(echo.DELETE, "/rooms/:room_id/members", RemoveRoomMember)
+		if err != nil {
+			t.Fatal(err)
+		}
+		rec := httptest.NewRecorder()
+
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, UserID)
+		c.SetParamNames("room_id")
+		c.SetParamValues("invalid_room_id")
+
+		err = RESTHandler.RemoveRoomMember(c)
 		if err == nil {
 			t.Fatal("requesting bad arguments, but no error")
 		}

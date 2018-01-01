@@ -109,9 +109,10 @@ const (
 	ActionUserConnect    Action = "USER_CONNECT"
 	ActionUserDisconnect Action = "USER_DISCONNECT"
 
-	ActionCreateRoom    Action = "CREATE_ROOM"
-	ActionDeleteRoom    Action = "DELETE_ROOM"
-	ActionAddRoomMember Action = "ADD_ROOM_MEMBER"
+	ActionCreateRoom       Action = "CREATE_ROOM"
+	ActionDeleteRoom       Action = "DELETE_ROOM"
+	ActionAddRoomMember    Action = "ADD_ROOM_MEMBER"
+	ActionRemoveRoomMember Action = "REMOVE_ROOM_MEMBER"
 
 	// server from/to front-end client
 	ActionReadMessage Action = "READ_MESSAGE"
@@ -366,4 +367,26 @@ func ParseAddRoomMember(m AnyMessage, action Action) (AddRoomMember, error) {
 	arm.RoomID = uint64(m.Number("room_id"))
 	arm.AddUserID = uint64(m.Number("add_user_id"))
 	return arm, nil
+}
+
+// RemoveRoomMember indicates action for removing room member.
+// it implements ActionMessage interface.
+type RemoveRoomMember struct {
+	EmbdFields
+
+	SenderID     uint64 `json:"sender_id"`
+	RoomID       uint64 `json:"room_id"`
+	RemoveUserID uint64 `json:"remove_user_id"`
+}
+
+func ParseRemoveRoomMember(m AnyMessage, action Action) (RemoveRoomMember, error) {
+	if action != ActionRemoveRoomMember {
+		return RemoveRoomMember{}, errors.New("RemoveRoomMenber: invalid action")
+	}
+	rrm := RemoveRoomMember{}
+	rrm.ActionName = action
+	rrm.SenderID = uint64(m.Number("sender_id"))
+	rrm.RoomID = uint64(m.Number("room_id"))
+	rrm.RemoveUserID = uint64(m.Number("remove_user_id"))
+	return rrm, nil
 }
