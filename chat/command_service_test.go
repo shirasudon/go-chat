@@ -309,6 +309,92 @@ func TestCommandServiceAddRoomMember(t *testing.T) {
 	}
 }
 
+func TestCommandServiceRemoveRoomMember(t *testing.T) {
+	t.Parallel()
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	var (
+		RemoveRoomMember = action.RemoveRoomMember{
+			SenderID:     1,
+			RoomID:       1,
+			RemoveUserID: 2,
+		}
+
+		User   = domain.User{ID: RemoveRoomMember.RemoveUserID}
+		Sender = domain.User{ID: RemoveRoomMember.SenderID}
+		Room   = domain.Room{
+			ID:          RemoveRoomMember.RoomID,
+			OwnerID:     RemoveRoomMember.SenderID,
+			MemberIDSet: domain.NewUserIDSet(RemoveRoomMember.SenderID, RemoveRoomMember.RemoveUserID),
+		}
+	)
+
+	pubsub := mocks.NewMockPubsub(mockCtrl)
+	publishEv := pubsub.EXPECT().
+		Pub(IsEvType(event.RoomRemovedMember{})).
+		Times(1)
+
+	rooms := mocks.NewMockRoomRepository(mockCtrl)
+	roomFind := rooms.EXPECT().
+		Find(gomock.Any(), RemoveRoomMember.RoomID).
+		Return(Room, nil).
+		Times(1)
+
+	beginTx := rooms.EXPECT().
+		BeginTx(gomock.Any(), gomock.Nil()).
+		Return(domain.EmptyTxBeginner{}, nil).
+		Times(1)
+
+	roomStore := rooms.EXPECT().
+		Store(gomock.Any(), gomock.Any()). // Room is modified here.
+		Return(Room.ID, nil).
+		Times(1)
+
+	gomock.InOrder(
+		beginTx,
+		roomFind,
+		roomStore,
+		publishEv,
+	)
+
+	users := mocks.NewMockUserRepository(mockCtrl)
+	users.EXPECT().
+		Find(gomock.Any(), RemoveRoomMember.SenderID).
+		Return(Sender, nil).
+		Times(1)
+
+	users.EXPECT().
+		Find(gomock.Any(), RemoveRoomMember.RemoveUserID).
+		Return(User, nil).
+		Times(1)
+
+	events := mocks.NewMockEventRepository(mockCtrl)
+	events.EXPECT().
+		Store(gomock.Any(), gomock.Any()).
+		Return([]uint64{1}, nil).
+		Times(1)
+
+	cmdService := NewCommandServiceImpl(domain.SimpleRepositories{
+		UserRepository:  users,
+		RoomRepository:  rooms,
+		EventRepository: events,
+	}, pubsub)
+
+	// do test function.
+	res, err := cmdService.RemoveRoomMember(context.Background(), RemoveRoomMember)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.RoomID != Room.ID {
+		t.Errorf("different room id for RemoveRoomMember, expect: %v, got: %v", Room.ID, res.RoomID)
+	}
+	if res.UserID != User.ID {
+		t.Errorf("different user id for RemoveRoomMember, expect: %v, got: %v", User.ID, res.UserID)
+	}
+}
+
 func TestCommandServicePostRoomMessage(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()

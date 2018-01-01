@@ -220,39 +220,37 @@ func (s *CommandServiceImpl) AddRoomMember(ctx context.Context, m action.AddRoom
 
 // implements RemoveRoomMember for CommandService interface.
 func (s *CommandServiceImpl) RemoveRoomMember(ctx context.Context, m action.RemoveRoomMember) (*result.RemoveRoomMember, error) {
-	// 	var err = s.withEventTransaction(ctx, s.rooms, func(ctx context.Context) ([]event.Event, error) {
-	// 		room, err := s.rooms.Find(ctx, m.RoomID)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	//
-	// 		// TODO use FindAll?
-	// 		// use commander to verify the AddRoomMember is performed by owner of the room
-	// 		commander, err := s.users.Find(ctx, m.SenderID)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	// 		_ = commander
-	// 		addUser, err := s.users.Find(ctx, m.AddUserID)
-	// 		if err != nil {
-	// 			return nil, err
-	// 		}
-	//
-	// 		if _, err := room.AddMember(addUser); err != nil {
-	// 			return nil, err
-	// 		}
-	// 		if _, err := s.rooms.Store(ctx, room); err != nil {
-	// 			return nil, err
-	// 		}
-	// 		return room.Events(), nil
-	// 	})
-	//
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	return &result.AddRoomMember{RoomID: m.RoomID, UserID: m.AddUserID}, nil
-	// }
-	return nil, NewInfraError("not implements")
+	var err = s.withEventTransaction(ctx, s.rooms, func(ctx context.Context) ([]event.Event, error) {
+		room, err := s.rooms.Find(ctx, m.RoomID)
+		if err != nil {
+			return nil, err
+		}
+
+		// TODO use FindAll?
+		// use commander to verify the RemoveRoomMember is performed by owner of the room
+		commander, err := s.users.Find(ctx, m.SenderID)
+		if err != nil {
+			return nil, err
+		}
+		_ = commander
+		removeUser, err := s.users.Find(ctx, m.RemoveUserID)
+		if err != nil {
+			return nil, err
+		}
+
+		if _, err := room.RemoveMember(removeUser); err != nil {
+			return nil, err
+		}
+		if _, err := s.rooms.Store(ctx, room); err != nil {
+			return nil, err
+		}
+		return room.Events(), nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+	return &result.RemoveRoomMember{RoomID: m.RoomID, UserID: m.RemoveUserID}, nil
 }
 
 // Post the message to the specified room.
