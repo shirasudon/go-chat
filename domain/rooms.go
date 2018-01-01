@@ -226,6 +226,9 @@ func (r *Room) RemoveMember(user User) (event.RoomRemovedMember, error) {
 	if !r.HasMember(user) {
 		return event.RoomRemovedMember{}, fmt.Errorf("user(id=%d) is not a member of the room(id=%d)", user.ID, r.ID)
 	}
+	if r.OwnerID == user.ID {
+		return event.RoomRemovedMember{}, fmt.Errorf("the room owner(id=%d) can not removed from the room(id=%d)", r.OwnerID, r.ID)
+	}
 
 	r.MemberIDSet.Remove(user.ID)
 	r.MemberReadTimes.Delete(user.ID)

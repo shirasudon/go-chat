@@ -234,6 +234,22 @@ func TestRoomRemoveMemberFail(t *testing.T) {
 			t.Error("RemoveMember failed, but event is added to the room")
 		}
 	}
+
+	{ // case2: removed member is same as owner.
+		ctx := context.Background()
+		owner := &User{ID: 3}
+		r, _ := NewRoom(ctx, roomRepo, "test", owner, NewUserIDSet())
+		r.ID = 1 // it may not be allowed at application side.
+
+		_, err := r.RemoveMember(*owner)
+		if err == nil {
+			t.Error("removed owner self, but no error")
+		}
+		// currently events: created only
+		if got := len(r.Events()); got != 1 {
+			t.Error("RemoveMember failed, but event is added to the room")
+		}
+	}
 }
 
 func TestRoomReadMessagesByUser(t *testing.T) {
