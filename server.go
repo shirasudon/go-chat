@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net/http"
 	"sort"
 	"strings"
 
@@ -25,8 +26,9 @@ type Server struct {
 	loginHandler    *LoginHandler
 	restHandler     *RESTHandler
 
+	// TODO split into main.
 	chatHub   *chat.HubImpl
-	chatCmd   *chat.CommandServiceImpl
+	chatCmd   chat.CommandService
 	chatQuery chat.QueryService
 
 	repos domain.Repositories
@@ -99,6 +101,11 @@ func (s *Server) serveChatWebsocket(c echo.Context) error {
 		conn.Listen(ctx)
 	}).ServeHTTP(c.Response(), c.Request())
 	return nil
+}
+
+// Handler returns http.Handler interface in the server.
+func (s *Server) Handler() http.Handler {
+	return s.echo
 }
 
 // it starts server process.

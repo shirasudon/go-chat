@@ -146,3 +146,14 @@ func TestServerServeChatWebsocket(t *testing.T) {
 		t.Errorf("different chat message fields, recieved: %#v, send: %#v", created, toSend)
 	}
 }
+
+func TestServerHandler(t *testing.T) {
+	server := NewServer(repository, queryers, globalPubsub, nil)
+	defer server.Shutdown(context.Background())
+
+	// check type
+	var h http.Handler = server.Handler()
+	if h == nil {
+		t.Fatal("Server.Handler returns nil")
+	}
+}

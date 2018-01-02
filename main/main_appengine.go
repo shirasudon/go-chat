@@ -1,26 +1,30 @@
-// +build !appengine
+// +build appengine
 
 package main
 
 import (
 	"context"
-	"log"
+	"net/http"
 
 	gochat "github.com/shirasudon/go-chat"
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/infra/inmemory"
 	"github.com/shirasudon/go-chat/infra/pubsub"
+
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/log"
 )
 
 func createServer() (server *gochat.Server, done func()) {
 	ps := pubsub.New()
-	// defer ps.Shutdown()
+	doneFuncs := make([]func(), 0, 4)
+	doneFuncs = append(doneFuncs, ps.Shutdown)
 
 	repos := inmemory.OpenRepositories(ps)
-	// defer repos.Close()
+	doneFuncs = append(doneFuncs, func() { _ = repos.Close() })
 
 	ctx, cancel := context.WithCancel(context.Background())
-	// defer cancel()
+	doneFuncs = append(doneFuncs, cancel)
 	go repos.UpdatingService(ctx)
 
 	qs := &chat.Queryers{
@@ -32,17 +36,27 @@ func createServer() (server *gochat.Server, done func()) {
 
 	server = gochat.NewServer(repos, qs, ps, nil)
 	done = func() {
-		cancel()
-		repos.Close()
-		ps.Shutdown()
+		for i := len(doneFuncs); i >= 0; i-- {
+			doneFuncs[i]()
+		}
 	}
 	return
 }
 
+var (
+	gochatServer *gochat.Server
+	doneFunc     func()
+)
+
+func init() {
+	gochatServer, doneFunc = createServer()
+	http.Handle("/", gochatServer.Handler())
+}
+
 func main() {
-	s, done := createServer()
-	defer done()
-	if err := s.ListenAndServe(); err != nil {
-		log.Fatal(err)
-	}
+	defer func() {
+		doneFunc()
+		log.Debugf(context.Background(), "calling main defer")
+	}()
+	appengine.Main()
 }
