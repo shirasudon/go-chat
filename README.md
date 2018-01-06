@@ -114,6 +114,44 @@ Response JSON:
 }
 ```
 
+### CreateRoom -- `POST /chat/rooms`
+
+It creates new chat room.
+
+Request JSON: 
+
+```javascript
+{
+    "room_name": "<room_name>",
+    "room_member_ids": [1,2, ...],
+}
+```
+
+response JSON:
+
+```javascript
+{
+    "room_id": created_room_id,
+    "ok": true,
+}
+```
+
+### DeleteRoom -- `DELETE /chat/rooms/:room_id`
+
+It deletes existance chat room specified by `room_id`.
+
+Request JSON: `None`.
+
+response JSON:
+
+```javascript
+{
+    "room_id": deleted_room_id,
+    "ok": true,
+}
+```
+
+
 ### GetUserInfo -- `GET /chat/users/:user_id`
 
 It returns user information specified by `user_id`.
