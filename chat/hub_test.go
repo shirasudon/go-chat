@@ -77,11 +77,11 @@ func TestHubSendEvent(t *testing.T) {
 			SendUserIDs: RoomMemberIDs,
 		},
 		{
-			Event:       event.RoomCreated{RoomID: RoomID},
+			Event:       event.RoomCreated{RoomID: RoomID, MemberIDs: RoomMemberIDs},
 			SendUserIDs: RoomMemberIDs,
 		},
 		{
-			Event:       event.RoomDeleted{RoomID: RoomID},
+			Event:       event.RoomDeleted{RoomID: RoomID, MemberIDs: RoomMemberIDs},
 			SendUserIDs: RoomMemberIDs,
 		},
 		{
@@ -161,16 +161,10 @@ func TestHubSendEventFail(t *testing.T) {
 		Event       event.Event
 		SendUserIDs []uint64
 	}{
+		// These events access to the repositories and gots error.
+		// The other events, not accessing to the repositories, are not shown.
 		{
 			Event:       event.MessageCreated{RoomID: RoomID},
-			SendUserIDs: RoomMemberIDs,
-		},
-		{
-			Event:       event.RoomCreated{RoomID: RoomID},
-			SendUserIDs: RoomMemberIDs,
-		},
-		{
-			Event:       event.RoomDeleted{RoomID: RoomID},
 			SendUserIDs: RoomMemberIDs,
 		},
 		{
