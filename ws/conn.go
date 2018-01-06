@@ -7,7 +7,6 @@ import (
 	"sync"
 
 	"github.com/shirasudon/go-chat/chat/action"
-	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/domain/event"
 
 	"golang.org/x/net/websocket"
@@ -23,8 +22,7 @@ type ActionJSON struct {
 // Conn is end-point for reading/writing messages from/to websocket.
 // One Conn corresponds to one browser-side client.
 type Conn struct {
-	userID   uint64
-	userName string
+	userID uint64
 
 	conn *websocket.Conn
 
@@ -39,10 +37,9 @@ type Conn struct {
 	onError         func(*Conn, error)
 }
 
-func NewConn(conn *websocket.Conn, user domain.User) *Conn {
+func NewConn(conn *websocket.Conn, userID uint64) *Conn {
 	return &Conn{
-		userID:   user.ID,
-		userName: user.Name,
+		userID:   userID,
 		conn:     conn,
 		mu:       new(sync.Mutex),
 		closed:   false,

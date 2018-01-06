@@ -76,16 +76,12 @@ func (s *Server) serveChatWebsocket(c echo.Context) error {
 		log.Println("nil context on websocket handler")
 		ctx = context.Background()
 	}
-	user, err := s.repos.Users().Find(ctx, userID)
-	if err != nil {
-		return err
-	}
 
 	websocket.Handler(func(wsConn *websocket.Conn) {
 		log.Println("Server.acceptWSConn: ")
 		defer wsConn.Close()
 
-		conn := ws.NewConn(wsConn, user)
+		conn := ws.NewConn(wsConn, userID)
 		conn.OnActionMessage(func(conn *ws.Conn, m action.ActionMessage) {
 			s.chatHub.Send(conn, m)
 		})
