@@ -8,8 +8,6 @@ import (
 	"sort"
 	"strings"
 
-	"golang.org/x/net/websocket"
-
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
 	"github.com/shirasudon/go-chat/chat"
@@ -21,17 +19,16 @@ import (
 
 // it represents server which can accepts chat room and its clients.
 type Server struct {
-	echo            *echo.Echo
-	websocketServer *websocket.Server
-	loginHandler    *LoginHandler
-	restHandler     *RESTHandler
+	echo *echo.Echo
+
+	wsServer     *ws.Server
+	loginHandler *LoginHandler
+	restHandler  *RESTHandler
 
 	// TODO split into main.
 	chatHub   *chat.HubImpl
 	chatCmd   chat.CommandService
 	chatQuery chat.QueryService
-
-	repos domain.Repositories
 
 	conf Config
 }
@@ -57,11 +54,37 @@ func NewServer(repos domain.Repositories, qs *chat.Queryers, ps chat.Pubsub, con
 		chatCmd:      chatCmd,
 		chatQuery:    chatQuery,
 
-		repos: repos,
-		conf:  *conf,
+		conf: *conf,
 	}
-	s.websocketServer = &websocket.Server{} // TODO it is needed?
+	s.wsServer = ws.NewServerFunc(s.handleWsConn)
 	return s
+}
+
+func (s *Server) handleWsConn(conn *ws.Conn) {
+	log.Println("Server.acceptWSConn: ")
+	defer conn.Close()
+
+	var ctx = conn.Request().Context()
+
+	conn.OnActionMessage(func(conn *ws.Conn, m action.ActionMessage) {
+		s.chatHub.Send(conn, m)
+	})
+	conn.OnError(func(conn *ws.Conn, err error) {
+		conn.Send(event.ErrorRaised{Message: err.Error()})
+	})
+	conn.OnClosed(func(conn *ws.Conn) {
+		s.chatHub.Disconnect(conn)
+	})
+
+	err := s.chatHub.Connect(ctx, conn)
+	if err != nil {
+		conn.Send(event.ErrorRaised{Message: err.Error()})
+		log.Printf("websocket connect error: %v\n", err)
+		return
+	}
+
+	// blocking to avoid connection closed
+	conn.Listen(ctx)
 }
 
 func (s *Server) serveChatWebsocket(c echo.Context) error {
@@ -71,31 +94,7 @@ func (s *Server) serveChatWebsocket(c echo.Context) error {
 		return errors.New("needs logged in, but access without logged in state")
 	}
 
-	var ctx = c.Request().Context()
-	if ctx == nil {
-		log.Println("nil context on websocket handler")
-		ctx = context.Background()
-	}
-
-	websocket.Handler(func(wsConn *websocket.Conn) {
-		log.Println("Server.acceptWSConn: ")
-		defer wsConn.Close()
-
-		conn := ws.NewConn(wsConn, userID)
-		conn.OnActionMessage(func(conn *ws.Conn, m action.ActionMessage) {
-			s.chatHub.Send(conn, m)
-		})
-		conn.OnError(func(conn *ws.Conn, err error) {
-			conn.Send(event.ErrorRaised{Message: err.Error()})
-		})
-		conn.OnClosed(func(conn *ws.Conn) {
-			s.chatHub.Disconnect(conn)
-		})
-		s.chatHub.Connect(ctx, conn)
-
-		// blocking to avoid connection closed
-		conn.Listen(ctx)
-	}).ServeHTTP(c.Response(), c.Request())
+	s.wsServer.ServeHTTPWithUserID(c.Response(), c.Request(), userID)
 	return nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
 	"sync"
 
 	"github.com/shirasudon/go-chat/chat/action"
@@ -48,8 +49,14 @@ func NewConn(conn *websocket.Conn, userID uint64) *Conn {
 	}
 }
 
+// UserID returns user ID binding to the connection.
 func (c *Conn) UserID() uint64 {
 	return c.userID
+}
+
+// Request returns its internal http request.
+func (c *Conn) Request() *http.Request {
+	return c.conn.Request()
 }
 
 // set callback function to handle the event for a message is received.
