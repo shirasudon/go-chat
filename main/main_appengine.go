@@ -8,6 +8,7 @@ import (
 
 	gochat "github.com/shirasudon/go-chat"
 	"github.com/shirasudon/go-chat/chat"
+	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/infra/inmemory"
 	"github.com/shirasudon/go-chat/infra/pubsub"
 
@@ -15,7 +16,9 @@ import (
 	"google.golang.org/appengine/log"
 )
 
-func createServer() (server *gochat.Server, done func()) {
+type DoneFunc func()
+
+func createInfra() (domain.Repositories, *chat.Queryers, chat.Pubsub, DoneFunc) {
 	ps := pubsub.New()
 	doneFuncs := make([]func(), 0, 4)
 	doneFuncs = append(doneFuncs, ps.Shutdown)
@@ -34,13 +37,14 @@ func createServer() (server *gochat.Server, done func()) {
 		EventQueryer:   repos.EventRepository,
 	}
 
-	server = gochat.NewServer(repos, qs, ps, nil)
-	done = func() {
+	done := func() {
+		// reverse order to simulate defer statement.
 		for i := len(doneFuncs); i >= 0; i-- {
 			doneFuncs[i]()
 		}
 	}
-	return
+
+	return repos, qs, ps, done
 }
 
 var (
@@ -49,7 +53,14 @@ var (
 )
 
 func init() {
-	gochatServer, doneFunc = createServer()
+	var serverDoneFunc func()
+	repos, qs, ps, infraDoneFunc := createInfra()
+	gochatServer, serverDoneFunc = createServer(repos, qs, ps)
+	doneFunc = func() {
+		serverDoneFunc()
+		infraDoneFunc()
+	}
+
 	http.Handle("/", gochatServer.Handler())
 }
 

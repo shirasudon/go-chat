@@ -30,6 +30,10 @@ var (
 		MessageQueryer: repository.MessageRepository,
 		EventQueryer:   repository.EventRepository,
 	}
+
+	chatCmd   = chat.NewCommandServiceImpl(repository, globalPubsub)
+	chatQuery = chat.NewQueryServiceImpl(queryers)
+	chatHub   = chat.NewHubImpl(chatCmd)
 )
 
 func TestMain(m *testing.M) {
@@ -38,7 +42,11 @@ func TestMain(m *testing.M) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go repository.UpdatingService(ctx)
-	time.Sleep(1 * time.Millisecond) // wait for the starting of UpdatingService.
+
+	go chatHub.Listen(ctx)
+	defer chatHub.Shutdown()
+
+	time.Sleep(1 * time.Millisecond) // wait for the starting of UpdatingServices.
 
 	os.Exit(m.Run())
 }
@@ -48,7 +56,7 @@ const (
 )
 
 func TestServerServeChatWebsocket(t *testing.T) {
-	server := NewServer(repository, queryers, globalPubsub, nil)
+	server := NewServer(chatCmd, chatQuery, chatHub, queryers.UserQueryer, nil)
 	defer server.Shutdown(context.Background())
 
 	// run server process
@@ -148,7 +156,7 @@ func TestServerServeChatWebsocket(t *testing.T) {
 }
 
 func TestServerHandler(t *testing.T) {
-	server := NewServer(repository, queryers, globalPubsub, nil)
+	server := NewServer(chatCmd, chatQuery, chatHub, queryers.UserQueryer, nil)
 	defer server.Shutdown(context.Background())
 
 	// check type

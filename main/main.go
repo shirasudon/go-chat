@@ -6,21 +6,24 @@ import (
 	"context"
 	"log"
 
-	gochat "github.com/shirasudon/go-chat"
 	"github.com/shirasudon/go-chat/chat"
+	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/infra/inmemory"
 	"github.com/shirasudon/go-chat/infra/pubsub"
 )
 
-func createServer() (server *gochat.Server, done func()) {
+type DoneFunc func()
+
+func createInfra() (domain.Repositories, *chat.Queryers, chat.Pubsub, DoneFunc) {
 	ps := pubsub.New()
-	// defer ps.Shutdown()
+	doneFuncs := make([]func(), 0, 4)
+	doneFuncs = append(doneFuncs, ps.Shutdown)
 
 	repos := inmemory.OpenRepositories(ps)
-	// defer repos.Close()
+	doneFuncs = append(doneFuncs, func() { _ = repos.Close() })
 
 	ctx, cancel := context.WithCancel(context.Background())
-	// defer cancel()
+	doneFuncs = append(doneFuncs, cancel)
 	go repos.UpdatingService(ctx)
 
 	qs := &chat.Queryers{
@@ -30,18 +33,24 @@ func createServer() (server *gochat.Server, done func()) {
 		EventQueryer:   repos.EventRepository,
 	}
 
-	server = gochat.NewServer(repos, qs, ps, nil)
-	done = func() {
-		cancel()
-		repos.Close()
-		ps.Shutdown()
+	done := func() {
+		// reverse order to simulate defer statement.
+		for i := len(doneFuncs); i >= 0; i-- {
+			doneFuncs[i]()
+		}
 	}
-	return
+
+	return repos, qs, ps, done
 }
 
 func main() {
-	s, done := createServer()
-	defer done()
+	repos, qs, ps, infraDoneFunc := createInfra()
+	s, done := createServer(repos, qs, ps)
+	defer func() {
+		done()
+		infraDoneFunc()
+	}()
+
 	if err := s.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
