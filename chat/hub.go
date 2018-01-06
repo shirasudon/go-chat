@@ -174,18 +174,10 @@ func (hub *HubImpl) sendEvent(ctx context.Context, ev event.Event) error {
 		targetIDs = room.MemberIDSet.List()
 
 	case event.RoomCreated:
-		room, err := chatCommand.rooms.Find(ctx, ev.RoomID)
-		if err != nil {
-			return err
-		}
-		targetIDs = room.MemberIDSet.List()
+		targetIDs = ev.MemberIDs
 
 	case event.RoomDeleted:
-		room, err := chatCommand.rooms.Find(ctx, ev.RoomID)
-		if err != nil {
-			return err
-		}
-		targetIDs = room.MemberIDSet.List()
+		targetIDs = ev.MemberIDs
 
 	case event.RoomAddedMember:
 		room, err := chatCommand.rooms.Find(ctx, ev.RoomID)

@@ -107,7 +107,7 @@ func (rest *RESTHandler) DeleteRoom(e echo.Context) error {
 		RoomID: deletedID,
 		OK:     true,
 	}
-	return e.JSON(http.StatusNoContent, response)
+	return e.JSON(http.StatusOK, response)
 }
 
 func (rest *RESTHandler) AddRoomMember(e echo.Context) error {

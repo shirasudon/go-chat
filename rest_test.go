@@ -212,7 +212,7 @@ func TestRESTDeleteRoom(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if expect, got := http.StatusNoContent, rec.Code; expect != got {
+	if expect, got := http.StatusOK, rec.Code; expect != got {
 		t.Errorf("different http status code, expect: %v, got: %v", expect, got)
 	}
 
