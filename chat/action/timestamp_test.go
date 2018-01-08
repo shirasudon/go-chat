@@ -33,18 +33,31 @@ func TestTimestampMarshalJSON(t *testing.T) {
 }
 
 func TestTimestampUnmarshalText(t *testing.T) {
+	var testStrings = make([]string, 0, 2)
 	var tm = Timestamp(time.Now())
+
+	// json text
 	bs, err := json.Marshal(tm)
 	if err != nil {
 		t.Fatal(err)
 	}
+	testStrings = append(testStrings, strings.Trim(string(bs), "\""))
 
-	strip := strings.Trim(string(bs), "\"")
-	var newTm Timestamp
-	if err := newTm.UnmarshalParam(strip); err != nil {
-		t.Fatalf("can not UnmarshalParam: %v", err)
+	// format text
+	bs, err = tm.MarshalText()
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !newTm.Time().Equal(tm.Time()) {
-		t.Errorf("different time after UnmarshalParam, expect: %v, got: %v", newTm.Time(), tm.Time())
+	testStrings = append(testStrings, string(bs))
+
+	for _, text := range testStrings {
+		var newTm Timestamp
+		if err := newTm.UnmarshalParam(text); err != nil {
+			t.Fatalf("can not UnmarshalParam: %v", err)
+		}
+		if !newTm.Time().Equal(tm.Time()) {
+			t.Errorf("different time after UnmarshalParam, expect: %v, got: %v", newTm.Time(), tm.Time())
+		}
 	}
+	t.Logf("src text are: %#v", testStrings)
 }

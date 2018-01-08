@@ -19,6 +19,11 @@ func (t Timestamp) MarshalJSON() ([]byte, error) {
 	return t.Time().MarshalJSON() // The format of default marshaler is RFC3339.
 }
 
+// implements json.TextMarshaler interface.
+func (t Timestamp) MarshalText() ([]byte, error) {
+	return t.Time().MarshalText() // The format of default marshaler is RFC3339.
+}
+
 // implements json.Unmarshaler interface.
 func (t *Timestamp) UnmarshalJSON(data []byte) error {
 	var ts = time.Time{}
@@ -35,6 +40,6 @@ func (t *Timestamp) UnmarshalParam(src string) error {
 }
 
 // Time returns its internal representation as time.Time.
-func (t *Timestamp) Time() time.Time {
-	return time.Time(*t)
+func (t Timestamp) Time() time.Time {
+	return time.Time(t)
 }

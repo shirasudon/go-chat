@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -906,12 +907,14 @@ func TestRESTPostRoomMessage(t *testing.T) {
 }
 
 func TestRESTGetRoomMessages(t *testing.T) {
+	const URL = "/rooms/:room_id/messages"
+
 	t.Parallel()
 
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	// case 1: found resource
+	// case: found resource with json
 	{
 		const (
 			LoginUserID = uint64(1)
@@ -922,19 +925,22 @@ func TestRESTGetRoomMessages(t *testing.T) {
 		res.RoomID = RoomID
 		res.Msgs = []queried.Message{queried.Message{}}
 
+		query := action.QueryRoomMessages{
+			RoomID: RoomID,
+			Before: NormTimestampNow(),
+			Limit:  1,
+		}
+
 		qs := mocks.NewMockQueryService(mockCtrl)
 		qs.EXPECT().
-			FindRoomMessages(gomock.Any(), LoginUserID, gomock.Any()).
+			FindRoomMessages(gomock.Any(), LoginUserID, query).
 			Return(&res, nil).
 			Times(1)
 
 		RESTHandler := &RESTHandler{chatQuery: qs}
 
-		query := action.QueryRoomMessages{
-			Before: action.TimestampNow(),
-			Limit:  1,
-		}
-		req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages", query)
+		query.RoomID = 0 // remove RoomID from query JSON.
+		req, err := newJSONRequest(echo.GET, URL, query)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -975,7 +981,80 @@ func TestRESTGetRoomMessages(t *testing.T) {
 		}
 	}
 
-	// case 2: not found resource
+	// case: found resource with query parameter
+	{
+		const (
+			LoginUserID = uint64(1)
+			RoomID      = uint64(2)
+		)
+
+		res := queried.EmptyRoomMessages
+		res.RoomID = RoomID
+		res.Msgs = []queried.Message{queried.Message{}}
+
+		actionQuery := action.QueryRoomMessages{
+			RoomID: RoomID,
+			Before: NormTimestampNow(),
+			Limit:  1,
+		}
+		action.TimestampNow()
+
+		qs := mocks.NewMockQueryService(mockCtrl)
+		qs.EXPECT().
+			FindRoomMessages(gomock.Any(), LoginUserID, actionQuery).
+			Return(&res, nil).
+			Times(1)
+
+		RESTHandler := &RESTHandler{chatQuery: qs}
+
+		byteTime, err := actionQuery.Before.MarshalText()
+		if err != nil {
+			t.Fatal(err)
+		}
+		query := make(url.Values)
+		query.Set("before", string(byteTime))
+		query.Set("limit", fmt.Sprint(actionQuery.Limit))
+		req := httptest.NewRequest(echo.GET, URL+"/?"+query.Encode(), nil)
+		rec := httptest.NewRecorder()
+
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, LoginUserID)
+		c.SetParamNames("room_id")
+		c.SetParamValues(fmt.Sprint(RoomID))
+
+		t.Log(c.QueryParam("before"), string(byteTime))
+
+		err = RESTHandler.GetRoomMessages(c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if expect, got := http.StatusOK, rec.Code; expect != got {
+			t.Errorf("different http status code, expect: %v, got: %v", expect, got)
+		}
+
+		response := make(map[string]interface{})
+		err = json.Unmarshal(rec.Body.Bytes(), &response)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		msgs, ok := response["messages"].([]interface{})
+		if !ok {
+			t.Fatalf("response has invalid structure, %#v", response)
+		}
+		if len(msgs) != 1 {
+			t.Fatalf("different messages size, expect: %v, got: %v", 1, len(msgs))
+		}
+		if _, ok := msgs[0].(map[string]interface{}); !ok {
+			t.Fatalf("response.messages has invalid structure, %#v", msgs)
+		}
+
+		if roomID := uint64(response["room_id"].(float64)); roomID != RoomID {
+			t.Errorf("message created but target room id is invalid")
+		}
+	}
+
+	// case: not found resource
 	{
 		const (
 			LoginUserID    = uint64(2)
@@ -994,7 +1073,7 @@ func TestRESTGetRoomMessages(t *testing.T) {
 			Before: action.TimestampNow(),
 			Limit:  1,
 		}
-		req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages", query)
+		req, err := newJSONRequest(echo.GET, URL, query)
 		if err != nil {
 			t.Fatal(err)
 		}
