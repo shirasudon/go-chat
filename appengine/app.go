@@ -1,6 +1,6 @@
 // +build appengine
 
-package main
+package app
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/infra/inmemory"
 	"github.com/shirasudon/go-chat/infra/pubsub"
+	"github.com/shirasudon/go-chat/main/resolve"
 
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/log"
@@ -55,7 +56,7 @@ var (
 func init() {
 	var serverDoneFunc func()
 	repos, qs, ps, infraDoneFunc := createInfra()
-	gochatServer, serverDoneFunc = createServer(repos, qs, ps)
+	gochatServer, serverDoneFunc = resolve.CreateServer(repos, qs, ps)
 	doneFunc = func() {
 		serverDoneFunc()
 		infraDoneFunc()
