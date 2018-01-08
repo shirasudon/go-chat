@@ -4,39 +4,35 @@ import (
 	"context"
 	"errors"
 	"log"
+	"net/http"
 	"sort"
 	"strings"
 
-	"golang.org/x/net/websocket"
-
 	"github.com/labstack/echo"
 	"github.com/labstack/echo/middleware"
+
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/chat/action"
-	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/domain/event"
 	"github.com/shirasudon/go-chat/ws"
 )
 
 // it represents server which can accepts chat room and its clients.
 type Server struct {
-	echo            *echo.Echo
-	websocketServer *websocket.Server
-	loginHandler    *LoginHandler
-	restHandler     *RESTHandler
+	echo *echo.Echo
 
-	chatHub   *chat.HubImpl
-	chatCmd   *chat.CommandServiceImpl
-	chatQuery chat.QueryService
+	wsServer     *ws.Server
+	loginHandler *LoginHandler
+	restHandler  *RESTHandler
 
-	repos domain.Repositories
+	chatHub chat.Hub
 
 	conf Config
 }
 
 // it returns new constructed server with config.
 // nil config is ok and use DefaultConfig insteadly.
-func NewServer(repos domain.Repositories, qs *chat.Queryers, ps chat.Pubsub, conf *Config) *Server {
+func NewServer(chatCmd chat.CommandService, chatQuery chat.QueryService, chatHub chat.Hub, userQuery chat.UserQueryer, conf *Config) *Server {
 	if conf == nil {
 		conf = &DefaultConfig
 	}
@@ -44,80 +40,16 @@ func NewServer(repos domain.Repositories, qs *chat.Queryers, ps chat.Pubsub, con
 	e := echo.New()
 	e.HideBanner = true
 
-	chatCmd := chat.NewCommandServiceImpl(repos, ps)
-	chatQuery := chat.NewQueryServiceImpl(qs)
-
 	s := &Server{
 		echo:         e,
-		loginHandler: NewLoginHandler(qs.UserQueryer),
+		loginHandler: NewLoginHandler(userQuery),
 		restHandler:  NewRESTHandler(chatCmd, chatQuery),
-		chatHub:      chat.NewHubImpl(chatCmd),
-		chatCmd:      chatCmd,
-		chatQuery:    chatQuery,
-
-		repos: repos,
-		conf:  *conf,
+		chatHub:      chatHub,
+		conf:         *conf,
 	}
-	s.websocketServer = &websocket.Server{} // TODO it is needed?
-	return s
-}
-
-func (s *Server) serveChatWebsocket(c echo.Context) error {
-	// LoggedInUserID is valid at middleware layer, loginHandler.Filter.
-	userID, ok := LoggedInUserID(c)
-	if !ok {
-		return errors.New("needs logged in, but access without logged in state")
-	}
-
-	var ctx = c.Request().Context()
-	if ctx == nil {
-		log.Println("nil context on websocket handler")
-		ctx = context.Background()
-	}
-	user, err := s.repos.Users().Find(ctx, userID)
-	if err != nil {
-		return err
-	}
-
-	websocket.Handler(func(wsConn *websocket.Conn) {
-		log.Println("Server.acceptWSConn: ")
-		defer wsConn.Close()
-
-		conn := ws.NewConn(wsConn, user)
-		conn.OnActionMessage(func(conn *ws.Conn, m action.ActionMessage) {
-			s.chatHub.Send(conn, m)
-		})
-		conn.OnError(func(conn *ws.Conn, err error) {
-			conn.Send(event.ErrorRaised{Message: err.Error()})
-		})
-		conn.OnClosed(func(conn *ws.Conn) {
-			s.chatHub.Disconnect(conn)
-		})
-		s.chatHub.Connect(ctx, conn)
-
-		// blocking to avoid connection closed
-		conn.Listen(ctx)
-	}).ServeHTTP(c.Response(), c.Request())
-	return nil
-}
-
-// it starts server process.
-// it blocks until process occurs any error and
-// return the error.
-func (s *Server) ListenAndServe() error {
-	if err := s.conf.validate(); err != nil {
-		return err
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	// start chat process
-	go s.chatHub.Listen(ctx)
+	s.wsServer = ws.NewServerFunc(s.handleWsConn)
 
 	// initilize router
-	e := s.echo
-
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
@@ -164,6 +96,61 @@ func (s *Server) ListenAndServe() error {
 	// serve static content
 	e.Static("/", "").
 		Name = "staticContents"
+	return s
+}
+
+func (s *Server) handleWsConn(conn *ws.Conn) {
+	log.Println("Server.acceptWSConn: ")
+	defer conn.Close()
+
+	var ctx = conn.Request().Context()
+
+	conn.OnActionMessage(func(conn *ws.Conn, m action.ActionMessage) {
+		s.chatHub.Send(conn, m)
+	})
+	conn.OnError(func(conn *ws.Conn, err error) {
+		conn.Send(event.ErrorRaised{Message: err.Error()})
+	})
+	conn.OnClosed(func(conn *ws.Conn) {
+		s.chatHub.Disconnect(conn)
+	})
+
+	err := s.chatHub.Connect(ctx, conn)
+	if err != nil {
+		conn.Send(event.ErrorRaised{Message: err.Error()})
+		log.Printf("websocket connect error: %v\n", err)
+		return
+	}
+
+	// blocking to avoid connection closed
+	conn.Listen(ctx)
+}
+
+func (s *Server) serveChatWebsocket(c echo.Context) error {
+	// LoggedInUserID is valid at middleware layer, loginHandler.Filter.
+	userID, ok := LoggedInUserID(c)
+	if !ok {
+		return errors.New("needs logged in, but access without logged in state")
+	}
+
+	s.wsServer.ServeHTTPWithUserID(c.Response(), c.Request(), userID)
+	return nil
+}
+
+// Handler returns http.Handler interface in the server.
+func (s *Server) Handler() http.Handler {
+	return s.echo
+}
+
+// it starts server process.
+// it blocks until process occurs any error and
+// return the error.
+func (s *Server) ListenAndServe() error {
+	if err := s.conf.validate(); err != nil {
+		return err
+	}
+
+	e := s.echo
 
 	// show registered URLs
 	routes := e.Routes()
@@ -188,7 +175,6 @@ func (s *Server) ListenAndServe() error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	s.chatHub.Shutdown()
 	return s.echo.Shutdown(ctx)
 }
 
@@ -197,11 +183,8 @@ func (s *Server) Shutdown(ctx context.Context) error {
 // A nil config is OK and use DefaultConfig insteadly.
 // It blocks until the process occurs any error and
 // return the error.
-func ListenAndServe(repos domain.Repositories, qs *chat.Queryers, ps chat.Pubsub, conf *Config) error {
-	if conf == nil {
-		conf = &DefaultConfig
-	}
-	s := NewServer(repos, qs, ps, conf)
+func ListenAndServe(chatCmd chat.CommandService, chatQuery chat.QueryService, chatHub chat.Hub, userQuery chat.UserQueryer, conf *Config) error {
+	s := NewServer(chatCmd, chatQuery, chatHub, userQuery, conf)
 	defer s.Shutdown(context.Background())
 	return s.ListenAndServe()
 }

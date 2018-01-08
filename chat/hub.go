@@ -11,7 +11,7 @@ import (
 )
 
 // Conn is exported at the chat package so that the higher layer need not to import domain package.
-type Conn = domain.Conn
+type Conn domain.Conn
 
 // Hub is a interface for a hub which conmmunicates the event/action messages
 // between the active client connections.

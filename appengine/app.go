@@ -1,14 +1,20 @@
-package main
+// +build appengine
+
+package app
 
 import (
 	"context"
-	"log"
+	"net/http"
 
+	gochat "github.com/shirasudon/go-chat"
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/infra/inmemory"
 	"github.com/shirasudon/go-chat/infra/pubsub"
 	"github.com/shirasudon/go-chat/main/resolve"
+
+	"google.golang.org/appengine"
+	"google.golang.org/appengine/log"
 )
 
 type DoneFunc func()
@@ -42,15 +48,27 @@ func createInfra() (domain.Repositories, *chat.Queryers, chat.Pubsub, DoneFunc) 
 	return repos, qs, ps, done
 }
 
-func main() {
-	repos, qs, ps, infraDoneFunc := createInfra()
-	s, done := resolve.CreateServer(repos, qs, ps)
-	defer func() {
-		done()
-		infraDoneFunc()
-	}()
+var (
+	gochatServer *gochat.Server
+	doneFunc     func()
+)
 
-	if err := s.ListenAndServe(); err != nil {
-		log.Fatal(err)
+func init() {
+	var serverDoneFunc func()
+	repos, qs, ps, infraDoneFunc := createInfra()
+	gochatServer, serverDoneFunc = resolve.CreateServer(repos, qs, ps)
+	doneFunc = func() {
+		serverDoneFunc()
+		infraDoneFunc()
 	}
+
+	http.Handle("/", gochatServer.Handler())
+}
+
+func main() {
+	defer func() {
+		doneFunc()
+		log.Debugf(context.Background(), "calling main defer")
+	}()
+	appengine.Main()
 }

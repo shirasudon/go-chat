@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/shirasudon/go-chat/chat/action"
-	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/domain/event"
 	"github.com/shirasudon/go-chat/ws/wstest"
 
@@ -18,6 +17,9 @@ const GreetingMsg = "hello!"
 const Timeout = 10 * time.Millisecond
 
 func TestNewConn(t *testing.T) {
+	const (
+		UserID = uint64(1)
+	)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -26,7 +28,7 @@ func TestNewConn(t *testing.T) {
 		defer ws.Close()
 
 		cm := event.MessageCreated{Content: GreetingMsg}
-		conn := NewConn(ws, domain.User{})
+		conn := NewConn(ws, UserID)
 		conn.Send(cm)
 		conn.OnActionMessage(func(conn *Conn, m action.ActionMessage) {
 			cm, ok := m.(action.ChatMessage)
@@ -82,6 +84,9 @@ func TestNewConn(t *testing.T) {
 }
 
 func TestConnGotsInvalidMessages(t *testing.T) {
+	const (
+		UserID = uint64(1)
+	)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -89,7 +94,7 @@ func TestConnGotsInvalidMessages(t *testing.T) {
 	server := wstest.NewServer(websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
 
-		conn := NewConn(ws, domain.User{})
+		conn := NewConn(ws, UserID)
 		conn.OnActionMessage(func(conn *Conn, m action.ActionMessage) {
 			t.Fatalf("In this test, server side conn will never get message, but got: %#v", m)
 		})
@@ -158,6 +163,9 @@ func TestConnGotsInvalidMessages(t *testing.T) {
 }
 
 func TestConnClose(t *testing.T) {
+	const (
+		UserID = uint64(1)
+	)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -165,7 +173,7 @@ func TestConnClose(t *testing.T) {
 	server := wstest.NewServer(websocket.Handler(func(ws *websocket.Conn) {
 		defer ws.Close()
 
-		conn := NewConn(ws, domain.User{})
+		conn := NewConn(ws, UserID)
 		conn.Close() // to quit Listen() immediately
 		conn.Listen(ctx)
 		endCh <- true
