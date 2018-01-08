@@ -14,3 +14,12 @@ func NormTimestampNow() action.Timestamp {
 	newNow.UnmarshalParam(string(bs))
 	return newNow
 }
+
+// MustMarshal returns byte slice which ensure
+// the error is nil.
+func MustMarshal(bs []byte, err error) []byte {
+	if err != nil {
+		panic(err)
+	}
+	return bs
+}

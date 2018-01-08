@@ -997,7 +997,6 @@ func TestRESTGetRoomMessages(t *testing.T) {
 			Before: NormTimestampNow(),
 			Limit:  1,
 		}
-		action.TimestampNow()
 
 		qs := mocks.NewMockQueryService(mockCtrl)
 		qs.EXPECT().
@@ -1007,10 +1006,7 @@ func TestRESTGetRoomMessages(t *testing.T) {
 
 		RESTHandler := &RESTHandler{chatQuery: qs}
 
-		byteTime, err := actionQuery.Before.MarshalText()
-		if err != nil {
-			t.Fatal(err)
-		}
+		byteTime := MustMarshal(actionQuery.Before.MarshalText())
 		query := make(url.Values)
 		query.Set("before", string(byteTime))
 		query.Set("limit", fmt.Sprint(actionQuery.Limit))
@@ -1024,7 +1020,7 @@ func TestRESTGetRoomMessages(t *testing.T) {
 
 		t.Log(c.QueryParam("before"), string(byteTime))
 
-		err = RESTHandler.GetRoomMessages(c)
+		err := RESTHandler.GetRoomMessages(c)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1093,12 +1089,14 @@ func TestRESTGetRoomMessages(t *testing.T) {
 }
 
 func TestRESTGetUnreadRoomMessages(t *testing.T) {
+	const URL = "/rooms/:room_id/messages/unread"
+
 	t.Parallel()
 
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	// case1: found
+	// case: found with JSON
 	{
 		const (
 			LoginUserID = uint64(2)
@@ -1106,18 +1104,20 @@ func TestRESTGetUnreadRoomMessages(t *testing.T) {
 		)
 
 		query := action.QueryUnreadRoomMessages{
-			Limit: 1,
+			RoomID: RoomID,
+			Limit:  1,
 		}
 
 		qs := mocks.NewMockQueryService(mockCtrl)
 		qs.EXPECT().
-			FindUnreadRoomMessages(gomock.Any(), LoginUserID, gomock.Any()).
+			FindUnreadRoomMessages(gomock.Any(), LoginUserID, query).
 			Return(&queried.EmptyUnreadRoomMessages, nil).
 			Times(1)
 
 		RESTHandler := &RESTHandler{chatQuery: qs}
 
-		req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages/unread", query)
+		query.RoomID = 0 // remove RoomID from JSON
+		req, err := newJSONRequest(echo.GET, URL, query)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -1154,7 +1154,63 @@ func TestRESTGetUnreadRoomMessages(t *testing.T) {
 		}
 	}
 
-	// case2: room id is not found
+	// case: found with query parameter
+	{
+		const (
+			LoginUserID = uint64(2)
+			RoomID      = uint64(3)
+		)
+
+		actionQuery := action.QueryUnreadRoomMessages{
+			RoomID: RoomID,
+			Limit:  1,
+		}
+
+		qs := mocks.NewMockQueryService(mockCtrl)
+		qs.EXPECT().
+			FindUnreadRoomMessages(gomock.Any(), LoginUserID, actionQuery).
+			Return(&queried.EmptyUnreadRoomMessages, nil).
+			Times(1)
+
+		RESTHandler := &RESTHandler{chatQuery: qs}
+
+		query := make(url.Values)
+		query.Set("limit", fmt.Sprint(actionQuery.Limit))
+		req := httptest.NewRequest(echo.GET, URL+"/?"+query.Encode(), nil)
+		rec := httptest.NewRecorder()
+
+		c := theEcho.NewContext(req, rec)
+		c.Set(KeyLoggedInUserID, LoginUserID)
+		c.SetParamNames("room_id")
+		c.SetParamValues(fmt.Sprint(RoomID))
+
+		err := RESTHandler.GetUnreadRoomMessages(c)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if expect, got := http.StatusOK, rec.Code; expect != got {
+			t.Errorf("different http status code, expect: %v, got: %v", expect, got)
+		}
+
+		response := make(map[string]interface{})
+		err = json.Unmarshal(rec.Body.Bytes(), &response)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// just check for existance of json keys.
+		for _, key := range []string{
+			"room_id",
+			"messages",
+			"messages_size",
+		} {
+			if _, ok := response[key]; !ok {
+				t.Errorf("missing field (%v) in json response", key)
+			}
+		}
+	}
+
+	// case: room id is not found
 	{
 		const (
 			NotFoundRoomID = uint64(999)
