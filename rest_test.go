@@ -931,7 +931,7 @@ func TestRESTGetRoomMessages(t *testing.T) {
 		RESTHandler := &RESTHandler{chatQuery: qs}
 
 		query := action.QueryRoomMessages{
-			Before: time.Now(),
+			Before: action.TimestampNow(),
 			Limit:  1,
 		}
 		req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages", query)
@@ -991,7 +991,7 @@ func TestRESTGetRoomMessages(t *testing.T) {
 		RESTHandler := &RESTHandler{chatQuery: qs}
 
 		query := action.QueryRoomMessages{
-			Before: time.Now(),
+			Before: action.TimestampNow(),
 			Limit:  1,
 		}
 		req, err := newJSONRequest(echo.GET, "/rooms/:room_id/messages", query)

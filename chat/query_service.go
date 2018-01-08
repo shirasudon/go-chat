@@ -108,8 +108,8 @@ func (s *QueryServiceImpl) FindRoomMessages(ctx context.Context, userID uint64, 
 		q.Limit = MaxRoomMessagesLimit
 	}
 
-	if q.Before == (time.Time{}) {
-		q.Before = time.Now()
+	if q.Before.Time().Equal(time.Time{}) {
+		q.Before = action.TimestampNow()
 	}
 
 	// TODO create specific queried data, messages associated with room ID and user ID,
@@ -126,7 +126,7 @@ func (s *QueryServiceImpl) FindRoomMessages(ctx context.Context, userID uint64, 
 		return nil, fmt.Errorf("can not get the messages from room(id=%d) by not a room member user(id=%d)", q.RoomID, userID)
 	}
 
-	msgs, err := s.msgs.FindRoomMessagesOrderByLatest(ctx, q.RoomID, q.Before, q.Limit)
+	msgs, err := s.msgs.FindRoomMessagesOrderByLatest(ctx, q.RoomID, q.Before.Time(), q.Limit)
 	if err != nil {
 		if IsNotFoundError(err) {
 			// TODO use logger
@@ -143,11 +143,11 @@ func (s *QueryServiceImpl) FindRoomMessages(ctx context.Context, userID uint64, 
 	roomMsgs := &queried.RoomMessages{
 		RoomID: q.RoomID,
 	}
-	roomMsgs.Cursor.Current = q.Before
+	roomMsgs.Cursor.Current = q.Before.Time()
 	if last := len(msgs) - 1; last >= 0 {
 		roomMsgs.Cursor.Next = msgs[last].CreatedAt
 	} else {
-		roomMsgs.Cursor.Next = q.Before
+		roomMsgs.Cursor.Next = q.Before.Time()
 	}
 
 	qMsgs := make([]queried.Message, 0, len(msgs))

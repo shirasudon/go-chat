@@ -98,7 +98,7 @@ func TestQueryServiceFindRoomMessagesSuccess(t *testing.T) {
 
 	queryRMsgs := action.QueryRoomMessages{
 		RoomID: room.ID,
-		Before: time.Now(),
+		Before: action.TimestampNow(),
 		Limit:  10,
 	}
 
@@ -118,7 +118,7 @@ func TestQueryServiceFindRoomMessagesSuccess(t *testing.T) {
 		{
 			ID:        1,
 			Content:   "hello",
-			CreatedAt: queryRMsgs.Before.Add(-100 * time.Millisecond),
+			CreatedAt: queryRMsgs.Before.Time().Add(-100 * time.Millisecond),
 		},
 	}
 	msgQr := mocks.NewMockMessageQueryer(mockCtrl)
@@ -126,7 +126,7 @@ func TestQueryServiceFindRoomMessagesSuccess(t *testing.T) {
 		FindRoomMessagesOrderByLatest(
 			gomock.Any(),
 			room.ID,
-			queryRMsgs.Before,
+			queryRMsgs.Before.Time(),
 			queryRMsgs.Limit,
 		).
 		Return(messages, nil).
@@ -148,10 +148,10 @@ func TestQueryServiceFindRoomMessagesSuccess(t *testing.T) {
 	if msgs.RoomID != queryRMsgs.RoomID {
 		t.Errorf("different room id, expect: %v, got: %v", queryRMsgs.RoomID, msgs.RoomID)
 	}
-	if got, expect := msgs.Cursor.Current, queryRMsgs.Before; expect != got {
+	if got, expect := msgs.Cursor.Current, queryRMsgs.Before.Time(); !expect.Equal(got) {
 		t.Errorf("different current cursor, expect: %v, got: %v", expect, got)
 	}
-	if got, expect := msgs.Cursor.Next, messages[0].CreatedAt; expect != got {
+	if got, expect := msgs.Cursor.Next, messages[0].CreatedAt; !expect.Equal(got) {
 		t.Errorf("different next cursor, expect: %v, got: %v", expect, got)
 	}
 	if got, expect := msgs.Msgs[0].Content, messages[0].Content; expect != got {
@@ -229,7 +229,7 @@ func TestQueryServiceFindRoomMessagesFail(t *testing.T) {
 
 	queryRMsgs := action.QueryRoomMessages{
 		RoomID: room.ID,
-		Before: time.Now(),
+		Before: action.TimestampNow(),
 		Limit:  10,
 	}
 
