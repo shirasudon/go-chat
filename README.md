@@ -221,18 +221,24 @@ response JSON:
 }
 ```
 
-### GetUnreadRoomMessage -- `GET /chat/rooms/:room_id/messages/unread`
+### GetRoomMessage -- `GET /chat/rooms/:room_id/messages`
 
-It returns messages unread by the logged-in user in the room specified by `room_id`.
+It returns messages in the room specified by `room_id`.
+The returned messages contains both read and unread messages.
+
+Query Paramters:
+
+* `before`: The start point of the `created_at` in result messages. It must be RFC3339 form.
+* `limit`: The number of result messages.
 
 Request JSON: 
 
 ```javascript
 {
+    "before": "time with RFC3339 format",
     "limit": limit_number,
 }
 ```
-
 
 response JSON:
 
@@ -252,6 +258,52 @@ response JSON:
     "messages_size": messages_size,
 }
 ```
+
+Example:
+
+`GET /chat/rooms/:room_id/messages?before=2018-01-01T12:34:56Z?limit=10` will returns 
+queried result which contains 10 messages and all of these are created before 2018/01/01 12:34:56.
+
+
+### GetUnreadRoomMessage -- `GET /chat/rooms/:room_id/messages/unread`
+
+It returns messages unread by the logged-in user in the room specified by `room_id`.
+
+Query Paramters:
+
+* `limit`: The number of result messages.
+
+Request JSON: 
+
+```javascript
+{
+    "limit": limit_number,
+}
+```
+
+response JSON:
+
+```javascript
+{
+    "room_id": room_id,
+
+    "messages": [
+        {
+            "message_id": message_id,
+            "content":    "<message content>",
+            "created_at": created_at,
+        },
+        ...
+    ],
+
+    "messages_size": messages_size,
+}
+```
+
+Example:
+
+`GET /chat/rooms/:room_id/messages/unread?limit=10` will returns queried result which contains 10 messages.
+
 
 ### ReadRoomMessages -- `POST /chat/rooms/:room_id/messages/read`
 
