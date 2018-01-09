@@ -1,1 +1,4 @@
 vendor/
+
+appengine/_gopath/src
+appengine/_gopath/vendor

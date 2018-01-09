@@ -8,7 +8,7 @@ import (
 	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/infra/inmemory"
 	"github.com/shirasudon/go-chat/infra/pubsub"
-	"github.com/shirasudon/go-chat/main/resolve"
+	"github.com/shirasudon/go-chat/server"
 )
 
 type DoneFunc func()
@@ -44,7 +44,7 @@ func createInfra() (domain.Repositories, *chat.Queryers, chat.Pubsub, DoneFunc) 
 
 func main() {
 	repos, qs, ps, infraDoneFunc := createInfra()
-	s, done := resolve.CreateServer(repos, qs, ps)
+	s, done := server.CreateServerFromInfra(repos, qs, ps)
 	defer func() {
 		done()
 		infraDoneFunc()
