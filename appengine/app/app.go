@@ -6,12 +6,11 @@ import (
 	"context"
 	"net/http"
 
-	gochat "github.com/shirasudon/go-chat"
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/infra/inmemory"
 	"github.com/shirasudon/go-chat/infra/pubsub"
-	"github.com/shirasudon/go-chat/main/resolve"
+	goserver "github.com/shirasudon/go-chat/server"
 
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/log"
@@ -49,14 +48,14 @@ func createInfra() (domain.Repositories, *chat.Queryers, chat.Pubsub, DoneFunc) 
 }
 
 var (
-	gochatServer *gochat.Server
+	gochatServer *goserver.Server
 	doneFunc     func()
 )
 
 func init() {
 	var serverDoneFunc func()
 	repos, qs, ps, infraDoneFunc := createInfra()
-	gochatServer, serverDoneFunc = resolve.CreateServer(repos, qs, ps)
+	gochatServer, serverDoneFunc = goserver.CreateServerFromInfra(repos, qs, ps)
 	doneFunc = func() {
 		serverDoneFunc()
 		infraDoneFunc()

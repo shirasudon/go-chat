@@ -1,4 +1,4 @@
-package chat
+package server
 
 import (
 	"github.com/labstack/echo"

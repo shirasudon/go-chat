@@ -1,0 +1,16 @@
+runtime: go
+api_version: go1
+threadsafe: true
+
+handlers:
+- url: /.*
+  script: _go_app
+
+instance_class: F1
+
+automatic_scaling:
+  min_idle_instances: automatic  # the number of the idle instances
+  max_idle_instances: 1
+  min_pending_latency: 3000ms    # pending time to grow the number of instances
+  max_pending_latency: automatic
+  max_concurrent_requests: 80    
