@@ -1,9 +1,27 @@
-# chat
+# go-chat
 
 [![CircleCI](https://circleci.com/gh/shirasudon/go-chat/tree/master.svg?style=svg)](https://circleci.com/gh/shirasudon/go-chat/tree/master)
 [![codecov](https://codecov.io/gh/shirasudon/go-chat/branch/master/graph/badge.svg)](https://codecov.io/gh/shirasudon/go-chat)
 
 Backend chat server based on the Websocket written by Go.
+
+## How to install
+
+Installig go-chat requires Go 1.9 or newer, and [dep](https://github.com/golang/dep) command.
+
+You can download `go-chat` with `go` and `dep` commands:
+
+```bash
+$ go get -u github.com/shirasudon/go-chat
+$ cd $GOPATH/src/github.com/shirasudon/go-chat
+$ dep ensure
+```
+
+To start stand-alone local server, run the followings:
+
+```bash
+$ go run main/main.go
+```
 
 ## Websocket Connection
 
