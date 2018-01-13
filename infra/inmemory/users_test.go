@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 var (
@@ -126,5 +127,55 @@ func TestUsersFindByNameAndPassword(t *testing.T) {
 	// case2: not found
 	if _, err := userRepository.FindByNameAndPassword(context.Background(), "not found", newUser.Password); err == nil {
 		t.Errorf("not found user name and password specified but non erorr")
+	}
+}
+
+func TestUserStore(t *testing.T) {
+	repo := userRepository
+
+	const (
+		FirstName  = "room1"
+		SecondName = "room2"
+	)
+
+	var (
+		newU = domain.User{Name: FirstName}
+		err  error
+	)
+	newU.AddEvent(event.UserCreated{})
+	// create
+	newU.ID, err = repo.Store(context.Background(), newU)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	storedU, ok := userMap[newU.ID]
+	if !ok {
+		t.Fatal("nothing user after Store: create")
+	}
+	if len(storedU.Events()) != 0 {
+		t.Fatal("event should never be persisted")
+	}
+	if storedU.Name != FirstName {
+		t.Errorf("different stored user name, expect: %v, got: %v", FirstName, storedU.Name)
+	}
+
+	newU.Name = SecondName
+	newU.AddEvent(event.UserCreated{})
+	// update
+	newU.ID, err = repo.Store(context.Background(), newU)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	storedU, ok = userMap[newU.ID]
+	if !ok {
+		t.Fatal("nothing user after Store: update")
+	}
+	if len(storedU.Events()) != 0 {
+		t.Fatal("event should never be persisted")
+	}
+	if storedU.Name != SecondName {
+		t.Errorf("different stored user name, expect: %v, got: %v", SecondName, storedU.Name)
 	}
 }

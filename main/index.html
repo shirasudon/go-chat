@@ -3,6 +3,7 @@
     <title>websocket sample</title>
     <script type="text/javascript">
     var wsUri = "ws://localhost:8080/chat/ws"; 
+    var chatURL = "http://localhost:8080/chat"; 
 
     var output;  
     function init() { 
@@ -28,7 +29,6 @@
 
     function onOpen(evt) { 
         writeToScreen("CONNECTED"); 
-        doSend("websocketにメッセージを送信"); 
     }  
 
     function onClose(evt) { 
@@ -37,7 +37,7 @@
 
     function onMessage(evt) { 
         var jsonData=JSON.parse(evt.data);
-        writeToScreen('<span style="color: blue;">RESPONSE: ' + jsonData.content + '</span>'); 
+        writeToScreen('<span style="color: blue;">RESPONSE: ' + evt.data + '</span>'); 
     }  
 
     function onError(evt) { 
@@ -48,8 +48,10 @@
         writeToScreen("SENT: " + message);
         var jsonData={
             action:"CHAT_MESSAGE",
-            room_id: 2,
-            content:message,
+            data: {
+              room_id: 2,
+              content:message,
+            }
         };
 
         websocket.send(JSON.stringify(jsonData)); 
@@ -69,6 +71,17 @@
         doSend(inputtext.value);
         inputtext.value = "";
     }
+
+    function onReadButtonClick() {
+      writeToScreen("SENT: READ MESSAGES");
+      var jsonData = {
+        action: "READ_MESSAGE",
+        data: {
+          room_id: 2,
+        }
+      };
+      websocket.send(JSON.stringify(jsonData));
+    };
     </script>
 </head>
 <body>
@@ -80,6 +93,12 @@
         <form>
             <input type="text" id="inputtext"/>
             <input type="button" onclick="onClick();" value="send!" />
+        </form>
+    </div>
+
+    <div id="reader">
+        <form>
+            <input type="button" onclick="onReadButtonClick();" value="read!" />
         </form>
     </div>
 

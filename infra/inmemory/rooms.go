@@ -67,6 +67,7 @@ func (repo *RoomRepository) FindAllByUserID(ctx context.Context, userID uint64) 
 }
 
 func (repo *RoomRepository) Store(ctx context.Context, r domain.Room) (uint64, error) {
+	r.EventHolder = domain.NewEventHolder() // event should not be persisted.
 	if r.NotExist() {
 		return repo.Create(ctx, r)
 	} else {
