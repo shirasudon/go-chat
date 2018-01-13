@@ -229,6 +229,7 @@ response JSON:
             "user_name": "<user name>",
             "first_name": "<first name>",
             "last_name": "<last name>",
+            "message_read_at", message_read_time,
         },
         {
             ...

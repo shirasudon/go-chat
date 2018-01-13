@@ -59,8 +59,11 @@ func TestQueryServiceFindRoomInfo(t *testing.T) {
 			RoomName:  "room_name",
 			RoomID:    1,
 			CreatorID: 2,
-			Members: []queried.UserProfile{
-				{UserName: "user", UserID: 2},
+			Members: []queried.RoomMemberProfile{
+				{
+					UserProfile:   queried.UserProfile{UserName: "user", UserID: 2},
+					MessageReadAt: time.Now(),
+				},
 			},
 			MembersSize: 1,
 		}
