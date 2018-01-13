@@ -679,6 +679,7 @@ func TestRESTGetRoomInfoSuccess(t *testing.T) {
 			"user_id",
 			"first_name",
 			"last_name",
+			"message_read_at",
 		} {
 			if _, ok := member.(map[string]interface{})[key]; !ok {
 				t.Errorf("missing field (%v) in room member", key)

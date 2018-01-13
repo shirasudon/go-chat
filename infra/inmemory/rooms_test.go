@@ -3,6 +3,7 @@ package inmemory
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/domain/event"
@@ -40,6 +41,20 @@ func TestFindRoomInfo(t *testing.T) {
 		NotExistRoomID = uint64(99)
 	)
 
+	var (
+		TimeNow = time.Now()
+	)
+
+	// setup read time for test user.
+	{
+		readTimes := &roomMap[TestRoomID].MemberReadTimes
+		prevTime, _ := readTimes.Get(TestUserID)
+		readTimes.Set(TestUserID, TimeNow)
+		defer func() {
+			readTimes.Set(TestUserID, prevTime)
+		}()
+	}
+
 	info, err := repo.FindRoomInfo(context.Background(), TestUserID, TestRoomID)
 	if err != nil {
 		t.Fatal(err)
@@ -56,14 +71,23 @@ func TestFindRoomInfo(t *testing.T) {
 		t.Errorf("different number of members, expect: %v, got: %v", expect, got)
 	}
 
-	memberExists := false
+	var (
+		memberExists  = false
+		memberReadNow = false
+	)
 	for _, m := range info.Members {
 		if m.UserID == TestUserID {
 			memberExists = true
+			if m.MessageReadAt.Equal(TimeNow) {
+				memberReadNow = true
+			}
 		}
 	}
 	if !memberExists {
 		t.Errorf("query parameter is not found in the result, user id %v", TestUserID)
+	}
+	if !memberReadNow {
+		t.Errorf("room member (id=%v) has no read time", TestUserID)
 	}
 
 	// case fail

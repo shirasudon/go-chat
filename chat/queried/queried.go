@@ -7,17 +7,24 @@ import "time"
 
 // EmptyRoomInfo is RoomInfo having empty fields rather than nil.
 var EmptyRoomInfo = RoomInfo{
-	Members: []UserProfile{},
+	Members: []RoomMemberProfile{},
 }
 
 // RoomInfo is a detailed room information.
 // creator
 type RoomInfo struct {
-	RoomName    string        `json:"room_name"`
-	RoomID      uint64        `json:"room_id"`
-	CreatorID   uint64        `json:"room_creator_id"`
-	Members     []UserProfile `json:"room_members"`
-	MembersSize int           `json:"room_members_size"`
+	RoomName    string              `json:"room_name"`
+	RoomID      uint64              `json:"room_id"`
+	CreatorID   uint64              `json:"room_creator_id"`
+	Members     []RoomMemberProfile `json:"room_members"`
+	MembersSize int                 `json:"room_members_size"`
+}
+
+// RoomMemberProfile is a user profile with room specific information.
+type RoomMemberProfile struct {
+	UserProfile
+
+	MessageReadAt time.Time `json:"message_read_at"`
 }
 
 // EmptyUserRelation is UserRelation having empty fields rather than nil.

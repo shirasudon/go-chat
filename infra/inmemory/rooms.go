@@ -144,7 +144,7 @@ func (repo *RoomRepository) FindRoomInfo(ctx context.Context, userID, roomID uin
 	}
 	roomMapMu.RUnlock()
 
-	members := make([]queried.UserProfile, 0, 2)
+	members := make([]queried.RoomMemberProfile, 0, 2)
 
 	userMapMu.RLock()
 	// check whether user exist in the room
@@ -160,7 +160,14 @@ func (repo *RoomRepository) FindRoomInfo(ctx context.Context, userID, roomID uin
 		if !ok {
 			continue
 		}
-		members = append(members, createUserProfile(&u))
+		readAt, ok := r.MemberReadTimes.Get(id)
+		if !ok {
+			continue
+		}
+		members = append(members, queried.RoomMemberProfile{
+			UserProfile:   createUserProfile(&u),
+			MessageReadAt: readAt,
+		})
 	}
 	userMapMu.RUnlock()
 
