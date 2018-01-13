@@ -160,10 +160,9 @@ func (repo *RoomRepository) FindRoomInfo(ctx context.Context, userID, roomID uin
 		if !ok {
 			continue
 		}
-		readAt, ok := r.MemberReadTimes.Get(id)
-		if !ok {
-			continue
-		}
+		// it should succeed to get time with room.MemberIDs.
+		readAt, _ := r.MemberReadTimes.Get(id)
+
 		members = append(members, queried.RoomMemberProfile{
 			UserProfile:   createUserProfile(&u),
 			MessageReadAt: readAt,
