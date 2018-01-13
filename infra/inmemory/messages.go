@@ -144,6 +144,7 @@ func (repo *MessageRepository) FindRoomMessagesOrderByLatest(ctx context.Context
 
 func (repo *MessageRepository) Store(ctx context.Context, m domain.Message) (uint64, error) {
 	// TODO create or update
+	m.EventHolder = domain.NewEventHolder() // event should not be persisted.
 	messageCounter += 1
 	m.ID = messageCounter
 	m.CreatedAt = time.Now()

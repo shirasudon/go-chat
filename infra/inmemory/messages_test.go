@@ -65,6 +65,9 @@ func TestMessageRepoStore(t *testing.T) {
 	if stored.Content != Content {
 		t.Errorf("different message content in the datastore, expect: %v, got: %v", Content, stored.Content)
 	}
+	if len(stored.Events()) != 0 {
+		t.Errorf("event should not be persisted")
+	}
 }
 
 func TestMessageRepoFind(t *testing.T) {

@@ -3,6 +3,9 @@ package inmemory
 import (
 	"context"
 	"testing"
+
+	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/domain/event"
 )
 
 func TestRoomVars(t *testing.T) {
@@ -69,5 +72,55 @@ func TestFindRoomInfo(t *testing.T) {
 	}
 	if _, err := repo.FindRoomInfo(context.Background(), TestUserID, NotExistRoomID); err == nil {
 		t.Fatalf("query no exist room ID (%v) but no error", NotExistRoomID)
+	}
+}
+
+func TestRoomStore(t *testing.T) {
+	repo := &RoomRepository{}
+
+	const (
+		FirstName  = "room1"
+		SecondName = "room2"
+	)
+
+	var (
+		newR = domain.Room{Name: FirstName}
+		err  error
+	)
+	newR.AddEvent(event.RoomCreated{})
+	// create
+	newR.ID, err = repo.Store(context.Background(), newR)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	storedR, ok := roomMap[newR.ID]
+	if !ok {
+		t.Fatal("nothing room after Store: create")
+	}
+	if len(storedR.Events()) != 0 {
+		t.Fatal("event should never be persited")
+	}
+	if storedR.Name != FirstName {
+		t.Errorf("different stored room name, expect: %v, got: %v", FirstName, storedR.Name)
+	}
+
+	newR.Name = SecondName
+	newR.AddEvent(event.RoomCreated{})
+	// update
+	newR.ID, err = repo.Store(context.Background(), newR)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	storedR, ok = roomMap[newR.ID]
+	if !ok {
+		t.Fatal("nothing room after Store: update")
+	}
+	if len(storedR.Events()) != 0 {
+		t.Fatal("event should never be persited")
+	}
+	if storedR.Name != SecondName {
+		t.Errorf("different stored room name, expect: %v, got: %v", SecondName, storedR.Name)
 	}
 }

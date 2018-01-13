@@ -64,6 +64,7 @@ func errUserNotFound(userID uint64) *chat.NotFoundError {
 var userCounter uint64 = uint64(len(userMap))
 
 func (repo UserRepository) Store(ctx context.Context, u domain.User) (uint64, error) {
+	u.EventHolder = domain.NewEventHolder() // event should not be persisted.
 	if u.NotExist() {
 		return repo.Create(ctx, u)
 	} else {
