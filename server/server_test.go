@@ -55,6 +55,33 @@ const (
 	LoginUserID = 2
 )
 
+func TestServerListenAndServeFailWithConfig(t *testing.T) {
+	var Config = Config{
+		HTTP: "unknown",
+	}
+	if err := Config.Validate(); err == nil {
+		t.Fatal("Config should be invalid here")
+	}
+
+	server := NewServer(chatCmd, chatQuery, chatHub, queryers.UserQueryer, &Config)
+	defer server.Shutdown(context.Background())
+
+	errCh := make(chan error, 1)
+	timeout := time.After(1 * time.Millisecond)
+	go func() {
+		errCh <- server.ListenAndServe()
+	}()
+	select {
+	case err := <-errCh:
+		if err == nil {
+			t.Errorf("the ListenAndServe should return error by invalid config")
+		}
+		// occuring error is OK
+	case <-timeout:
+		t.Errorf("timeout")
+	}
+}
+
 func TestServerServeChatWebsocket(t *testing.T) {
 	server := NewServer(chatCmd, chatQuery, chatHub, queryers.UserQueryer, nil)
 	defer server.Shutdown(context.Background())

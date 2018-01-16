@@ -3,8 +3,10 @@ package server
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
+	"path"
 	"sort"
 	"strings"
 
@@ -62,7 +64,7 @@ func NewServer(chatCmd chat.CommandService, chatQuery chat.QueryService, chatHub
 	e.POST("/logout", s.loginHandler.Logout).
 		Name = "doLogout"
 
-	chatPath := strings.TrimSuffix(s.conf.ChatPath, "/")
+	chatPath := path.Join(s.conf.ChatAPIPrefix, "/chat")
 	chatGroup := e.Group(chatPath, s.loginHandler.Filter())
 
 	// set restHandler
@@ -94,8 +96,10 @@ func NewServer(chatCmd chat.CommandService, chatQuery chat.QueryService, chatHub
 		Name = "chat.connentWebsocket"
 
 	// serve static content
-	e.Static("/", "").
-		Name = "staticContents"
+	if s.conf.EnableServeStaticFile {
+		route := path.Join(s.conf.StaticHandlerPrefix, "/")
+		e.Static(route, s.conf.StaticFileDir).Name = "staticContents"
+	}
 	return s
 }
 
@@ -146,24 +150,26 @@ func (s *Server) Handler() http.Handler {
 // it blocks until process occurs any error and
 // return the error.
 func (s *Server) ListenAndServe() error {
-	if err := s.conf.validate(); err != nil {
-		return err
+	if err := s.conf.Validate(); err != nil {
+		return fmt.Errorf("server: config erorr: %v", err)
 	}
 
 	e := s.echo
 
 	// show registered URLs
-	routes := e.Routes()
-	sort.Slice(routes, func(i, j int) bool {
-		ri, rj := routes[i], routes[j]
-		return len(ri.Path) < len(rj.Path)
-	})
-	for _, url := range routes {
-		// built-in routes are ignored
-		if strings.Contains(url.Name, "github.com/labstack/echo") {
-			continue
+	if s.conf.ShowRoutes {
+		routes := e.Routes()
+		sort.Slice(routes, func(i, j int) bool {
+			ri, rj := routes[i], routes[j]
+			return len(ri.Path) < len(rj.Path)
+		})
+		for _, url := range routes {
+			// built-in routes are ignored
+			if strings.Contains(url.Name, "github.com/labstack/echo") {
+				continue
+			}
+			log.Printf("%8s : %-35s (%v)\n", url.Method, url.Path, url.Name)
 		}
-		log.Printf("%8s : %-35s (%v)\n", url.Method, url.Path, url.Name)
 	}
 
 	// start server
