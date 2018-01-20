@@ -7,9 +7,9 @@ Backend chat server based on the Websocket written by Go.
 
 ## How to install
 
-Installig go-chat requires Go 1.9 or newer, and [dep](https://github.com/golang/dep) command.
+Installing go-chat requires Go 1.9 or newer, and [dep](https://github.com/golang/dep) command.
 
-You can download `go-chat` with `go` and `dep` commands:
+You can download `go-chat` and its dependencies with `go` and `dep` commands:
 
 ```bash
 $ go get -u github.com/shirasudon/go-chat
