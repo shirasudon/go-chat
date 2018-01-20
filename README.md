@@ -23,6 +23,68 @@ To start stand-alone local server, run the followings:
 $ go run main/main.go
 ```
 
+## Server Configuration
+
+go-chat server uses the external configuration file, `config.toml`.
+If the configuration file is not found, use default values instead of that.
+See below for the configuration values.
+Example of `config.toml` is located at `infra/config/example/config.toml`.
+
+The server can accept environment variable `GOCHAT_CONFIG_FILE` which 
+specifies the configuration file to be used.
+
+e.g. `GOCHAT_CONFIG_FILE="another.toml" go run main/main.go` will use
+`another.toml` as configuration file.
+
+* Configuration
+
+```golang
+// Configuration for server behavior.
+type Config struct {
+	// HTTP service address for the server.
+	// The format is `[host]:[port]`, e.g. localhost:8080.
+	HTTP string
+
+	// Prefix of URI for the chat API.
+	// e.g. given ChatAPIPrefix = `/api` and chat API `/chat/rooms`,
+	// the prefixed chat API is `/api/chat/rooms`.
+	ChatAPIPrefix string
+
+	// Prefix of URI for the static file server.
+	//
+	// Example: given local html file `/www/index.html`,
+	// StaticHandlerPrefix = "/www" and StaticHandlerPrefix = "/static",
+	// the requesting the server with URI `/static/index.html` responds
+	// the html content of `/www/index.html`.
+	StaticHandlerPrefix string
+
+	// root directory to serve static files.
+	StaticFileDir string
+
+	// indicates whether serving static files is enable.
+	// if false, StaticHandlerPrefix and StaticFileDir do not
+	// affect the server.
+	EnableServeStaticFile bool
+
+	// show all of URI routes at server starts.
+	ShowRoutes bool
+}
+```
+
+* Default Configuration
+
+```golang
+// DefaultConfig is default configuration for the server.
+var DefaultConfig = Config{
+	HTTP:                  "localhost:8080",
+	ChatAPIPrefix:         "",
+	StaticHandlerPrefix:   "",
+	StaticFileDir:         "", // current directory
+	EnableServeStaticFile: true,
+	ShowRoutes:            true,
+}
+```
+
 ## Websocket Connection
 
 The server can accepts the Websocket connetion at `/chat/ws`.
