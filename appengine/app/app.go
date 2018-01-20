@@ -4,16 +4,18 @@ package app
 
 import (
 	"context"
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/infra/config"
 	"github.com/shirasudon/go-chat/infra/inmemory"
 	"github.com/shirasudon/go-chat/infra/pubsub"
 	goserver "github.com/shirasudon/go-chat/server"
 
 	"google.golang.org/appengine"
-	"google.golang.org/appengine/log"
 )
 
 type DoneFunc func()
@@ -47,6 +49,38 @@ func createInfra() (domain.Repositories, *chat.Queryers, chat.Pubsub, DoneFunc) 
 	return repos, qs, ps, done
 }
 
+const (
+	DefaultConfigFile = "config.toml"
+	KeyConfigFileENV  = "GOCHAT_CONFIG_FILE"
+)
+
+func loadConfig() *goserver.Config {
+	// get config path from environment value.
+	var configPath = DefaultConfigFile
+	if confPath := os.Getenv(KeyConfigFileENV); len(confPath) > 0 {
+		configPath = confPath
+	}
+
+	// set config value to be used.
+	var defaultConf = goserver.DefaultConfig
+	if config.FileExists(configPath) {
+		log.Printf("[Config] Loading file: %s\n", configPath)
+
+		loaded, err := config.LoadFile(configPath)
+		if err != nil {
+			log.Printf("[Config] Load Error: %v\n", err)
+			log.Println("[Config] use default insteadly")
+			return &defaultConf
+		}
+		defaultConf = *loaded
+		log.Println("[Config] Loading file: OK")
+
+	} else {
+		log.Println("[Config] Use default")
+	}
+	return &defaultConf
+}
+
 var (
 	gochatServer *goserver.Server
 	doneFunc     func()
@@ -55,19 +89,18 @@ var (
 func init() {
 	var serverDoneFunc func()
 	repos, qs, ps, infraDoneFunc := createInfra()
-	gochatServer, serverDoneFunc = goserver.CreateServerFromInfra(repos, qs, ps)
+	gochatServer, serverDoneFunc = goserver.CreateServerFromInfra(repos, qs, ps, loadConfig())
 	doneFunc = func() {
 		serverDoneFunc()
 		infraDoneFunc()
 	}
-
 	http.Handle("/", gochatServer.Handler())
 }
 
 func main() {
 	defer func() {
+		log.Println("calling main defer")
 		doneFunc()
-		log.Debugf(context.Background(), "calling main defer")
 	}()
 	appengine.Main()
 }

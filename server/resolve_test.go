@@ -34,7 +34,7 @@ func TestCreateServerFromInfra(t *testing.T) {
 	ps := mocks.NewMockPubsub(ctrl)
 	ps.EXPECT().Sub(gomock.Any()).AnyTimes()
 
-	server, done := CreateServerFromInfra(repos, qs, ps)
+	server, done := CreateServerFromInfra(repos, qs, ps, nil)
 	defer done()
 
 	doneCh := make(chan bool, 1)

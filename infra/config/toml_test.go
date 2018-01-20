@@ -14,7 +14,19 @@ const (
 	NotFoundFile = "path/to/not/found"
 )
 
+func TestFileExists(t *testing.T) {
+	t.Parallel()
+	if !FileExists(ExampleFile) {
+		t.Error("exist file is not detected")
+	}
+
+	if FileExists(NotFoundFile) {
+		t.Error("not exist file is detected")
+	}
+}
+
 func TestLoadFile(t *testing.T) {
+	t.Parallel()
 	conf, err := LoadFile(ExampleFile)
 	if err != nil {
 		t.Fatal(err)
@@ -25,6 +37,7 @@ func TestLoadFile(t *testing.T) {
 }
 
 func TestLoadFileNotFound(t *testing.T) {
+	t.Parallel()
 	_, err := LoadFile(NotFoundFile)
 	if err == nil {
 		t.Fatal("not found file is given, but no error")
@@ -32,6 +45,7 @@ func TestLoadFileNotFound(t *testing.T) {
 }
 
 func TestLoadByteInvalid(t *testing.T) {
+	t.Parallel()
 	conf := server.DefaultConfig
 	conf.HTTP = "invalid string"
 

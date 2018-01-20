@@ -10,6 +10,12 @@ import (
 	"github.com/shirasudon/go-chat/server"
 )
 
+// FileExists returns whether given file path is exist?
+func FileExists(file string) bool {
+	_, err := os.Stat(file)
+	return err == nil
+}
+
 // it loads the configuration from file.
 // it returns loaded config and load error.
 func LoadFile(file string) (*server.Config, error) {

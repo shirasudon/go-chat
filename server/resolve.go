@@ -15,13 +15,14 @@ type DoneFunc func()
 
 // CreateServerFromInfra creates server with infrastructure dependencies.
 // It returns created server and finalize function.
-func CreateServerFromInfra(repos domain.Repositories, qs *chat.Queryers, ps chat.Pubsub) (*Server, DoneFunc) {
+// a nil config is OK and use DefaultConfig insteadly.
+func CreateServerFromInfra(repos domain.Repositories, qs *chat.Queryers, ps chat.Pubsub, conf *Config) (*Server, DoneFunc) {
 	chatCmd := chat.NewCommandServiceImpl(repos, ps)
 	chatQuery := chat.NewQueryServiceImpl(qs)
 	chatHub := chat.NewHubImpl(chatCmd)
 	go chatHub.Listen(context.Background())
 
-	server := NewServer(chatCmd, chatQuery, chatHub, qs.UserQueryer, nil)
+	server := NewServer(chatCmd, chatQuery, chatHub, qs.UserQueryer, conf)
 	doneFunc := func() {
 		chatHub.Shutdown()
 	}

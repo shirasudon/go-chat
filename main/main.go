@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"log"
+	"os"
 
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/domain"
+	"github.com/shirasudon/go-chat/infra/config"
 	"github.com/shirasudon/go-chat/infra/inmemory"
 	"github.com/shirasudon/go-chat/infra/pubsub"
 	"github.com/shirasudon/go-chat/server"
@@ -42,9 +44,34 @@ func createInfra() (domain.Repositories, *chat.Queryers, chat.Pubsub, DoneFunc) 
 	return repos, qs, ps, done
 }
 
+const (
+	DefaultConfigFile = "config.toml"
+	KeyConfigFileENV  = "GOCHAT_CONFIG_FILE"
+)
+
 func main() {
+	// get config path from environment value.
+	var configPath = DefaultConfigFile
+	if confPath := os.Getenv(KeyConfigFileENV); len(confPath) > 0 {
+		configPath = confPath
+	}
+
+	// set config value to be used.
+	var defaultConf = server.DefaultConfig
+	if config.FileExists(configPath) {
+		log.Printf("[Config] Loading file: %s\n", configPath)
+		loaded, err := config.LoadFile(configPath)
+		if err != nil {
+			log.Fatalf("[Config] Load Error: %v", err)
+		}
+		defaultConf = *loaded
+		log.Println("[Config] Loading file: OK")
+	} else {
+		log.Println("[Config] Use default")
+	}
+
 	repos, qs, ps, infraDoneFunc := createInfra()
-	s, done := server.CreateServerFromInfra(repos, qs, ps)
+	s, done := server.CreateServerFromInfra(repos, qs, ps, &defaultConf)
 	defer func() {
 		done()
 		infraDoneFunc()
@@ -53,4 +80,5 @@ func main() {
 	if err := s.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
+	log.Println("[Server] quiting...")
 }

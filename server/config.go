@@ -6,7 +6,6 @@ import (
 )
 
 // Configuration for server behavior.
-// it must construct by LoadConfig() or LoadConfigFile().
 type Config struct {
 	// HTTP service address for the server.
 	// The format is `[host]:[port]`, e.g. localhost:8080.
