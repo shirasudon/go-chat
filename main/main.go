@@ -60,11 +60,9 @@ func main() {
 	var defaultConf = server.DefaultConfig
 	if config.FileExists(configPath) {
 		log.Printf("[Config] Loading file: %s\n", configPath)
-		loaded, err := config.LoadFile(configPath)
-		if err != nil {
+		if err := config.LoadFile(&defaultConf, configPath); err != nil {
 			log.Fatalf("[Config] Load Error: %v", err)
 		}
-		defaultConf = *loaded
 		log.Println("[Config] Loading file: OK")
 	} else {
 		log.Println("[Config] Use default")

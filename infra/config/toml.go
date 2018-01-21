@@ -16,28 +16,27 @@ func FileExists(file string) bool {
 	return err == nil
 }
 
-// it loads the configuration from file.
-// it returns loaded config and load error.
-func LoadFile(file string) (*server.Config, error) {
+// it loads the configuration from file into dest.
+// it returns load error if any.
+func LoadFile(dest *server.Config, file string) error {
 	fp, err := os.Open(file)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer fp.Close()
-	return LoadByte(fp)
+	return LoadByte(dest, fp)
 }
 
-// it loads the configuration from io.Reader.
-// it returns loaded config and load error.
-func LoadByte(r io.Reader) (*server.Config, error) {
-	conf := &server.Config{}
-	if err := decode(r, conf); err != nil {
-		return nil, fmt.Errorf("infra/config: %v", err)
+// it loads the configuration from io.Reader into dest.
+// it returns load error if any.
+func LoadByte(dest *server.Config, r io.Reader) error {
+	if err := decode(r, dest); err != nil {
+		return fmt.Errorf("infra/config: %v", err)
 	}
-	if err := conf.Validate(); err != nil {
-		return nil, fmt.Errorf("infra/config: validation erorr: %v", err)
+	if err := dest.Validate(); err != nil {
+		return fmt.Errorf("infra/config: validation erorr: %v", err)
 	}
-	return conf, nil
+	return nil
 }
 
 // decode from reader and store it to data.
