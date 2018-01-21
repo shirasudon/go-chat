@@ -409,3 +409,45 @@ func TestHubActionReceivingService(t *testing.T) {
 		}
 	}
 }
+
+func TestHubListenReturnByShutdown(t *testing.T) {
+	t.Parallel()
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	const (
+		TimeoutDuration = 10 * time.Millisecond
+		SleepDuration   = 2 * time.Millisecond
+	)
+
+	pubsubCh := make(chan interface{}, 1)
+	ps := mocks.NewMockPubsub(mockCtrl)
+	ps.EXPECT().Sub(event.TypeExternal).Return(pubsubCh).Times(1)
+	ps.EXPECT().Sub(HubHandlingEventTypes).Return(pubsubCh).Times(1)
+
+	// build mock repositories.
+	repos := domain.SimpleRepositories{}
+
+	// build hub
+	ctx, cancel := context.WithTimeout(context.Background(), TimeoutDuration)
+	defer cancel()
+
+	doneCh := make(chan bool, 1)
+
+	hub := NewHubImpl(NewCommandServiceImpl(repos, ps))
+	go func() {
+		hub.Listen(ctx)
+		doneCh <- true
+	}()
+	hub.Shutdown()
+
+	time.Sleep(SleepDuration)
+
+	select {
+	case <-ctx.Done():
+		t.Error("timeout: hub shotdowned but not ends")
+	case <-doneCh:
+		return // PASS
+	}
+}
