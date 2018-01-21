@@ -34,6 +34,10 @@ var (
 	chatCmd   = chat.NewCommandServiceImpl(repository, globalPubsub)
 	chatQuery = chat.NewQueryServiceImpl(queryers)
 	chatHub   = chat.NewHubImpl(chatCmd)
+
+	loginService = chat.NewLoginServiceImpl(queryers.UserQueryer, globalPubsub)
+
+	theEcho = echo.New()
 )
 
 func TestMain(m *testing.M) {
@@ -63,7 +67,7 @@ func TestServerListenAndServeFailWithConfig(t *testing.T) {
 		t.Fatal("Config should be invalid here")
 	}
 
-	server := NewServer(chatCmd, chatQuery, chatHub, queryers.UserQueryer, &Config)
+	server := NewServer(chatCmd, chatQuery, chatHub, loginService, &Config)
 	defer server.Shutdown(context.Background())
 
 	errCh := make(chan error, 1)
@@ -83,7 +87,7 @@ func TestServerListenAndServeFailWithConfig(t *testing.T) {
 }
 
 func TestServerServeChatWebsocket(t *testing.T) {
-	server := NewServer(chatCmd, chatQuery, chatHub, queryers.UserQueryer, nil)
+	server := NewServer(chatCmd, chatQuery, chatHub, loginService, nil)
 	defer server.Shutdown(context.Background())
 
 	// run server process
@@ -183,7 +187,7 @@ func TestServerServeChatWebsocket(t *testing.T) {
 }
 
 func TestServerHandler(t *testing.T) {
-	server := NewServer(chatCmd, chatQuery, chatHub, queryers.UserQueryer, nil)
+	server := NewServer(chatCmd, chatQuery, chatHub, loginService, nil)
 	defer server.Shutdown(context.Background())
 
 	// check type

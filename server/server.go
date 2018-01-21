@@ -34,7 +34,7 @@ type Server struct {
 
 // it returns new constructed server with config.
 // nil config is ok and use DefaultConfig insteadly.
-func NewServer(chatCmd chat.CommandService, chatQuery chat.QueryService, chatHub chat.Hub, userQuery chat.UserQueryer, conf *Config) *Server {
+func NewServer(chatCmd chat.CommandService, chatQuery chat.QueryService, chatHub chat.Hub, login chat.LoginService, conf *Config) *Server {
 	if conf == nil {
 		conf = &DefaultConfig
 	}
@@ -44,7 +44,7 @@ func NewServer(chatCmd chat.CommandService, chatQuery chat.QueryService, chatHub
 
 	s := &Server{
 		echo:         e,
-		loginHandler: NewLoginHandler(userQuery),
+		loginHandler: NewLoginHandler(login),
 		restHandler:  NewRESTHandler(chatCmd, chatQuery),
 		chatHub:      chatHub,
 		conf:         *conf,
@@ -189,8 +189,8 @@ func (s *Server) Shutdown(ctx context.Context) error {
 // A nil config is OK and use DefaultConfig insteadly.
 // It blocks until the process occurs any error and
 // return the error.
-func ListenAndServe(chatCmd chat.CommandService, chatQuery chat.QueryService, chatHub chat.Hub, userQuery chat.UserQueryer, conf *Config) error {
-	s := NewServer(chatCmd, chatQuery, chatHub, userQuery, conf)
+func ListenAndServe(chatCmd chat.CommandService, chatQuery chat.QueryService, chatHub chat.Hub, login chat.LoginService, conf *Config) error {
+	s := NewServer(chatCmd, chatQuery, chatHub, login, conf)
 	defer s.Shutdown(context.Background())
 	return s.ListenAndServe()
 }

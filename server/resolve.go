@@ -22,7 +22,9 @@ func CreateServerFromInfra(repos domain.Repositories, qs *chat.Queryers, ps chat
 	chatHub := chat.NewHubImpl(chatCmd)
 	go chatHub.Listen(context.Background())
 
-	server := NewServer(chatCmd, chatQuery, chatHub, qs.UserQueryer, conf)
+	login := chat.NewLoginServiceImpl(qs.UserQueryer, ps)
+
+	server := NewServer(chatCmd, chatQuery, chatHub, login, conf)
 	doneFunc := func() {
 		chatHub.Shutdown()
 	}
