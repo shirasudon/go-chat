@@ -16,6 +16,10 @@ func (c ConnImpl) UserID() uint64 {
 	return c.userID
 }
 
+func (c ConnImpl) Close() error {
+	return nil
+}
+
 func (c *ConnImpl) Send(ev event.Event) {
 	if c.receviedEv == nil {
 		c.receviedEv = make([]event.Event, 0, 4)
@@ -203,6 +207,34 @@ func TestActiveClientDelete(t *testing.T) {
 	invalidAC := &ActiveClient{}
 
 	_, err = invalidAC.Delete(repo)
+	if err == nil {
+		t.Error("delete ActiveClient which not exist in the repository, but no error")
+	}
+}
+
+func TestActiveClientForceDelete(t *testing.T) {
+	t.Parallel()
+
+	repo := NewActiveClientRepository(10)
+	user := User{ID: 1}
+	conn := &ConnImpl{userID: user.ID}
+
+	ac, _, _ := NewActiveClient(repo, conn, user)
+
+	ev, err := ac.ForceDelete(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ev.UserID != user.ID {
+		t.Errorf("ActiveClient deleted event has different user id, expect: %d, got: %d", user.ID, ev.UserID)
+	}
+	if got := ev.Timestamp(); got == (time.Time{}) {
+		t.Error("ActiveClientInactivated has no timestamp")
+	}
+
+	invalidAC := &ActiveClient{}
+
+	_, err = invalidAC.ForceDelete(repo)
 	if err == nil {
 		t.Error("delete ActiveClient which not exist in the repository, but no error")
 	}

@@ -22,12 +22,14 @@ func TestHubImplement(t *testing.T) {
 // using Send() method.
 // It implements Conn interface.
 type SendRecorder struct {
-	IsSent bool
-	userID uint64
+	IsSent   bool
+	IsClosed bool
+	userID   uint64
 }
 
 func (s *SendRecorder) UserID() uint64      { return s.userID }
 func (s *SendRecorder) Send(ev event.Event) { s.IsSent = true }
+func (s *SendRecorder) Close() error        { s.IsClosed = true; return nil }
 
 func TestHubSendEvent(t *testing.T) {
 	t.Parallel()
@@ -220,7 +222,7 @@ func TestHubEventSendingServiceAtMessageCreated(t *testing.T) {
 
 	events := make(chan interface{}, 1)
 	pubsub.EXPECT().
-		Sub(gomock.Any()).
+		Sub(HubHandlingEventTypes).
 		Return(events).
 		Times(1)
 
@@ -311,7 +313,7 @@ func TestHubEventSendingServiceAtMessageCreated(t *testing.T) {
 	defer cancel()
 
 	hub := NewHubImpl(commandService)
-	go hub.Listen(ctx)
+	go hub.eventSendingService(ctx)
 	defer hub.Shutdown()
 
 	// connect conn to Hub
@@ -332,5 +334,78 @@ func TestHubEventSendingServiceAtMessageCreated(t *testing.T) {
 		}
 	case <-ctx.Done():
 		t.Fatal("timeout: activated event not reached")
+	}
+}
+
+func TestHubActionReceivingService(t *testing.T) {
+	t.Parallel()
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	const (
+		UserID              = uint64(2)
+		TimeoutDuration     = 10 * time.Millisecond
+		ResultCheckDuration = 1 * time.Millisecond
+	)
+
+	pubsubCh := make(chan interface{}, 1)
+	ps := mocks.NewMockPubsub(mockCtrl)
+
+	ps.EXPECT().Pub(gomock.Any()).Do(func(ev event.Event) {
+		pubsubCh <- ev
+	}).AnyTimes()
+
+	ps.EXPECT().Sub(event.TypeExternal).Return(pubsubCh).Times(1)
+
+	// build mock repositories.
+	users := mocks.NewMockUserRepository(mockCtrl)
+	users.EXPECT().
+		Find(gomock.Any(), gomock.Any()).
+		Return(domain.User{ID: UserID}, nil).
+		AnyTimes()
+
+	repos := domain.SimpleRepositories{
+		UserRepository: users,
+	}
+
+	// build mock conn
+	conn := mocks.NewMockConn(mockCtrl)
+	conn.EXPECT().
+		UserID().
+		Return(UserID).
+		AnyTimes()
+	conn.EXPECT().
+		Close().
+		Return(nil).
+		Times(1)
+
+	// build hub
+	ctx, cancel := context.WithTimeout(context.Background(), TimeoutDuration)
+	defer cancel()
+
+	hub := NewHubImpl(NewCommandServiceImpl(repos, ps))
+	go hub.actionReceivingService(ctx)
+
+	// connect conn to Hub
+	if err := hub.Connect(ctx, conn); err != nil {
+		t.Fatal(err)
+	}
+
+	// pass the logout event to actionReceivingService.
+	ps.Pub(eventUserLoggedOut{UserID: UserID})
+
+	ticker := time.Tick(ResultCheckDuration)
+
+	for {
+		select {
+		case <-ctx.Done():
+			t.Error("timeout: logout event is occured but corresponding Conn is not removed.")
+			return
+		case <-ticker:
+			if !hub.activeClients.ExistByConn(conn) {
+				return // PASS
+			}
+		}
 	}
 }

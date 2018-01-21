@@ -160,6 +160,7 @@ func NewActiveClient(repo *ActiveClientRepository, c Conn, u User) (*ActiveClien
 }
 
 // Delete deletes this ActiveClient from the repository.
+// If ayt of connections exist, it fail and return error.
 func (ac *ActiveClient) Delete(repo *ActiveClientRepository) (event.ActiveClientInactivated, error) {
 	ac.mu.RLock()
 	if len(ac.conns) > 0 {
@@ -168,6 +169,10 @@ func (ac *ActiveClient) Delete(repo *ActiveClientRepository) (event.ActiveClient
 	}
 	ac.mu.RUnlock()
 
+	return ac.deleteFrom(repo)
+}
+
+func (ac *ActiveClient) deleteFrom(repo *ActiveClientRepository) (event.ActiveClientInactivated, error) {
 	err := repo.Remove(ac)
 	if err != nil {
 		return event.ActiveClientInactivated{}, fmt.Errorf("AcitiveClient not in the repository, can not be deleted: %v", err)
@@ -179,6 +184,31 @@ func (ac *ActiveClient) Delete(repo *ActiveClientRepository) (event.ActiveClient
 	}
 	ev.Occurs()
 	return ev, nil
+}
+
+// ForceDelete forcibly deletes this ActiveClient from the repository.
+// It closes all of underlying connections and removes from ActiveClient.
+// It returns error if already Deleted.
+func (ac *ActiveClient) ForceDelete(repo *ActiveClientRepository) (event.ActiveClientInactivated, error) {
+	ac.mu.Lock()
+
+	// close all conncetions
+	var closeErr error = nil
+	for c, _ := range ac.conns {
+		if err := c.Close(); err != nil {
+			// TODO holds all of errors?
+			closeErr = err
+		}
+		delete(ac.conns, c)
+	}
+
+	ac.mu.Unlock()
+
+	ev, err := ac.deleteFrom(repo)
+	if err == nil {
+		err = closeErr
+	}
+	return ev, err
 }
 
 func (ac *ActiveClient) HasConn(c Conn) bool {
