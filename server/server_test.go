@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/shirasudon/go-chat/chat"
 	"github.com/shirasudon/go-chat/chat/action"
+	"github.com/shirasudon/go-chat/domain"
 	"github.com/shirasudon/go-chat/infra/inmemory"
 	"github.com/shirasudon/go-chat/infra/pubsub"
 	"github.com/shirasudon/go-chat/ws/wstest"
@@ -34,6 +36,10 @@ var (
 	chatCmd   = chat.NewCommandServiceImpl(repository, globalPubsub)
 	chatQuery = chat.NewQueryServiceImpl(queryers)
 	chatHub   = chat.NewHubImpl(chatCmd)
+
+	loginService = chat.NewLoginServiceImpl(queryers.UserQueryer, globalPubsub)
+
+	theEcho = echo.New()
 )
 
 func TestMain(m *testing.M) {
@@ -63,7 +69,7 @@ func TestServerListenAndServeFailWithConfig(t *testing.T) {
 		t.Fatal("Config should be invalid here")
 	}
 
-	server := NewServer(chatCmd, chatQuery, chatHub, queryers.UserQueryer, &Config)
+	server := NewServer(chatCmd, chatQuery, chatHub, loginService, &Config)
 	defer server.Shutdown(context.Background())
 
 	errCh := make(chan error, 1)
@@ -83,7 +89,7 @@ func TestServerListenAndServeFailWithConfig(t *testing.T) {
 }
 
 func TestServerServeChatWebsocket(t *testing.T) {
-	server := NewServer(chatCmd, chatQuery, chatHub, queryers.UserQueryer, nil)
+	server := NewServer(chatCmd, chatQuery, chatHub, loginService, nil)
 	defer server.Shutdown(context.Background())
 
 	// run server process
@@ -182,8 +188,86 @@ func TestServerServeChatWebsocket(t *testing.T) {
 	}
 }
 
+func TestServerConnIsClosedAfterLogout(t *testing.T) {
+	// setup user to be used here
+	var (
+		err      error = nil
+		testUser       = domain.User{Name: "test_user", Password: "password"}
+	)
+	testUser.ID, err = repository.UserRepository.Store(context.Background(), testUser)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	server := NewServer(chatCmd, chatQuery, chatHub, loginService, nil)
+	defer server.Shutdown(context.Background())
+
+	// run server process
+	go func() {
+		server.ListenAndServe()
+	}()
+
+	// waiting for the server process stands up.
+	time.Sleep(10 * time.Millisecond)
+
+	e := echo.New()
+	serverErrCh := make(chan error, 1)
+	ts := httptest.NewServer(
+		http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			c := e.NewContext(req, w)
+			c.Set(KeyLoggedInUserID, uint64(LoginUserID)) // To use check for login state
+			if err := server.serveChatWebsocket(c); err != nil {
+				serverErrCh <- err
+			}
+		}),
+	)
+	defer func() {
+		ts.Close()
+		// catch server error at end
+		select {
+		case err := <-serverErrCh:
+			if err != nil {
+				t.Errorf("request handler returns erorr: %v", err)
+			}
+		default:
+		}
+	}()
+
+	requestPath := ts.URL + "/chat/ws"
+	origin := ts.URL[0:strings.LastIndex(ts.URL, ":")]
+
+	// create websocket connection for testiong server ts.
+	conn, err := wstest.NewClientConn(requestPath, origin)
+	if err != nil {
+		t.Fatalf("can not create websocket connetion, error: %v", err)
+	}
+	defer conn.Close()
+
+	// login by using login_test.doLogin.
+	loginC, err := doLogin(server.loginHandler, testUser.Name, testUser.Password, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// logout by using login_test.doLogout
+	_, err = doLogout(server.loginHandler, loginC.Response().Header()["Set-Cookie"])
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check whether conn is closed after logout.
+	conn.SetDeadline(time.Now().Add(50 * time.Millisecond))
+	_, err = conn.Read(make([]byte, 0, 32))
+	if err, ok := err.(net.Error); ok && err.Timeout() {
+		t.Fatal("conn is not closed after logout and timeout-ed")
+	}
+	if err != nil {
+		t.Logf("got error :%#v", err)
+	}
+	// PASS
+}
+
 func TestServerHandler(t *testing.T) {
-	server := NewServer(chatCmd, chatQuery, chatHub, queryers.UserQueryer, nil)
+	server := NewServer(chatCmd, chatQuery, chatHub, loginService, nil)
 	defer server.Shutdown(context.Background())
 
 	// check type

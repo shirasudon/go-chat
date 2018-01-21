@@ -4,9 +4,9 @@ package event
 
 import "strconv"
 
-const _Type_name = "TypeNoneTypeErrorRaisedTypeUserCreatedTypeUserDeletedTypeUserAddedFriendTypeRoomCreatedTypeRoomDeletedTypeRoomAddedMemberTypeRoomRemoveMemberTypeRoomMessagesReadByUserTypeMessageCreatedTypeActiveClientActivatedTypeActiveClientInactivated"
+const _Type_name = "TypeNoneTypeErrorRaisedTypeUserCreatedTypeUserDeletedTypeUserAddedFriendTypeRoomCreatedTypeRoomDeletedTypeRoomAddedMemberTypeRoomRemovedMemberTypeRoomMessagesReadByUserTypeMessageCreatedTypeActiveClientActivatedTypeActiveClientInactivatedTypeExternal"
 
-var _Type_index = [...]uint8{0, 8, 23, 38, 53, 72, 87, 102, 121, 141, 167, 185, 210, 237}
+var _Type_index = [...]uint8{0, 8, 23, 38, 53, 72, 87, 102, 121, 142, 168, 186, 211, 238, 250}
 
 func (i Type) String() string {
 	if i >= Type(len(_Type_index)-1) {

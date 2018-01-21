@@ -47,11 +47,11 @@ var DefaultOptions = session.Options{
 // it holds logged-in users, so that each request can reference
 // any logged-in user.
 type LoginHandler struct {
-	users chat.UserQueryer
-	store session.Store
+	service chat.LoginService
+	store   session.Store
 }
 
-func NewLoginHandler(users chat.UserQueryer, secretKeyPairs ...[]byte) *LoginHandler {
+func NewLoginHandler(ls chat.LoginService, secretKeyPairs ...[]byte) *LoginHandler {
 	if len(secretKeyPairs) == 0 {
 		secretKeyPairs = [][]byte{
 			[]byte("secret-key"),
@@ -61,8 +61,8 @@ func NewLoginHandler(users chat.UserQueryer, secretKeyPairs ...[]byte) *LoginHan
 	store.Options(DefaultOptions)
 
 	return &LoginHandler{
-		users: users,
-		store: store,
+		service: ls,
+		store:   store,
 	}
 }
 
@@ -72,7 +72,7 @@ func (lh *LoginHandler) Login(c echo.Context) error {
 		return err
 	}
 
-	user, err := lh.users.FindByNameAndPassword(c.Request().Context(), u.Name, u.Password)
+	user, err := lh.service.Login(c.Request().Context(), u.Name, u.Password)
 	if err != nil {
 		return c.JSON(http.StatusOK, LoginState{ErrorMsg: err.Error()})
 	}
@@ -95,13 +95,17 @@ func (lh *LoginHandler) Login(c echo.Context) error {
 
 func (lh *LoginHandler) Logout(c echo.Context) error {
 	sess := session.Default(c)
-	if _, ok := sess.Get(KeyLoginState).(*LoginState); !ok {
+	state, ok := sess.Get(KeyLoginState).(*LoginState)
+	if !ok {
 		return c.JSON(http.StatusOK, LoginState{ErrorMsg: "you are not logged in"})
 	}
+
 	sess.Delete(KeyLoginState)
 	if err := sess.Save(); err != nil {
 		return err
 	}
+
+	lh.service.Logout(c.Request().Context(), state.UserID)
 	return c.JSON(http.StatusOK, LoginState{LoggedIn: false})
 }
 

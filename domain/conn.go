@@ -13,4 +13,8 @@ type Conn interface {
 
 	// It sends any domain event to client.
 	Send(ev event.Event)
+
+	// Close close the underlying connection.
+	// It should not panic when it is called multiple time, returnning error is OK.
+	Close() error
 }

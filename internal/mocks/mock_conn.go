@@ -33,6 +33,18 @@ func (m *MockConn) EXPECT() *MockConnMockRecorder {
 	return m.recorder
 }
 
+// Close mocks base method
+func (m *MockConn) Close() error {
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close
+func (mr *MockConnMockRecorder) Close() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockConn)(nil).Close))
+}
+
 // Send mocks base method
 func (m *MockConn) Send(arg0 event.Event) {
 	m.ctrl.Call(m, "Send", arg0)

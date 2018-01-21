@@ -46,7 +46,7 @@ func TestServerConfEnableServeStaticFile(t *testing.T) {
 	{ // enable serve static file
 		conf := DefaultConfig
 		conf.EnableServeStaticFile = true
-		server1 := NewServer(chatCmd, chatQuery, chatHub, queryers.UserQueryer, &conf)
+		server1 := NewServer(chatCmd, chatQuery, chatHub, loginService, &conf)
 		defer server1.Shutdown(context.Background())
 		if !findRoute(server1.echo.Routes(), staticFileRoute) {
 			t.Errorf("staticContents route (%#v) is not found", staticFileRoute)
@@ -56,7 +56,7 @@ func TestServerConfEnableServeStaticFile(t *testing.T) {
 	{ // disable serve static file
 		conf := DefaultConfig
 		conf.EnableServeStaticFile = false
-		server2 := NewServer(chatCmd, chatQuery, chatHub, queryers.UserQueryer, &conf)
+		server2 := NewServer(chatCmd, chatQuery, chatHub, loginService, &conf)
 		defer server2.Shutdown(context.Background())
 		if findRoute(server2.echo.Routes(), staticFileRoute) {
 			t.Errorf("staticContents route (%#v) should be not found", staticFileRoute)
@@ -74,7 +74,7 @@ func TestServerConfStaticHandlerPrefix(t *testing.T) {
 	{ // set static prefix
 		conf := DefaultConfig
 		conf.StaticHandlerPrefix = "/static"
-		server1 := NewServer(chatCmd, chatQuery, chatHub, queryers.UserQueryer, &conf)
+		server1 := NewServer(chatCmd, chatQuery, chatHub, loginService, &conf)
 		defer server1.Shutdown(context.Background())
 		if !findRoute(server1.echo.Routes(), Query) {
 			t.Errorf("staticContents route (%#v) is not found", Query)
@@ -83,7 +83,7 @@ func TestServerConfStaticHandlerPrefix(t *testing.T) {
 
 	{ // no static prefix
 		conf := DefaultConfig
-		server2 := NewServer(chatCmd, chatQuery, chatHub, queryers.UserQueryer, &conf)
+		server2 := NewServer(chatCmd, chatQuery, chatHub, loginService, &conf)
 		defer server2.Shutdown(context.Background())
 		if findRoute(server2.echo.Routes(), Query) {
 			t.Errorf("staticContents route (%#v) should be not found", Query)
@@ -101,7 +101,7 @@ func TestServerConfChatAPIPrefix(t *testing.T) {
 	{ // set chat prefix
 		conf := DefaultConfig
 		conf.ChatAPIPrefix = "/api"
-		server1 := NewServer(chatCmd, chatQuery, chatHub, queryers.UserQueryer, &conf)
+		server1 := NewServer(chatCmd, chatQuery, chatHub, loginService, &conf)
 		defer server1.Shutdown(context.Background())
 		if !findRoute(server1.echo.Routes(), Query) {
 			t.Errorf("chat API route (%#v) is not found", Query)
@@ -110,7 +110,7 @@ func TestServerConfChatAPIPrefix(t *testing.T) {
 
 	{ // no chat prefix
 		conf := DefaultConfig
-		server2 := NewServer(chatCmd, chatQuery, chatHub, queryers.UserQueryer, &conf)
+		server2 := NewServer(chatCmd, chatQuery, chatHub, loginService, &conf)
 		defer server2.Shutdown(context.Background())
 		if findRoute(server2.echo.Routes(), Query) {
 			t.Errorf("chat API route (%#v) should be not found", Query)

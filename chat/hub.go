@@ -85,6 +85,13 @@ func (hub *HubImpl) Listen(ctx context.Context) {
 
 	// run service for sending event to connections.
 	go hub.eventSendingService(ctx)
+	hub.actionReceivingService(ctx)
+}
+
+func (hub *HubImpl) actionReceivingService(ctx context.Context) {
+	// ExternalEvents defined at external of domain/event package.
+	// It targets eventUserLoggedOut only.
+	logouts := hub.pubsub.Sub(event.TypeExternal)
 
 	for {
 		select {
@@ -95,6 +102,16 @@ func (hub *HubImpl) Listen(ctx context.Context) {
 				// TODO send error event to requested connection.
 				// req.Conn.Send()
 			}
+		case ev, chAlived := <-logouts:
+			if !chAlived {
+				return
+			}
+			if ev, ok := ev.(eventUserLoggedOut); ok {
+				if err := hub.handleLogoutEvent(ev); err != nil {
+					// TODO error handling
+					log.Println(err)
+				}
+			}
 
 		case <-hub.shutdown:
 			return
@@ -102,6 +119,41 @@ func (hub *HubImpl) Listen(ctx context.Context) {
 			return
 		}
 	}
+}
+
+func (hub *HubImpl) handleMessage(ctx context.Context, req actionMessageRequest) error {
+	var err error = nil
+
+	if !hub.activeClients.ExistByConn(req.Conn) {
+		return fmt.Errorf("not connected to the server")
+	}
+
+	switch m := req.ActionMessage.(type) {
+	case action.ChatMessage:
+		_, err = hub.chatCommand.PostRoomMessage(ctx, m)
+	// TODO case action.EditChatMessage:
+	// TODO case action.DeleteChatMessage:
+	case action.ReadMessages:
+		_, err = hub.chatCommand.ReadRoomMessages(ctx, m)
+	case action.TypeStart, action.TypeEnd:
+		// TODO convert acitionMessage to event then publish in chatCommand
+	}
+
+	return err
+}
+
+func (hub *HubImpl) handleLogoutEvent(logout eventUserLoggedOut) error {
+	ac, err := hub.activeClients.Find(logout.UserID)
+	if err != nil {
+		return err
+	}
+
+	ev, err := ac.ForceDelete(hub.activeClients)
+	if err != nil {
+		return err
+	}
+	hub.pubsub.Pub(ev)
+	return nil
 }
 
 func (hub *HubImpl) broadcastEvent(ev event.Event, targetIDs ...uint64) error {
@@ -218,27 +270,6 @@ func (hub *HubImpl) sendEvent(ctx context.Context, ev event.Event) error {
 	return hub.broadcastEvent(ev, targetIDs...)
 }
 
-func (hub *HubImpl) handleMessage(ctx context.Context, req actionMessageRequest) error {
-	var err error = nil
-
-	if !hub.activeClients.ExistByConn(req.Conn) {
-		return fmt.Errorf("not connected to the server")
-	}
-
-	switch m := req.ActionMessage.(type) {
-	case action.ChatMessage:
-		_, err = hub.chatCommand.PostRoomMessage(ctx, m)
-	// TODO case action.EditChatMessage:
-	// TODO case action.DeleteChatMessage:
-	case action.ReadMessages:
-		_, err = hub.chatCommand.ReadRoomMessages(ctx, m)
-	case action.TypeStart, action.TypeEnd:
-		// TODO convert acitionMessage to event then publish in chatCommand
-	}
-
-	return err
-}
-
 // Send ActionMessage with the connection which sent the message.
 // the connection is used to verify that the message is exactlly
 // sent by the connected user.
@@ -306,7 +337,6 @@ func (hub *HubImpl) Disconnect(conn Conn) {
 		// TODO error log
 		return
 	}
-
 	// publish inactivated event.
 	hub.pubsub.Pub(inactivated)
 }

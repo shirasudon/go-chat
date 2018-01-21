@@ -47,7 +47,27 @@ const (
 	TypeMessageCreated
 	TypeActiveClientActivated
 	TypeActiveClientInactivated
+	TypeExternal
 )
+
+// TypeStringer can return string representation of its event type.
+// The new Events defined by external_packages should implement this
+// to distinguish them,
+// because TypeExternal, which is returned from Type() method of new Event,
+// is always same value in different new Event types over several external_packages,
+type TypeStringer interface {
+	TypeString() string
+}
+
+// TypeString returns string representation of Type of given Event.
+// It may return the result of TypeString() If Event implements TypeStringer interface.
+// It is used for the case defined new external event.
+func TypeString(ev Event) string {
+	if ev, ok := ev.(TypeStringer); ok {
+		return ev.TypeString()
+	}
+	return ev.Type().String()
+}
 
 // StreamID represents identification for what type of domain-entity.
 type StreamID uint
@@ -79,3 +99,19 @@ type ErrorRaised struct {
 }
 
 func (ErrorRaised) Type() Type { return TypeErrorRaised }
+
+// ExternalEventEmbd is embeded filelds for the new Event type
+// defined by external_packages.
+//
+//   type NewEvent struct {
+//     ExternalEventEmbd
+//     // other fields...
+//   }
+//
+//   // distinguish from other new event types.
+//   func (NewEvent) TypeString() string { return "type_new_event" }
+//
+type ExternalEventEmbd struct{ EventEmbd }
+
+func (ExternalEventEmbd) Type() Type         { return TypeExternal }
+func (ExternalEventEmbd) TypeString() string { return "new_external_type" }
