@@ -2,6 +2,7 @@ package inmemory
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
@@ -11,11 +12,22 @@ import (
 )
 
 var (
-	globalPubsub      = pubsub.New()
-	messageRepository = NewMessageRepository(globalPubsub)
+	globalPubsub      *pubsub.PubSub
+	messageRepository *MessageRepository
 )
 
+func TestMain(m *testing.M) {
+	globalPubsub = pubsub.New()
+	defer globalPubsub.Shutdown()
+	messageRepository = NewMessageRepository(globalPubsub)
+
+	ret := m.Run()
+	os.Exit(ret)
+}
+
 func TestMessageRepoUpdatingService(t *testing.T) {
+	t.Parallel()
+
 	// with timeout to quit correctly
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	defer cancel()
@@ -44,15 +56,12 @@ func TestMessageRepoUpdatingService(t *testing.T) {
 }
 
 func TestMessageRepoStore(t *testing.T) {
+	t.Parallel()
+
 	const Content = "hello"
-	currentID := uint64(len(messageMap))
 	id, err := messageRepository.Store(context.Background(), domain.Message{Content: Content})
 	if err != nil {
 		t.Fatal(err)
-	}
-
-	if id != currentID+1 {
-		t.Fatalf("different created message id, expect: %v, got: %v", currentID+1, id)
 	}
 
 	stored, ok := messageMap[id]
@@ -71,6 +80,8 @@ func TestMessageRepoStore(t *testing.T) {
 }
 
 func TestMessageRepoFind(t *testing.T) {
+	t.Parallel()
+
 	// case1: found message
 	const Content = "hello1"
 	id, err := messageRepository.Store(context.Background(), domain.Message{Content: Content})
@@ -94,6 +105,8 @@ func TestMessageRepoFind(t *testing.T) {
 }
 
 func TestMessageRepoFindRoomMessagesOrderByLatest(t *testing.T) {
+	t.Parallel()
+
 	// case1: limit 0
 	ms, err := messageRepository.FindRoomMessagesOrderByLatest(
 		context.Background(),
@@ -140,6 +153,8 @@ func TestMessageRepoFindRoomMessagesOrderByLatest(t *testing.T) {
 }
 
 func TestMessageRepoRemoveAllByRoomID(t *testing.T) {
+	t.Parallel()
+
 	// case 1: remove targets are found
 	const FoundRoomID = 900
 	if err := messageRepository.RemoveAllByRoomID(context.Background(), FoundRoomID); err != nil {
@@ -163,6 +178,8 @@ func TestMessageRepoRemoveAllByRoomID(t *testing.T) {
 }
 
 func TestMessageRepoFindUnreadRoomMessages(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Millisecond)
 	defer cancel()
 

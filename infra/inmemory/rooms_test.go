@@ -10,6 +10,8 @@ import (
 )
 
 func TestRoomVars(t *testing.T) {
+	t.Parallel()
+
 	testUserID := uint64(2)
 	repo := RoomRepository{}
 	rooms, err := repo.FindAllByUserID(context.Background(), testUserID)
@@ -30,6 +32,8 @@ func TestRoomVars(t *testing.T) {
 }
 
 func TestFindRoomInfo(t *testing.T) {
+	t.Parallel()
+
 	repo := &RoomRepository{}
 
 	// case success
@@ -100,6 +104,8 @@ func TestFindRoomInfo(t *testing.T) {
 }
 
 func TestRoomStore(t *testing.T) {
+	t.Parallel()
+
 	repo := &RoomRepository{}
 
 	const (

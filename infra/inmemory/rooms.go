@@ -57,11 +57,16 @@ var roomCounter uint64 = uint64(len(roomMap))
 
 func (repo *RoomRepository) FindAllByUserID(ctx context.Context, userID uint64) ([]domain.Room, error) {
 	rooms := make([]domain.Room, 0, 4)
+
+	roomMapMu.RLock()
+
 	for roomID, userIDs := range roomToUsersMap {
 		if userIDs[userID] {
 			rooms = append(rooms, *roomMap[roomID])
 		}
 	}
+
+	roomMapMu.RUnlock()
 	sort.Slice(rooms, func(i, j int) bool { return rooms[i].ID < rooms[j].ID })
 	return rooms, nil
 }
@@ -76,6 +81,8 @@ func (repo *RoomRepository) Store(ctx context.Context, r domain.Room) (uint64, e
 }
 
 func (repo *RoomRepository) Create(ctx context.Context, r domain.Room) (uint64, error) {
+	roomMapMu.Lock()
+
 	roomCounter += 1
 	r.ID = roomCounter
 	roomMap[r.ID] = &r
@@ -87,11 +94,15 @@ func (repo *RoomRepository) Create(ctx context.Context, r domain.Room) (uint64, 
 	}
 	roomToUsersMap[r.ID] = userIDs
 
+	roomMapMu.Unlock()
+
 	return r.ID, nil
 }
 
 func (repo *RoomRepository) Update(ctx context.Context, r domain.Room) (uint64, error) {
+	roomMapMu.Lock()
 	if _, ok := roomMap[r.ID]; !ok {
+		roomMapMu.Unlock()
 		return 0, chat.NewInfraError("room(id=%d) is not in the datastore", r.ID)
 	}
 
@@ -104,6 +115,9 @@ func (repo *RoomRepository) Update(ctx context.Context, r domain.Room) (uint64, 
 		roomToUsersMap[r.ID] = userIDs
 	}
 
+	roomMapMu.Unlock()
+
+	userMapMu.Lock()
 	// prepare user existance to off.
 	for uid, _ := range userIDs {
 		userIDs[uid] = false
@@ -118,17 +132,23 @@ func (repo *RoomRepository) Update(ctx context.Context, r domain.Room) (uint64, 
 			delete(userIDs, uid)
 		}
 	}
+	userMapMu.Unlock()
 
 	return r.ID, nil
 }
 
 func (repo *RoomRepository) Remove(ctx context.Context, r domain.Room) error {
+	roomMapMu.Lock()
 	delete(roomMap, r.ID)
 	delete(roomToUsersMap, r.ID)
+	roomMapMu.Unlock()
 	return nil
 }
 
 func (repo *RoomRepository) Find(ctx context.Context, roomID uint64) (domain.Room, error) {
+	roomMapMu.RLock()
+	defer roomMapMu.RUnlock()
+
 	if room, ok := roomMap[roomID]; ok {
 		return *room, nil
 	}
