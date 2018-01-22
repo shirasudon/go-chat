@@ -418,7 +418,7 @@ func TestHubListenReturnByShutdown(t *testing.T) {
 
 	const (
 		TimeoutDuration = 10 * time.Millisecond
-		SleepDuration   = 2 * time.Millisecond
+		SleepDuration   = 5 * time.Millisecond
 	)
 
 	pubsubCh := make(chan interface{}, 1)
@@ -440,9 +440,9 @@ func TestHubListenReturnByShutdown(t *testing.T) {
 		hub.Listen(ctx)
 		doneCh <- true
 	}()
-	hub.Shutdown()
+	time.Sleep(SleepDuration) // waiting for the standing the hub.Listen
 
-	time.Sleep(SleepDuration)
+	hub.Shutdown()
 
 	select {
 	case <-ctx.Done():
