@@ -10,6 +10,8 @@ import (
 )
 
 func TestRoomVars(t *testing.T) {
+	t.Parallel()
+
 	testUserID := uint64(2)
 	repo := RoomRepository{}
 	rooms, err := repo.FindAllByUserID(context.Background(), testUserID)
@@ -30,6 +32,8 @@ func TestRoomVars(t *testing.T) {
 }
 
 func TestFindRoomInfo(t *testing.T) {
+	t.Parallel()
+
 	repo := &RoomRepository{}
 
 	// case success
@@ -47,11 +51,16 @@ func TestFindRoomInfo(t *testing.T) {
 
 	// setup read time for test user.
 	{
+		roomMapMu.Lock()
 		readTimes := &roomMap[TestRoomID].MemberReadTimes
 		prevTime, _ := readTimes.Get(TestUserID)
 		readTimes.Set(TestUserID, TimeNow)
+		roomMapMu.Unlock()
+
 		defer func() {
+			roomMapMu.Lock()
 			readTimes.Set(TestUserID, prevTime)
+			roomMapMu.Unlock()
 		}()
 	}
 
@@ -59,7 +68,7 @@ func TestFindRoomInfo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	room := roomMap[2]
+	room, _ := repo.Find(context.Background(), 2)
 
 	if expect, got := room.ID, info.RoomID; expect != got {
 		t.Errorf("different room id, expect: %v, got: %v", expect, got)
@@ -100,6 +109,8 @@ func TestFindRoomInfo(t *testing.T) {
 }
 
 func TestRoomStore(t *testing.T) {
+	t.Parallel()
+
 	repo := &RoomRepository{}
 
 	const (
@@ -118,8 +129,8 @@ func TestRoomStore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	storedR, ok := roomMap[newR.ID]
-	if !ok {
+	storedR, err := repo.Find(context.Background(), newR.ID)
+	if err != nil {
 		t.Fatal("nothing room after Store: create")
 	}
 	if len(storedR.Events()) != 0 {
@@ -137,8 +148,8 @@ func TestRoomStore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	storedR, ok = roomMap[newR.ID]
-	if !ok {
+	storedR, err = repo.Find(context.Background(), newR.ID)
+	if err != nil {
 		t.Fatal("nothing room after Store: update")
 	}
 	if len(storedR.Events()) != 0 {

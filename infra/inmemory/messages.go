@@ -115,7 +115,9 @@ func (repo *MessageRepository) updateByEvent(ev event.Event) {
 }
 
 func (repo *MessageRepository) Find(ctx context.Context, msgID uint64) (domain.Message, error) {
+	messageMapMu.RLock()
 	m, ok := messageMap[msgID]
+	messageMapMu.RUnlock()
 	if ok {
 		return m, nil
 	}
@@ -127,12 +129,15 @@ func (repo *MessageRepository) FindRoomMessagesOrderByLatest(ctx context.Context
 		return []domain.Message{}, nil
 	}
 
+	messageMapMu.RLock()
+
 	msgs := make([]domain.Message, 0, limit)
 	for _, m := range messageMap {
 		if m.RoomID == roomID && m.CreatedAt.Before(before) {
 			msgs = append(msgs, m)
 		}
 	}
+	messageMapMu.RUnlock()
 
 	sort.Slice(msgs, func(i, j int) bool { return msgs[i].CreatedAt.After(msgs[j].CreatedAt) })
 
@@ -145,20 +150,27 @@ func (repo *MessageRepository) FindRoomMessagesOrderByLatest(ctx context.Context
 func (repo *MessageRepository) Store(ctx context.Context, m domain.Message) (uint64, error) {
 	// TODO create or update
 	m.EventHolder = domain.NewEventHolder() // event should not be persisted.
+
+	messageMapMu.Lock()
+
 	messageCounter += 1
 	m.ID = messageCounter
 	m.CreatedAt = time.Now()
 	messageMap[m.ID] = m
 
+	messageMapMu.Unlock()
 	return m.ID, nil
 }
 
 func (repo *MessageRepository) RemoveAllByRoomID(ctx context.Context, roomID uint64) error {
+	messageMapMu.Lock()
+
 	for id, m := range messageMap {
 		if m.RoomID == roomID {
 			delete(messageMap, id)
 		}
 	}
+	messageMapMu.Unlock()
 	return nil
 }
 
