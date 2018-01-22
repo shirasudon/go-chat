@@ -149,8 +149,8 @@ func TestUserStore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	storedU, ok := userMap[newU.ID]
-	if !ok {
+	storedU, err := repo.Find(context.Background(), newU.ID)
+	if err != nil {
 		t.Fatal("nothing user after Store: create")
 	}
 	if len(storedU.Events()) != 0 {
@@ -168,8 +168,8 @@ func TestUserStore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	storedU, ok = userMap[newU.ID]
-	if !ok {
+	storedU, err = repo.Find(context.Background(), newU.ID)
+	if err != nil {
 		t.Fatal("nothing user after Store: update")
 	}
 	if len(storedU.Events()) != 0 {

@@ -64,8 +64,8 @@ func TestMessageRepoStore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	stored, ok := messageMap[id]
-	if !ok {
+	stored, err := messageRepository.Find(context.Background(), id)
+	if err != nil {
 		t.Fatal("message created but not stored")
 	}
 	if stored.ID != id {
